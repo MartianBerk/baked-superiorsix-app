@@ -1,9 +1,11 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MenuIcon } from '@/components/icons/MenuIcon';
 import { colors } from '@/theme';
+
+const logo = require('../../../assets/icons/logo.png');
 
 type Props = {
   /** Placeholder until round API is wired */
@@ -16,7 +18,8 @@ type Props = {
 };
 
 /**
- * Top shell: round + prize pot stacked top-left; smaller floating user icon top-right.
+ * Top shell: round + prize pot stacked top-left; main logo centered;
+ * smaller floating user icon top-right.
  * Tournament entry points intentionally omitted (SS-8).
  */
 export function AppHeader({
@@ -30,22 +33,33 @@ export function AppHeader({
 
   return (
     <View style={[styles.bar, { paddingTop: Math.max(insets.top, 12) }]}>
-      <View style={styles.roundBlock}>
+      <View style={styles.side}>
         <Text style={styles.roundText}>{roundLabel}</Text>
         <Text style={styles.prizeText}>{prizeLabel}</Text>
       </View>
 
-      {showUserFab ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="User profile"
-          onPress={() => router.push(userHref)}
-          style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
-          hitSlop={8}
-        >
-          <MenuIcon name="users" size={22} color={colors.text} />
-        </Pressable>
-      ) : null}
+      <View style={styles.logoWrap} pointerEvents="none">
+        <Image
+          source={logo}
+          style={styles.logo}
+          accessibilityLabel="Superior Six"
+          resizeMode="contain"
+        />
+      </View>
+
+      <View style={[styles.side, styles.sideRight]}>
+        {showUserFab ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="User profile"
+            onPress={() => router.push(userHref)}
+            style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
+            hitSlop={8}
+          >
+            <MenuIcon name="users" size={22} color={colors.text} />
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -55,15 +69,32 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     paddingHorizontal: 16,
     paddingBottom: 12,
+    minHeight: 72,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
-  roundBlock: {
+  side: {
+    flex: 1,
     alignItems: 'flex-start',
+    justifyContent: 'center',
     gap: 2,
+    zIndex: 1,
+  },
+  sideRight: {
+    alignItems: 'flex-end',
+  },
+  logoWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 8,
+  },
+  logo: {
+    width: 80,
+    height: 64,
   },
   roundText: {
     color: colors.text,

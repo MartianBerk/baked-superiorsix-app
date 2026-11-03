@@ -62,6 +62,7 @@ src/
 
 - Main menu at the **bottom** (legacy was near the top).
 - User icon **removed** from the main menu; smaller **floating** control **top-right**.
+- **Main logo** centered in the header (`assets/icons/logo.png` from legacy).
 - **No tournament** entry points.
 - **Round number + prize pot** stacked **top-left** (placeholders: `Round N` / `£X`).
 
