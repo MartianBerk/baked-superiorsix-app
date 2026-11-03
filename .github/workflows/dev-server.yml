@@ -10,7 +10,7 @@ on:
 
 jobs:
   rebuild-dev:
-    runs-on: [self-hosted, Linux, X64, baked-superiorsix]
+    runs-on: [self-hosted, Linux, X64, baked-superiorsix-app]
     steps:
       - uses: actions/checkout@v4
 
