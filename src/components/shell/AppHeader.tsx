@@ -1,8 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MenuIcon } from '@/components/icons/MenuIcon';
 import { SuperiorSixLogo } from '@/components/icons/SuperiorSixLogo';
 import { colors } from '@/theme';
 
@@ -11,33 +9,26 @@ type Props = {
   roundLabel?: string;
   /** Placeholder until prize pot API is wired */
   prizeLabel?: string;
-  /** Show floating user control (Super Six shell). */
-  showUserFab?: boolean;
-  userHref?: '/(super-six)/profile' | '/(auth)';
   /** Admin uses the red shield (legacy logo-admin). */
   logoVariant?: 'player' | 'admin';
 };
 
 /**
- * Top shell: round + prize pot stacked top-left; main logo centered;
- * smaller floating user icon top-right.
+ * Top shell (legacy layout): round left, logo center, prize pot right.
  * Tournament entry points intentionally omitted (SS-8).
  */
 export function AppHeader({
-  roundLabel = 'Round N',
+  roundLabel = 'N',
   prizeLabel = '£X',
-  showUserFab = true,
-  userHref = '/(super-six)/profile',
   logoVariant = 'player',
 }: Props) {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
 
   return (
     <View style={[styles.bar, { paddingTop: Math.max(insets.top, 12) }]}>
       <View style={styles.side}>
-        <Text style={styles.roundText}>{roundLabel}</Text>
-        <Text style={styles.prizeText}>{prizeLabel}</Text>
+        <Text style={styles.label}>Round</Text>
+        <Text style={styles.value}>{roundLabel}</Text>
       </View>
 
       <View style={styles.logoWrap} pointerEvents="none">
@@ -45,17 +36,8 @@ export function AppHeader({
       </View>
 
       <View style={[styles.side, styles.sideRight]}>
-        {showUserFab ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="User profile"
-            onPress={() => router.push(userHref)}
-            style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
-            hitSlop={8}
-          >
-            <MenuIcon name="users" size={22} color={colors.text} />
-          </Pressable>
-        ) : null}
+        <Text style={styles.label}>Prize pot</Text>
+        <Text style={styles.value}>{prizeLabel}</Text>
       </View>
     </View>
   );
@@ -89,27 +71,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingTop: 8,
   },
-  roundText: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  prizeText: {
+  label: {
     color: colors.textMuted,
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
   },
-  fab: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.fab,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  fabPressed: {
-    opacity: 0.75,
+  value: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '700',
   },
 });

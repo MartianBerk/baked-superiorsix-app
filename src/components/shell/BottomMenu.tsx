@@ -4,10 +4,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MenuIcon, type MenuIconName } from '@/components/icons/MenuIcon';
 import { colors } from '@/theme';
 
+/** Tab order: fixtures → scores → leaders → user (rightmost). */
 const TAB_ICONS: Record<string, MenuIconName> = {
   index: 'fixtures',
   scores: 'scores',
   leaders: 'leaders',
+  profile: 'users',
 };
 
 /** Expo Router SDK 58 tabBar props (navigation replaced by navigateToTab). */
@@ -29,8 +31,8 @@ type TabBarProps = {
 };
 
 /**
- * Main menu at the bottom (legacy had it near the top).
- * User icon is not here — it floats top-right in AppHeader.
+ * Main menu at the bottom.
+ * User is the rightmost item (legacy menu placement for account).
  * No tournament / Euro / Qatar entries in this bar (SS-8).
  */
 export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {

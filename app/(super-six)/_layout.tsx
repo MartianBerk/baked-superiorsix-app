@@ -6,8 +6,8 @@ import { BottomMenu } from '@/components/shell/BottomMenu';
 import { colors } from '@/theme';
 
 /**
- * Core Super Six experience: header (round/prize + user FAB) + bottom menu.
- * Profile is reachable from the FAB only (not a bottom-tab item).
+ * Core Super Six experience: header (round | logo | prize) + bottom menu.
+ * Profile is the rightmost bottom-menu item.
  */
 export default function SuperSixLayout() {
   return (
@@ -39,10 +39,7 @@ export default function SuperSixLayout() {
         />
         <Tabs.Screen
           name="profile"
-          options={{
-            title: 'Profile',
-            href: null,
-          }}
+          options={{ title: 'Profile', tabBarAccessibilityLabel: 'Profile' }}
         />
       </Tabs>
     </View>

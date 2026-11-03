@@ -61,10 +61,10 @@ src/
 ### Shell UX vs legacy
 
 - Main menu at the **bottom** (legacy was near the top).
-- User icon **removed** from the main menu; smaller **floating** control **top-right**.
-- **Main logo** centered in the header (`assets/icons/logo.png` from legacy).
+- User icon is the **rightmost** bottom-menu item.
+- **Main logo** centered in the header (`assets/icons/logo.png`).
 - **No tournament** entry points.
-- **Round number + prize pot** stacked **top-left** (placeholders: `Round N` / `£X`).
+- Header: **Round** left, **prize pot** right (placeholders: `N` / `£X`).
 
 ### Icons
 
