@@ -65,6 +65,11 @@ src/
 - **Main logo** centered in the header (`assets/icons/logo.png`).
 - **No tournament** entry points.
 - Header: **Round** left, **prize pot** right (placeholders: `N` / `£X`).
+- Thin **round status** strip under the header logo row (`RoundStatusStrip`):
+  - **picking:** `n / 6 Selections` (legacy wording)
+  - **live:** `n / 6 correct`, plus “{name} has all 6” if another player is perfect
+  - **finished:** same live summary kept on screen
+  - Drive via `AppHeader` `roundStatus` prop (`src/components/shell/roundStatus.ts`); SS-8 defaults to `0 / 6 Selections`.
 
 ### Icons
 

@@ -4,6 +4,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SuperiorSixLogo } from '@/components/icons/SuperiorSixLogo';
 import { colors } from '@/theme';
 
+import { RoundStatusStrip } from './RoundStatusStrip';
+import {
+  PLACEHOLDER_ROUND_STATUS,
+  type RoundStatus,
+} from './roundStatus';
+
 type Props = {
   /** Placeholder until round API is wired */
   roundLabel?: string;
@@ -11,16 +17,19 @@ type Props = {
   prizeLabel?: string;
   /** Admin uses the red shield (legacy logo-admin). */
   logoVariant?: 'player' | 'admin';
+  /** Thin status strip under the logo row (picking / live / finished). */
+  roundStatus?: RoundStatus;
 };
 
 /**
- * Top shell (legacy layout): round left, logo center, prize pot right.
- * Inset ~3% each side with rounded corners.
+ * Top shell: round left, logo center, prize pot right,
+ * plus thin round-status strip at the bottom of the header card.
  */
 export function AppHeader({
   roundLabel = 'N',
   prizeLabel = '£X',
   logoVariant = 'player',
+  roundStatus = PLACEHOLDER_ROUND_STATUS,
 }: Props) {
   const insets = useSafeAreaInsets();
 
@@ -31,20 +40,24 @@ export function AppHeader({
         { paddingTop: Math.max(insets.top, 10) },
       ]}
     >
-      <View style={styles.bar}>
-        <View style={styles.side}>
-          <Text style={styles.label}>Round</Text>
-          <Text style={styles.value}>{roundLabel}</Text>
+      <View style={styles.card}>
+        <View style={styles.bar}>
+          <View style={styles.side}>
+            <Text style={styles.label}>Round</Text>
+            <Text style={styles.value}>{roundLabel}</Text>
+          </View>
+
+          <View style={styles.logoWrap} pointerEvents="none">
+            <SuperiorSixLogo variant={logoVariant} width={72} height={72} />
+          </View>
+
+          <View style={[styles.side, styles.sideRight]}>
+            <Text style={styles.label}>Prize pot</Text>
+            <Text style={styles.value}>{prizeLabel}</Text>
+          </View>
         </View>
 
-        <View style={styles.logoWrap} pointerEvents="none">
-          <SuperiorSixLogo variant={logoVariant} width={72} height={72} />
-        </View>
-
-        <View style={[styles.side, styles.sideRight]}>
-          <Text style={styles.label}>Prize pot</Text>
-          <Text style={styles.value}>{prizeLabel}</Text>
-        </View>
+        <RoundStatusStrip status={roundStatus} />
       </View>
     </View>
   );
@@ -56,18 +69,20 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     backgroundColor: colors.background,
   },
-  bar: {
+  card: {
     backgroundColor: colors.surface,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  bar: {
     paddingHorizontal: 16,
     paddingVertical: 10,
     minHeight: 84,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    overflow: 'hidden',
   },
   side: {
     flex: 1,
