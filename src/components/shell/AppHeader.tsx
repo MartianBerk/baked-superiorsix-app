@@ -1,3 +1,4 @@
+import { usePathname } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -6,7 +7,7 @@ import { colors } from '@/theme';
 
 import { RoundStatusStrip } from './RoundStatusStrip';
 import {
-  PLACEHOLDER_ROUND_STATUS,
+  demoRoundStatusForPath,
   type RoundStatus,
 } from './roundStatus';
 
@@ -15,7 +16,10 @@ type Props = {
   roundLabel?: string;
   /** Placeholder until prize pot API is wired */
   prizeLabel?: string;
-  /** Thin status strip under the logo row (picking / live / finished). */
+  /**
+   * Thin status strip under the logo row.
+   * Omit to use SS-8 tab demos: Scores → live correct; Leaders → + rival all 6.
+   */
   roundStatus?: RoundStatus;
 };
 
@@ -26,9 +30,11 @@ type Props = {
 export function AppHeader({
   roundLabel = 'N',
   prizeLabel = '£X',
-  roundStatus = PLACEHOLDER_ROUND_STATUS,
+  roundStatus,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
+  const status = roundStatus ?? demoRoundStatusForPath(pathname);
 
   return (
     <View
@@ -54,7 +60,7 @@ export function AppHeader({
           </View>
         </View>
 
-        <RoundStatusStrip status={roundStatus} />
+        <RoundStatusStrip status={status} />
       </View>
     </View>
   );
