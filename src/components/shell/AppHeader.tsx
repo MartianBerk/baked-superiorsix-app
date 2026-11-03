@@ -41,7 +41,7 @@ export function AppHeader({
       </View>
 
       <View style={styles.logoWrap} pointerEvents="none">
-        <SuperiorSixLogo variant={logoVariant} width={80} height={64} />
+        <SuperiorSixLogo variant={logoVariant} width={72} height={72} />
       </View>
 
       <View style={[styles.side, styles.sideRight]}>
@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     paddingHorizontal: 16,
     paddingBottom: 12,
-    minHeight: 72,
+    minHeight: 84,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
