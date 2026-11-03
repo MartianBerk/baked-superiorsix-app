@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   logoWrap: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: 8,
