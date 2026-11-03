@@ -1,0 +1,14 @@
+services:
+  baked-superiorsix-app:
+    build: .
+    image: baked-superiorsix-app:dev
+    container_name: baked-superiorsix-app
+    ports:
+      - "8040:80"
+    environment:
+      AUTH_UPSTREAM: ${AUTH_UPSTREAM:-http://host.docker.internal:8010}
+      USER_UPSTREAM: ${USER_UPSTREAM:-http://host.docker.internal:8020}
+      SUPERSIX_UPSTREAM: ${SUPERSIX_UPSTREAM:-http://host.docker.internal:8030}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

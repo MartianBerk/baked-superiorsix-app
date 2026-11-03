@@ -1,0 +1,13 @@
+.git
+.github
+.expo
+node_modules
+dist
+web-build
+*.md
+.env
+.env.*
+.DS_Store
+.vscode
+AGENTS.md
+LICENSE

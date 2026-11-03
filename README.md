@@ -19,7 +19,32 @@ npx expo start --web
 
 Or: `npm run web`.
 
+Static web build (what Docker uses):
+
+```bash
+npm run build:web
+```
+
 Native later: `npm run ios` / `npm run android` (Expo Go or EAS). Store builds and push credentials are out of scope for SS-8 — add via **EAS** + `app.json` plugins when ready.
+
+## Docker (dev server)
+
+Same pattern as [baked-demoapp](../baked-demoapp): multi-stage Node build → nginx static host with API proxies.
+
+```bash
+cp .env.example .env   # optional overrides
+docker compose up --build
+```
+
+App: [http://127.0.0.1:8040](http://127.0.0.1:8040). Nginx proxies:
+
+| Path | Upstream env | Default (Docker) |
+|------|--------------|------------------|
+| `/auth/` | `AUTH_UPSTREAM` | `http://host.docker.internal:8010` |
+| `/user/` | `USER_UPSTREAM` | `http://host.docker.internal:8020` |
+| `/superiorsix/` | `SUPERSIX_UPSTREAM` | `http://host.docker.internal:8030` |
+
+Rebuild on the self-hosted runner via **Actions → Rebuild dev server** (`workflow_dispatch`). Runner labels: `self-hosted`, `Linux`, `X64`, `baked-superiorsix-app`.
 
 ## Theme tokens
 
@@ -77,13 +102,17 @@ src/
 - Menu icons (`MenuIcon.tsx`): football (Tabler, MIT), standings/stats (Lucide, ISC), user (Lucide-style). Source SVGs under `assets/icons/{football,standings,stats}.svg`.
 - Header logo: `assets/icons/logo.png` via `SuperiorSixLogo` (same mark everywhere, including admin).
 
-## Env (later)
+## Env
+
+Docker / compose upstreams (see `.env.example`):
 
 | Variable | Purpose |
 |----------|---------|
-| `EXPO_PUBLIC_AUTH_URL` | baked-auth |
-| `EXPO_PUBLIC_USER_URL` | baked-user |
-| `EXPO_PUBLIC_SUPERSIX_URL` | baked-superiorsix |
+| `AUTH_UPSTREAM` | baked-auth (nginx `/auth/`) |
+| `USER_UPSTREAM` | baked-user (nginx `/user/`) |
+| `SUPERSIX_UPSTREAM` | baked-superiorsix (nginx `/superiorsix/`) |
+
+Later, when the client is wired, prefer same-origin paths behind that proxy (or `EXPO_PUBLIC_*` base URLs for local `expo start`).
 
 ## Platform modules
 
