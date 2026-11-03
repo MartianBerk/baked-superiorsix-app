@@ -15,7 +15,7 @@ type Props = {
 
 /**
  * Top shell (legacy layout): round left, logo center, prize pot right.
- * Tournament entry points intentionally omitted (SS-8).
+ * Inset ~5% each side with rounded corners.
  */
 export function AppHeader({
   roundLabel = 'N',
@@ -25,35 +25,49 @@ export function AppHeader({
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.bar, { paddingTop: Math.max(insets.top, 12) }]}>
-      <View style={styles.side}>
-        <Text style={styles.label}>Round</Text>
-        <Text style={styles.value}>{roundLabel}</Text>
-      </View>
+    <View
+      style={[
+        styles.outer,
+        { paddingTop: Math.max(insets.top, 10) },
+      ]}
+    >
+      <View style={styles.bar}>
+        <View style={styles.side}>
+          <Text style={styles.label}>Round</Text>
+          <Text style={styles.value}>{roundLabel}</Text>
+        </View>
 
-      <View style={styles.logoWrap} pointerEvents="none">
-        <SuperiorSixLogo variant={logoVariant} width={72} height={72} />
-      </View>
+        <View style={styles.logoWrap} pointerEvents="none">
+          <SuperiorSixLogo variant={logoVariant} width={72} height={72} />
+        </View>
 
-      <View style={[styles.side, styles.sideRight]}>
-        <Text style={styles.label}>Prize pot</Text>
-        <Text style={styles.value}>{prizeLabel}</Text>
+        <View style={[styles.side, styles.sideRight]}>
+          <Text style={styles.label}>Prize pot</Text>
+          <Text style={styles.value}>{prizeLabel}</Text>
+        </View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outer: {
+    paddingHorizontal: '5%',
+    paddingBottom: 8,
+    backgroundColor: colors.background,
+  },
   bar: {
     backgroundColor: colors.surface,
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingVertical: 10,
     minHeight: 84,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    overflow: 'hidden',
   },
   side: {
     flex: 1,
@@ -69,7 +83,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 8,
   },
   label: {
     color: colors.textMuted,
