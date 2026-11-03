@@ -1,11 +1,10 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MenuIcon } from '@/components/icons/MenuIcon';
+import { SuperiorSixLogo } from '@/components/icons/SuperiorSixLogo';
 import { colors } from '@/theme';
-
-const logo = require('../../../assets/icons/logo.png');
 
 type Props = {
   /** Placeholder until round API is wired */
@@ -15,6 +14,8 @@ type Props = {
   /** Show floating user control (Super Six shell). */
   showUserFab?: boolean;
   userHref?: '/(super-six)/profile' | '/(auth)';
+  /** Admin uses the red shield (legacy logo-admin). */
+  logoVariant?: 'player' | 'admin';
 };
 
 /**
@@ -27,6 +28,7 @@ export function AppHeader({
   prizeLabel = '£X',
   showUserFab = true,
   userHref = '/(super-six)/profile',
+  logoVariant = 'player',
 }: Props) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -39,12 +41,7 @@ export function AppHeader({
       </View>
 
       <View style={styles.logoWrap} pointerEvents="none">
-        <Image
-          source={logo}
-          style={styles.logo}
-          accessibilityLabel="Superior Six"
-          resizeMode="contain"
-        />
+        <SuperiorSixLogo variant={logoVariant} width={80} height={64} />
       </View>
 
       <View style={[styles.side, styles.sideRight]}>
@@ -91,10 +88,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: 8,
-  },
-  logo: {
-    width: 80,
-    height: 64,
   },
   roundText: {
     color: colors.text,

@@ -68,7 +68,10 @@ src/
 
 ### Icons
 
-Copied from legacy `supersixapp/public/`: `fixtures.svg`, `scores.svg`, `leaders.svg`, `users.svg`, plus `euros.svg`, `qatar.svg`, admin variants, and logos under `assets/icons/`. Menu rendering uses simplified path markup derived from those SVGs in `src/components/icons/MenuIcon.tsx`.
+Copied from legacy `supersixapp/public/`: `fixtures.svg`, `scores.svg`, `leaders.svg`, `users.svg`, plus `euros.svg`, `qatar.svg`, admin variants, and original PNG logos under `assets/icons/`.
+
+- Menu icons: simplified path markup in `src/components/icons/MenuIcon.tsx`.
+- Header logos: polished SVGs (`logo.svg` / `logo-admin.svg`) traced from the PNGs — shield geometry + football panels + smoothed “6”; used via `SuperiorSixLogo` (player green `#106018`, admin red `#A02810`). PNGs kept as reference.
 
 ## Env (later)
 
