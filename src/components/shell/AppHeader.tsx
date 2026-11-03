@@ -15,7 +15,7 @@ type Props = {
 
 /**
  * Top shell (legacy layout): round left, logo center, prize pot right.
- * Inset ~5% each side with rounded corners.
+ * Inset ~3% each side with rounded corners.
  */
 export function AppHeader({
   roundLabel = 'N',
@@ -52,7 +52,7 @@ export function AppHeader({
 
 const styles = StyleSheet.create({
   outer: {
-    paddingHorizontal: '5%',
+    paddingHorizontal: '3%',
     paddingBottom: 8,
     backgroundColor: colors.background,
   },

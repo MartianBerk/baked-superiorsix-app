@@ -33,7 +33,7 @@ type TabBarProps = {
 };
 
 /**
- * Main menu at the bottom — inset ~5% each side, rounded bar,
+ * Main menu at the bottom — inset ~3% each side, rounded bar,
  * circular selected highlight around each icon.
  */
 export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
@@ -86,7 +86,7 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
 
 const styles = StyleSheet.create({
   outer: {
-    paddingHorizontal: '5%',
+    paddingHorizontal: '3%',
     paddingTop: 8,
     backgroundColor: colors.background,
   },
