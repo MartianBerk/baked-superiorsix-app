@@ -73,10 +73,8 @@ src/
 
 ### Icons
 
-Copied from legacy `supersixapp/public/`: `fixtures.svg`, `scores.svg`, `leaders.svg`, `users.svg`, plus `euros.svg`, `qatar.svg`, admin variants, and original PNG logos under `assets/icons/`.
-
-- Menu icons (`MenuIcon.tsx`): football (Tabler, MIT), standings/stats (Lucide, ISC), user (Lucide-style). Source SVGs also under `assets/icons/{football,standings,stats}.svg`.
-- Header logo: `assets/icons/logo.png` via `SuperiorSixLogo` (admin: `logo-admin.png`). Drop a new PNG on `logo.png` to update the mark.
+- Menu icons (`MenuIcon.tsx`): football (Tabler, MIT), standings/stats (Lucide, ISC), user (Lucide-style). Source SVGs under `assets/icons/{football,standings,stats}.svg`.
+- Header logo: `assets/icons/logo.png` via `SuperiorSixLogo` (same mark everywhere, including admin).
 
 ## Env (later)
 

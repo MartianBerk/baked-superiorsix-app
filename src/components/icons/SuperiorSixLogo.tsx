@@ -1,34 +1,25 @@
 import { Image, type ImageStyle, type StyleProp } from 'react-native';
 
-const logoPlayer = require('../../../assets/icons/logo.png');
-const logoAdmin = require('../../../assets/icons/logo-admin.png');
+const logo = require('../../../assets/icons/logo.png');
 
 type Props = {
-  /** Player mark vs admin mark. */
-  variant?: 'player' | 'admin';
   width?: number;
   height?: number;
   style?: StyleProp<ImageStyle>;
 };
 
-/**
- * Superior Six header mark.
- * Uses `assets/icons/logo.png` (player) / `logo-admin.png` (admin).
- */
+/** Superior Six header mark — `assets/icons/logo.png`. */
 export function SuperiorSixLogo({
-  variant = 'player',
   width = 72,
   height = 72,
   style,
 }: Props) {
   return (
     <Image
-      source={variant === 'admin' ? logoAdmin : logoPlayer}
+      source={logo}
       style={[{ width, height }, style]}
       resizeMode="contain"
-      accessibilityLabel={
-        variant === 'admin' ? 'Superior Six Admin' : 'Superior Six'
-      }
+      accessibilityLabel="Superior Six"
     />
   );
 }

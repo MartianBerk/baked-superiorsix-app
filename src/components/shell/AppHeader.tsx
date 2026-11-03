@@ -15,8 +15,6 @@ type Props = {
   roundLabel?: string;
   /** Placeholder until prize pot API is wired */
   prizeLabel?: string;
-  /** Admin uses the red shield (legacy logo-admin). */
-  logoVariant?: 'player' | 'admin';
   /** Thin status strip under the logo row (picking / live / finished). */
   roundStatus?: RoundStatus;
 };
@@ -28,7 +26,6 @@ type Props = {
 export function AppHeader({
   roundLabel = 'N',
   prizeLabel = '£X',
-  logoVariant = 'player',
   roundStatus = PLACEHOLDER_ROUND_STATUS,
 }: Props) {
   const insets = useSafeAreaInsets();
@@ -48,7 +45,7 @@ export function AppHeader({
           </View>
 
           <View style={styles.logoWrap} pointerEvents="none">
-            <SuperiorSixLogo variant={logoVariant} width={72} height={72} />
+            <SuperiorSixLogo width={72} height={72} />
           </View>
 
           <View style={[styles.side, styles.sideRight]}>
