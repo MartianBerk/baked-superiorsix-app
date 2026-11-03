@@ -44,7 +44,7 @@ App: [http://127.0.0.1:8040](http://127.0.0.1:8040). Nginx proxies:
 | `/user/` | `USER_UPSTREAM` | `http://host.docker.internal:8020` |
 | `/superiorsix/` | `SUPERSIX_UPSTREAM` | `http://host.docker.internal:8030` |
 
-Rebuild on the self-hosted runner via **Actions → Rebuild dev server** (`workflow_dispatch`). Runner labels: `self-hosted`, `Linux`, `X64`, `baked-superiorsix` (same runner as the API).
+Rebuild on the self-hosted runner via **Actions → Rebuild dev server** (`workflow_dispatch`). Runner labels: `self-hosted`, `Linux`, `X64`, `baked-superiorsix-app` (repo-scoped runner from `baked-devops`).
 
 ## Theme tokens
 
