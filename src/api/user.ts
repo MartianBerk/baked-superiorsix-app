@@ -10,6 +10,7 @@ export type UserProfileDocument = {
     first_name?: string;
     last_name?: string;
     nickname?: string | null;
+    email?: string | null;
     avatar_url?: string | null;
     active?: boolean;
     [key: string]: unknown;
@@ -22,6 +23,7 @@ export type ProfileFields = {
   first_name: string;
   last_name: string;
   nickname: string;
+  email: string;
 };
 
 /**
@@ -46,7 +48,7 @@ export async function fetchProfileByAuth(
   return readApiJson<UserProfileDocument>(response);
 }
 
-/** Map a by-auth document into the three editable form fields. */
+/** Map a by-auth document into the editable form fields. */
 export function profileFieldsFromDocument(
   doc: UserProfileDocument,
 ): ProfileFields {
@@ -55,5 +57,6 @@ export function profileFieldsFromDocument(
     first_name: typeof data.first_name === 'string' ? data.first_name : '',
     last_name: typeof data.last_name === 'string' ? data.last_name : '',
     nickname: typeof data.nickname === 'string' ? data.nickname : '',
+    email: typeof data.email === 'string' ? data.email : '',
   };
 }

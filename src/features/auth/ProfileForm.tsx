@@ -22,12 +22,13 @@ const EMPTY_FIELDS: ProfileFields = {
   first_name: '',
   last_name: '',
   nickname: '',
+  email: '',
 };
 
 type LoadState = 'loading' | 'ready' | 'missing' | 'error';
 
 /**
- * Signed-in profile submission: first name, last name, nickname.
+ * Signed-in profile submission: first name, last name, nickname, email.
  * Loads via baked-user by-auth; saves via superiorsix `/user/updatedetails`.
  */
 export function ProfileForm() {
@@ -84,8 +85,13 @@ export function ProfileForm() {
     const first = fields.first_name.trim();
     const last = fields.last_name.trim();
     const nick = fields.nickname.trim();
+    const mail = fields.email.trim();
     if (!first || !last) {
       setSubmitError('First name and last name are required.');
+      return;
+    }
+    if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
+      setSubmitError('Enter a valid email address.');
       return;
     }
     if (!token) {
@@ -105,11 +111,13 @@ export function ProfileForm() {
         first_name: first,
         last_name: last,
         ...(nick ? { nickname: nick } : {}),
+        ...(mail ? { email: mail } : {}),
       });
       setFields({
         first_name: updated.first_name,
         last_name: updated.last_name,
         nickname: updated.nickname ?? '',
+        email: updated.email ?? '',
       });
       setLoadState('ready');
       setSavedNote('Profile saved.');
@@ -141,7 +149,7 @@ export function ProfileForm() {
       <Text style={styles.heading}>Your profile</Text>
       <Text style={styles.lede}>
         {session?.username ? `${session.username} · ` : ''}
-        first name, last name, and nickname.
+        first name, last name, nickname, and email.
       </Text>
 
       {loadState === 'missing' || loadState === 'error' ? (
@@ -183,6 +191,20 @@ export function ProfileForm() {
         value={fields.nickname}
         onChangeText={(v) => setField('nickname', v)}
         placeholder="Optional nickname"
+        placeholderTextColor={colors.textMuted}
+        returnKeyType="next"
+      />
+
+      <Text style={styles.label}>Email</Text>
+      <TextInput
+        style={styles.input}
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="email-address"
+        editable={!busy && loadState === 'ready'}
+        value={fields.email}
+        onChangeText={(v) => setField('email', v)}
+        placeholder="Optional email"
         placeholderTextColor={colors.textMuted}
         returnKeyType="done"
         onSubmitEditing={() => {

@@ -50,6 +50,7 @@ export function AdminInviteForm() {
   const [username, setUsername] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<RoleFlags>(DEFAULT_ROLES);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -118,6 +119,7 @@ export function AdminInviteForm() {
     const user = username.trim().toLowerCase();
     const first = firstName.trim();
     const last = lastName.trim();
+    const mail = email.trim();
     const permissionRoles = selectedRoles(roles);
 
     if (!user || !first || !last) {
@@ -126,6 +128,10 @@ export function AdminInviteForm() {
     }
     if (!/^[a-zA-Z0-9_]{3,64}$/.test(user)) {
       setError('Username must be 3–64 letters, numbers, or underscores.');
+      return;
+    }
+    if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
+      setError('Enter a valid email address.');
       return;
     }
     if (!token) {
@@ -143,6 +149,7 @@ export function AdminInviteForm() {
         username: user,
         first_name: first,
         last_name: last,
+        ...(mail ? { email: mail } : {}),
         roles: permissionRoles,
       });
       const roleList =
@@ -154,6 +161,7 @@ export function AdminInviteForm() {
       setUsername('');
       setFirstName('');
       setLastName('');
+      setEmail('');
       setRoles(DEFAULT_ROLES);
       await refreshAll();
     } catch (err) {
@@ -212,6 +220,19 @@ export function AdminInviteForm() {
         value={lastName}
         onChangeText={setLastName}
         placeholder="Last name"
+        placeholderTextColor={colors.textMuted}
+      />
+
+      <Text style={styles.label}>Email</Text>
+      <TextInput
+        style={styles.input}
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="email-address"
+        editable={!busy}
+        value={email}
+        onChangeText={setEmail}
+        placeholder="Optional email"
         placeholderTextColor={colors.textMuted}
       />
 
@@ -316,6 +337,7 @@ export function AdminInviteForm() {
               {player.nickname ? ` · ${player.nickname}` : ''}
             </Text>
             <Text style={styles.listMeta}>
+              {player.email ? `${player.email} · ` : ''}
               {player.active ? 'active' : 'inactive'}
             </Text>
           </View>

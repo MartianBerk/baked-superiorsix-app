@@ -95,7 +95,7 @@ export function LongPressMenu({
           accessibilityState={accessibilityState}
           accessibilityLabel={accessibilityLabel}
           accessibilityHint={
-            enabled ? 'Long press for alternate destinations' : undefined
+            enabled ? 'Long press for the other mode' : undefined
           }
           onPress={onPress}
           onLongPress={enabled ? measureAndOpen : undefined}

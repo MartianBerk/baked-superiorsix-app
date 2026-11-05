@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth';
@@ -9,6 +8,7 @@ import {
   LongPressMenu,
   type LongPressMenuOption,
 } from '@/components/shell/LongPressMenu';
+import { useUserTabMode } from '@/features/auth/UserTabModeContext';
 import { colors } from '@/theme';
 
 /** Tab order: fixtures → scores → leaders → user (rightmost). */
@@ -46,14 +46,14 @@ type TabBarProps = {
  * Main menu at the bottom — inset ~3% each side, rounded bar,
  * circular selected highlight around each icon.
  *
- * SS-55: when signed in with `admin`, long-press (~500ms) the user tab for
- * User vs Admin destinations. Same LongPressMenu pattern can wire other
- * tabs later (fixtures → admin match builder, etc.).
+ * Long-press (~500ms) the user tab when signed in with `admin` offers only
+ * the other mode (Admin while on normal, Normal while on admin). Mode swaps
+ * the profile tab body in place — header + nav stay visible.
  */
 export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
   const { isAuthenticated, hasRole } = useAuth();
+  const { mode, setMode } = useUserTabMode();
   const canAdminMenu = isAuthenticated && hasRole(ADMIN_ROLE);
 
   const profileRoute = useMemo(
@@ -65,23 +65,30 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
     if (!canAdminMenu || !profileRoute) {
       return null;
     }
+    // Only the other option — never both Normal and Admin together.
+    if (mode === 'normal') {
+      return [
+        {
+          id: 'admin',
+          label: 'Admin',
+          onSelect: () => {
+            setMode('admin');
+            navigateToTab(profileRoute.key);
+          },
+        },
+      ];
+    }
     return [
       {
-        id: 'user',
-        label: 'User',
+        id: 'normal',
+        label: 'Normal',
         onSelect: () => {
+          setMode('normal');
           navigateToTab(profileRoute.key);
         },
       },
-      {
-        id: 'admin',
-        label: 'Admin',
-        onSelect: () => {
-          router.push('/(admin)');
-        },
-      },
     ];
-  }, [canAdminMenu, profileRoute, navigateToTab, router]);
+  }, [canAdminMenu, profileRoute, mode, setMode, navigateToTab]);
 
   return (
     <View

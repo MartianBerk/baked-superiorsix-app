@@ -19,6 +19,7 @@ export type PlayerProfile = {
   first_name: string;
   last_name: string;
   nickname: string | null;
+  email: string | null;
   avatar_url: string | null;
   active: boolean;
   retired: boolean;
@@ -28,6 +29,7 @@ export type UpdateDetailsPayload = {
   first_name?: string;
   last_name?: string;
   nickname?: string;
+  email?: string;
 };
 
 export type InvitePlayerPayload = {
@@ -35,6 +37,7 @@ export type InvitePlayerPayload = {
   first_name?: string;
   last_name?: string;
   nickname?: string;
+  email?: string;
   /** Superior Six membership roles stored on the invite (granted on accept). */
   roles: string[];
 };
@@ -61,6 +64,7 @@ export type AddPlayerPayload = {
   first_name: string;
   last_name: string;
   nickname?: string;
+  email?: string;
 };
 
 export type AcceptInvitePayload = {
@@ -69,6 +73,7 @@ export type AcceptInvitePayload = {
   first_name?: string;
   last_name?: string;
   nickname?: string;
+  email?: string;
 };
 
 /** `POST /user/acceptinvite` — no invitee bearer; BFF grants roles then returns JWT. */
@@ -170,6 +175,7 @@ export async function acceptInvite(
         ...(payload.first_name ? { first_name: payload.first_name } : {}),
         ...(payload.last_name ? { last_name: payload.last_name } : {}),
         ...(payload.nickname ? { nickname: payload.nickname } : {}),
+        ...(payload.email ? { email: payload.email } : {}),
       }),
     });
   } catch {

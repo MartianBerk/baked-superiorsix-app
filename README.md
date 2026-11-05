@@ -94,10 +94,9 @@ Defined in `src/theme/colors.ts`.
 ```
 app/
   (auth)/            # login stub
-  (super-six)/       # core shell: header + bottom tabs + empty screens
+  (super-six)/       # core shell: header + bottom tabs (+ in-place admin on user tab)
   (euro-wizard)/     # empty stub
   (qatar-hero)/      # empty stub
-  (admin)/           # invite + roster (SS-56; long-press user tab)
 src/
   components/shell/  # AppHeader, BottomMenu, EmptyScreen, LongPressMenu
   components/icons/  # Menu icons from legacy supersixapp SVGs
@@ -105,8 +104,8 @@ src/
   platform/notifications/  # .ts + .web.ts stubs
   api/               # client + login + superiorsix admin/roster (EXPO_PUBLIC_*)
   auth/              # AuthProvider + persisted session (+ optional auth-admin token)
-  features/auth/     # LoginForm / SessionPanel / UserWidget / ProfileForm
-  features/admin/    # AdminWidget invite + roster
+  features/auth/     # LoginForm / SessionPanel / UserWidget / ProfileForm / UserTabMode
+  features/admin/    # AdminWidget invite + roster (swapped into user tab)
   platform/storage/  # SecureStore native / localStorage web
 ```
 
