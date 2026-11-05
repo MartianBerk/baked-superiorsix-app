@@ -1,10 +1,12 @@
-import { EmptyScreen } from '@/components/shell/EmptyScreen';
+import { AdminWidget } from '@/features/admin/AdminWidget';
+import { UserWidget } from '@/features/auth/UserWidget';
+import { useUserTabMode } from '@/features/auth/UserTabModeContext';
 
+/**
+ * User tab body: normal profile/login or admin invite/roster.
+ * Mode is local shell state — header + bottom nav stay put.
+ */
 export default function ProfileScreen() {
-  return (
-    <EmptyScreen
-      title="Profile"
-      subtitle="Account / login UI comes in a later slice."
-    />
-  );
+  const { mode } = useUserTabMode();
+  return mode === 'admin' ? <AdminWidget /> : <UserWidget />;
 }

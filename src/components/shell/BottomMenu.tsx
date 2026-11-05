@@ -1,7 +1,14 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useMemo } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAuth } from '@/auth';
 import { MenuIcon, type MenuIconName } from '@/components/icons/MenuIcon';
+import {
+  LongPressMenu,
+  type LongPressMenuOption,
+} from '@/components/shell/LongPressMenu';
+import { useUserTabMode } from '@/features/auth/UserTabModeContext';
 import { colors } from '@/theme';
 
 /** Tab order: fixtures → scores → leaders → user (rightmost). */
@@ -11,6 +18,9 @@ const TAB_ICONS: Record<string, MenuIconName> = {
   leaders: 'leaders',
   profile: 'users',
 };
+
+/** Superior Six role that unlocks the admin long-press destination. */
+const ADMIN_ROLE = 'admin';
 
 const HIT_SIZE = 48;
 
@@ -35,9 +45,52 @@ type TabBarProps = {
 /**
  * Main menu at the bottom — inset ~3% each side, rounded bar,
  * circular selected highlight around each icon.
+ *
+ * Long-press (~500ms) the user tab when signed in with `admin` offers only
+ * the other mode (Admin while on player, Player while on admin). Mode swaps
+ * the profile tab body in place — header + nav stay visible.
  */
 export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
   const insets = useSafeAreaInsets();
+  const { isAuthenticated, hasRole } = useAuth();
+  const { mode, setMode } = useUserTabMode();
+  const canAdminMenu = isAuthenticated && hasRole(ADMIN_ROLE);
+
+  const profileRoute = useMemo(
+    () => state.routes.find((r) => r.name === 'profile'),
+    [state.routes],
+  );
+
+  const profileLongPressOptions = useMemo((): LongPressMenuOption[] | null => {
+    if (!canAdminMenu || !profileRoute) {
+      return null;
+    }
+    // Only the other option — never both Player and Admin together.
+    if (mode === 'normal') {
+      return [
+        {
+          id: 'admin',
+          label: 'Admin',
+          icon: <MenuIcon name="cog" size={18} color={colors.text} />,
+          onSelect: () => {
+            setMode('admin');
+            navigateToTab(profileRoute.key);
+          },
+        },
+      ];
+    }
+    return [
+      {
+        id: 'normal',
+        label: 'Player',
+        icon: <MenuIcon name="users" size={18} color={colors.text} />,
+        onSelect: () => {
+          setMode('normal');
+          navigateToTab(profileRoute.key);
+        },
+      },
+    ];
+  }, [canAdminMenu, profileRoute, mode, setMode, navigateToTab]);
 
   return (
     <View
@@ -56,11 +109,13 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
           const focused = state.index === index;
           const { options } = descriptors[route.key];
           const label = options.title ?? route.name;
+          const longPressOptions =
+            route.name === 'profile' ? profileLongPressOptions : null;
 
           return (
-            <Pressable
+            <LongPressMenu
               key={route.key}
-              accessibilityRole="button"
+              options={longPressOptions}
               accessibilityState={focused ? { selected: true } : {}}
               accessibilityLabel={options.tabBarAccessibilityLabel ?? label}
               onPress={() => {
@@ -74,9 +129,14 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
               ]}
             >
               <View style={[styles.hit, focused && styles.hitActive]}>
-                <MenuIcon name={iconName} size={28} active={focused} />
+                <MenuIcon
+                  name={iconName}
+                  size={28}
+                  active={focused}
+                  adminBadge={route.name === 'profile' && mode === 'admin'}
+                />
               </View>
-            </Pressable>
+            </LongPressMenu>
           );
         })}
       </View>

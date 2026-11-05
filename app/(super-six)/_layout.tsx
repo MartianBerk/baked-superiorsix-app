@@ -3,46 +3,50 @@ import { StyleSheet, View } from 'react-native';
 
 import { AppHeader } from '@/components/shell/AppHeader';
 import { BottomMenu } from '@/components/shell/BottomMenu';
+import { UserTabModeProvider } from '@/features/auth/UserTabModeContext';
 import { colors } from '@/theme';
 
 /**
  * Core Super Six experience: header (round | logo | prize) + bottom menu.
- * Profile is the rightmost bottom-menu item.
+ * Profile is the rightmost bottom-menu item; admin vs normal swaps in place
+ * via UserTabModeProvider (header + nav stay visible).
  */
 export default function SuperSixLayout() {
   return (
-    <View style={styles.shell}>
-      <AppHeader />
-      <Tabs
-        tabBar={({ state, descriptors, navigateToTab }) => (
-          <BottomMenu
-            state={state}
-            descriptors={descriptors}
-            navigateToTab={navigateToTab}
+    <UserTabModeProvider>
+      <View style={styles.shell}>
+        <AppHeader />
+        <Tabs
+          tabBar={({ state, descriptors, navigateToTab }) => (
+            <BottomMenu
+              state={state}
+              descriptors={descriptors}
+              navigateToTab={navigateToTab}
+            />
+          )}
+          screenOptions={{
+            headerShown: false,
+          }}
+        >
+          <Tabs.Screen
+            name="index"
+            options={{ title: 'Fixtures', tabBarAccessibilityLabel: 'Fixtures' }}
           />
-        )}
-        screenOptions={{
-          headerShown: false,
-        }}
-      >
-        <Tabs.Screen
-          name="index"
-          options={{ title: 'Fixtures', tabBarAccessibilityLabel: 'Fixtures' }}
-        />
-        <Tabs.Screen
-          name="scores"
-          options={{ title: 'Scores', tabBarAccessibilityLabel: 'Scores' }}
-        />
-        <Tabs.Screen
-          name="leaders"
-          options={{ title: 'Leaders', tabBarAccessibilityLabel: 'Leaders' }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{ title: 'Profile', tabBarAccessibilityLabel: 'Profile' }}
-        />
-      </Tabs>
-    </View>
+          <Tabs.Screen
+            name="scores"
+            options={{ title: 'Scores', tabBarAccessibilityLabel: 'Scores' }}
+          />
+          <Tabs.Screen
+            name="leaders"
+            options={{ title: 'Leaders', tabBarAccessibilityLabel: 'Leaders' }}
+          />
+          <Tabs.Screen
+            name="profile"
+            options={{ title: 'Profile', tabBarAccessibilityLabel: 'Profile' }}
+          />
+        </Tabs>
+      </View>
+    </UserTabModeProvider>
   );
 }
 

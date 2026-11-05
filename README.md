@@ -2,7 +2,7 @@
 
 Expo + React Native (web-first) front end for **Superior Six**. One app wrapping Super Six, Euro Wizard, Qatar Hero, and Admin as separate route-group experiences.
 
-Bootstrap slice **SS-8**: shell + empty screens only. No predictions / gameday / tournament feature UI yet.
+Bootstrap **SS-8** shipped the shell. **SS-50** adds login on the user widget (profile tab): baked-auth token with `audience=superiorsix`, persisted session, and a superiorsix BFF smoke call. Profile edit UI is **SS-51**.
 
 ## Requirements
 
@@ -26,6 +26,23 @@ npx expo start --web
 ```
 
 Or: `npm run web`. `src/api/client.ts` reads the `EXPO_PUBLIC_*` bases.
+
+### Login (SS-50)
+
+1. Backend up (`baked-superiorsix/local-dev`) and bootstrapped.
+2. Register a user + grant Superior Six membership (see that README’s invite flow). Minimal membership for login smoke:
+
+```bash
+# after baked-auth-bootstrap — auth-admin token, then:
+curl -s -X POST http://127.0.0.1:8010/v1/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"ss50dev","password":"ss50-dev-pass"}'
+# PUT /v1/applications/superiorsix/memberships/ss50dev
+#   {"roles":["player","user-profile"]}  (Bearer auth-admin token)
+```
+
+3. Open the app → bottom menu **user** (rightmost) → sign in with that user.
+4. After sign-in you should see username, `audience · superiorsix`, roles, and a **BFF smoke** line (`health ok · token accepted`). A `403` probe with “not on the roster” is expected until an invite/profile exists (SS-51 / invite flow) — it still means the JWT was accepted.
 
 Static web build (what Docker uses):
 
@@ -77,18 +94,22 @@ Defined in `src/theme/colors.ts`.
 ```
 app/
   (auth)/            # login stub
-  (super-six)/       # core shell: header + bottom tabs + empty screens
+  (super-six)/       # core shell: header + bottom tabs (+ in-place admin on user tab)
   (euro-wizard)/     # empty stub
   (qatar-hero)/      # empty stub
-  (admin)/           # empty stub (role gate placeholder)
 src/
-  components/shell/  # AppHeader, BottomMenu, EmptyScreen
+  components/shell/  # AppHeader, BottomMenu, EmptyScreen, LongPressMenu
   components/icons/  # Menu icons from legacy supersixapp SVGs
   theme/
   platform/notifications/  # .ts + .web.ts stubs
-  api/               # client stub (EXPO_PUBLIC_* bases)
-  auth/              # AuthProvider stub
+  api/               # client + login + superiorsix admin/roster (EXPO_PUBLIC_*)
+  auth/              # AuthProvider + persisted session (+ optional auth-admin token)
+  features/auth/     # LoginForm / SessionPanel / UserWidget / ProfileForm / UserTabMode
+  features/admin/    # AdminWidget invite + roster (swapped into user tab)
+  platform/storage/  # SecureStore native / localStorage web
 ```
+
+
 
 ### Shell UX vs legacy
 
