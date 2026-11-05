@@ -24,6 +24,7 @@ const ICONS = {
   scores: STANDINGS,
   leaders: STATS,
   users: USERS,
+  cog: COG,
 } as const;
 
 export type MenuIconName = keyof typeof ICONS;

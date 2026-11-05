@@ -71,6 +71,7 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
         {
           id: 'admin',
           label: 'Admin',
+          icon: <MenuIcon name="cog" size={18} color={colors.text} />,
           onSelect: () => {
             setMode('admin');
             navigateToTab(profileRoute.key);
@@ -82,6 +83,7 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
       {
         id: 'normal',
         label: 'Player',
+        icon: <MenuIcon name="users" size={18} color={colors.text} />,
         onSelect: () => {
           setMode('normal');
           navigateToTab(profileRoute.key);
