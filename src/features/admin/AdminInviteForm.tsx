@@ -122,15 +122,15 @@ export function AdminInviteForm() {
     const mail = email.trim();
     const permissionRoles = selectedRoles(roles);
 
-    if (!user || !first || !last) {
-      setError('Username, first name, and last name are required.');
+    if (!user || !first || !last || !mail) {
+      setError('Username, first name, last name, and email are required.');
       return;
     }
     if (!/^[a-zA-Z0-9_]{3,64}$/.test(user)) {
       setError('Username must be 3–64 letters, numbers, or underscores.');
       return;
     }
-    if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
       setError('Enter a valid email address.');
       return;
     }
@@ -149,7 +149,7 @@ export function AdminInviteForm() {
         username: user,
         first_name: first,
         last_name: last,
-        ...(mail ? { email: mail } : {}),
+        email: mail,
         roles: permissionRoles,
       });
       const roleList =
@@ -183,8 +183,8 @@ export function AdminInviteForm() {
     <View style={styles.wrap}>
       <Text style={styles.heading}>Invite player</Text>
       <Text style={styles.lede}>
-        Reserve a username and roles. The invitee chooses a password on first
-        login; roles apply when they accept — no second admin pass.
+        Reserve a username, email, and roles. The invitee chooses a password on
+        first login; roles apply when they accept — no second admin pass.
       </Text>
 
       <Text style={styles.label}>Username</Text>
@@ -232,7 +232,7 @@ export function AdminInviteForm() {
         editable={!busy}
         value={email}
         onChangeText={setEmail}
-        placeholder="Optional email"
+        placeholder="Email"
         placeholderTextColor={colors.textMuted}
       />
 

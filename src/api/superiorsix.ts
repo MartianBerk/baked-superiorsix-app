@@ -29,15 +29,16 @@ export type UpdateDetailsPayload = {
   first_name?: string;
   last_name?: string;
   nickname?: string;
+  /** Required by product when saving from the profile form; still optional on the wire for partial patches. */
   email?: string;
 };
 
 export type InvitePlayerPayload = {
   username: string;
+  email: string;
   first_name?: string;
   last_name?: string;
   nickname?: string;
-  email?: string;
   /** Superior Six membership roles stored on the invite (granted on accept). */
   roles: string[];
 };
@@ -63,8 +64,8 @@ export type AddPlayerPayload = {
   username: string;
   first_name: string;
   last_name: string;
+  email: string;
   nickname?: string;
-  email?: string;
 };
 
 export type AcceptInvitePayload = {

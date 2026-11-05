@@ -86,11 +86,11 @@ export function ProfileForm() {
     const last = fields.last_name.trim();
     const nick = fields.nickname.trim();
     const mail = fields.email.trim();
-    if (!first || !last) {
-      setSubmitError('First name and last name are required.');
+    if (!first || !last || !mail) {
+      setSubmitError('First name, last name, and email are required.');
       return;
     }
-    if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
       setSubmitError('Enter a valid email address.');
       return;
     }
@@ -110,8 +110,8 @@ export function ProfileForm() {
       const updated = await updateProfileDetails(token, {
         first_name: first,
         last_name: last,
+        email: mail,
         ...(nick ? { nickname: nick } : {}),
-        ...(mail ? { email: mail } : {}),
       });
       setFields({
         first_name: updated.first_name,
@@ -204,7 +204,7 @@ export function ProfileForm() {
         editable={!busy && loadState === 'ready'}
         value={fields.email}
         onChangeText={(v) => setField('email', v)}
-        placeholder="Optional email"
+        placeholder="Email"
         placeholderTextColor={colors.textMuted}
         returnKeyType="done"
         onSubmitEditing={() => {
