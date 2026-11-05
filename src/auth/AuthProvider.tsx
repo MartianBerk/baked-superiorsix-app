@@ -27,7 +27,7 @@ import {
   rolesFromJwt,
   saveSession,
   subjectFromJwt,
-  usernameFromJwt,
+  emailFromJwt,
   type PersistedSession,
 } from './session';
 
@@ -42,12 +42,12 @@ type AuthContextValue = {
   roles: string[];
   isAuthenticated: boolean;
   hasRole: (role: string) => boolean;
-  signIn: (username: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
   /**
    * First login for invitees: set-password claim → acceptinvite →
    * session from returned access_token. Membership was granted at invite.
    */
-  claimAndAcceptInvite: (username: string, password: string) => Promise<void>;
+  claimAndAcceptInvite: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   lastSmoke: SuperSixSmokeResult | null;
   runSmoke: () => Promise<SuperSixSmokeResult | null>;
@@ -71,17 +71,17 @@ async function enrichSession(
   accessToken: string,
   audience: string,
   expiresAt: number,
-  usernameHint: string,
+  emailHint: string,
   rolesHint: string[],
 ): Promise<PersistedSession> {
   const jwtRoles = rolesFromJwt(accessToken);
-  let resolvedUsername = usernameFromJwt(accessToken) ?? usernameHint;
+  let resolvedEmail = emailFromJwt(accessToken) ?? emailHint;
   let userId = subjectFromJwt(accessToken) ?? '';
   let roles = rolesHint.length ? rolesHint : jwtRoles;
 
   try {
     const me = await fetchAuthMe(accessToken);
-    resolvedUsername = me.username;
+    resolvedEmail = me.email;
     userId = me.id;
     const membership = me.memberships.find(
       (m) => m.application === SUPERIORSIX_AUDIENCE,
@@ -102,35 +102,35 @@ async function enrichSession(
     accessToken,
     audience: audience || SUPERIORSIX_AUDIENCE,
     expiresAt,
-    username: resolvedUsername,
+    email: resolvedEmail,
     roles,
     userId,
   };
 }
 
 async function buildSessionFromLogin(
-  username: string,
+  email: string,
   password: string,
 ): Promise<PersistedSession> {
-  const token = await loginWithPassword(username, password, SUPERIORSIX_AUDIENCE);
+  const token = await loginWithPassword(email, password, SUPERIORSIX_AUDIENCE);
   return enrichSession(
     token.access_token,
     token.audience || SUPERIORSIX_AUDIENCE,
     Date.now() + token.expires_in * 1000,
-    username.trim().toLowerCase(),
+    email.trim().toLowerCase(),
     rolesFromJwt(token.access_token),
   );
 }
 
 async function buildSessionFromAccept(
   result: AcceptInviteResult,
-  usernameHint: string,
+  emailHint: string,
 ): Promise<PersistedSession> {
   return enrichSession(
     result.access_token,
     result.audience || SUPERIORSIX_AUDIENCE,
     expiresAtFromJwt(result.access_token),
-    usernameHint,
+    emailHint,
     Array.isArray(result.roles) ? result.roles : [],
   );
 }
@@ -218,18 +218,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = useCallback(
-    async (username: string, password: string) => {
-      const next = await buildSessionFromLogin(username, password);
+    async (email: string, password: string) => {
+      const next = await buildSessionFromLogin(email, password);
       await persistSignedIn(next);
     },
     [persistSignedIn],
   );
 
   const claimAndAcceptInvite = useCallback(
-    async (username: string, password: string) => {
-      const user = username.trim().toLowerCase();
+    async (email: string, password: string) => {
+      const addr = email.trim().toLowerCase();
       try {
-        await setPasswordAuthUser(user, password);
+        await setPasswordAuthUser(addr, password);
       } catch (err) {
         if (!(err instanceof ApiError && err.status === 409)) {
           throw err;
@@ -237,8 +237,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Password already claimed — continue with acceptinvite / login.
       }
 
-      const accepted = await acceptInvite({ username: user, password });
-      const next = await buildSessionFromAccept(accepted, user);
+      const accepted = await acceptInvite({ email: addr, password });
+      const next = await buildSessionFromAccept(accepted, addr);
       await persistSignedIn(next);
     },
     [persistSignedIn],

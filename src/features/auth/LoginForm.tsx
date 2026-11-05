@@ -19,11 +19,11 @@ type Props = {
   heading?: string;
 };
 
-/** Username / password against baked-auth (`audience=superiorsix`). */
+/** Email / password against baked-auth (`audience=superiorsix`). */
 export function LoginForm({ heading }: Props) {
   const { signIn, claimAndAcceptInvite } = useAuth();
   const [mode, setMode] = useState<Mode>('signIn');
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -32,13 +32,13 @@ export function LoginForm({ heading }: Props) {
     heading ?? (mode === 'firstLogin' ? 'First login' : 'Sign in');
   const lede =
     mode === 'firstLogin'
-      ? 'Invited? Set a password for your reserved username, then join the roster. Roles were granted when you were invited.'
+      ? 'Invited? Set a password for your email, then join the roster. Roles were granted when you were invited.'
       : 'baked-auth token with audience superiorsix. Session is stored on this device.';
 
   const onSubmit = async () => {
     setError(null);
-    if (!username.trim() || !password) {
-      setError('Enter username and password.');
+    if (!email.trim() || !password) {
+      setError('Enter email and password.');
       return;
     }
     if (mode === 'firstLogin' && password.length < 8) {
@@ -48,9 +48,9 @@ export function LoginForm({ heading }: Props) {
     setBusy(true);
     try {
       if (mode === 'firstLogin') {
-        await claimAndAcceptInvite(username, password);
+        await claimAndAcceptInvite(email, password);
       } else {
-        await signIn(username, password);
+        await signIn(email, password);
       }
     } catch (err) {
       if (err instanceof ApiError) {
@@ -117,17 +117,18 @@ export function LoginForm({ heading }: Props) {
         </Pressable>
       </View>
 
-      <Text style={styles.label}>Username</Text>
+      <Text style={styles.label}>Email</Text>
       <TextInput
         style={styles.input}
         autoCapitalize="none"
         autoCorrect={false}
-        autoComplete="username"
-        textContentType="username"
+        keyboardType="email-address"
+        autoComplete="email"
+        textContentType="emailAddress"
         editable={!busy}
-        value={username}
-        onChangeText={setUsername}
-        placeholder="username"
+        value={email}
+        onChangeText={setEmail}
+        placeholder="you@example.com"
         placeholderTextColor={colors.textMuted}
         onSubmitEditing={() => {
           void onSubmit();

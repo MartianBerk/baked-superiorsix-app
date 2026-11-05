@@ -1,13 +1,13 @@
 import { getItem, removeItem, setItem } from '@/platform/storage';
 
-const SESSION_KEY = 'superiorsix.session.v1';
+const SESSION_KEY = 'superiorsix.session.v2';
 
 export type PersistedSession = {
   accessToken: string;
   audience: string;
   /** Epoch ms when the access token is expected to expire. */
   expiresAt: number;
-  username: string;
+  email: string;
   roles: string[];
   userId: string;
 };
@@ -22,7 +22,7 @@ export async function loadSession(): Promise<PersistedSession | null> {
     if (
       !parsed ||
       typeof parsed.accessToken !== 'string' ||
-      typeof parsed.username !== 'string' ||
+      typeof parsed.email !== 'string' ||
       !Array.isArray(parsed.roles)
     ) {
       return null;
@@ -90,9 +90,9 @@ export function rolesFromJwt(token: string): string[] {
   return roles.filter((r): r is string => typeof r === 'string');
 }
 
-export function usernameFromJwt(token: string): string | null {
+export function emailFromJwt(token: string): string | null {
   const payload = decodeJwtPayload(token);
-  return typeof payload?.username === 'string' ? payload.username : null;
+  return typeof payload?.email === 'string' ? payload.email : null;
 }
 
 export function subjectFromJwt(token: string): string | null {

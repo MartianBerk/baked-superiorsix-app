@@ -148,7 +148,7 @@ export function ProfileForm() {
     <View style={styles.wrap}>
       <Text style={styles.heading}>Your profile</Text>
       <Text style={styles.lede}>
-        {session?.username ? `${session.username} · ` : ''}
+        {session?.email ? `${session.email} · ` : ''}
         email, first name, last name, and nickname.
       </Text>
 

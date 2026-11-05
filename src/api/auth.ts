@@ -18,7 +18,7 @@ export type MembershipResponse = {
 
 export type AuthUser = {
   id: string;
-  username: string;
+  email: string;
   is_active: boolean;
   roles: string[];
   memberships: MembershipResponse[];
@@ -38,14 +38,14 @@ export const INVITE_PERMISSION_ROLES = [
 
 export type InvitePermissionRole = (typeof INVITE_PERMISSION_ROLES)[number];
 
-/** OAuth2 password login with required `audience` (e.g. superiorsix). */
+/** Password login with required `audience` (e.g. superiorsix). Form field: email. */
 export async function loginWithPassword(
-  username: string,
+  email: string,
   password: string,
   audience: string = SUPERIORSIX_AUDIENCE,
 ): Promise<TokenResponse> {
   const body = new URLSearchParams();
-  body.set('username', username.trim());
+  body.set('email', email.trim().toLowerCase());
   body.set('password', password);
   body.set('audience', audience);
 
@@ -84,7 +84,7 @@ export async function fetchAuthMe(token: string): Promise<AuthUser> {
  * Returns UserResponse (no token). 409 if password already set; then use login.
  */
 export async function setPasswordAuthUser(
-  username: string,
+  email: string,
   password: string,
 ): Promise<AuthUser> {
   let response: Response;
@@ -93,7 +93,7 @@ export async function setPasswordAuthUser(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        username: username.trim().toLowerCase(),
+        email: email.trim().toLowerCase(),
         password,
       }),
     });

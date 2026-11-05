@@ -40,14 +40,13 @@ function selectedRoles(flags: RoleFlags): InvitePermissionRole[] {
 }
 
 /**
- * Admin invite form: email + username + name/nickname seed + role chips.
+ * Admin invite form: email + name/nickname seed + role chips.
  * Invite-only — creates passwordless auth user + membership; invitee claims
  * password on first login, then accepts the roster.
  */
 export function AdminInviteForm() {
   const { token } = useAuth();
   const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [nickname, setNickname] = useState('');
@@ -116,23 +115,18 @@ export function AdminInviteForm() {
     setError(null);
     setNote(null);
 
-    const mail = email.trim();
-    const user = username.trim().toLowerCase();
+    const mail = email.trim().toLowerCase();
     const first = firstName.trim();
     const last = lastName.trim();
     const nick = nickname.trim();
     const permissionRoles = selectedRoles(roles);
 
-    if (!mail || !user || !first || !last) {
-      setError('Email, username, first name, and last name are required.');
+    if (!mail || !first || !last) {
+      setError('Email, first name, and last name are required.');
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
       setError('Enter a valid email address.');
-      return;
-    }
-    if (!/^[a-zA-Z0-9_-]{3,64}$/.test(user)) {
-      setError('Username must be 3–64 letters, numbers, underscores, or hyphens.');
       return;
     }
     if (!token) {
@@ -147,7 +141,6 @@ export function AdminInviteForm() {
     setBusy(true);
     try {
       const invite = await invitePlayer(token, {
-        username: user,
         email: mail,
         first_name: first,
         last_name: last,
@@ -158,10 +151,9 @@ export function AdminInviteForm() {
         (invite.roles.length ? invite.roles : permissionRoles).join(', ') ||
         'none';
       setNote(
-        `Invited ${invite.username} (${invite.status}) · roles ${roleList}. They set a password on first login (claim), then join.`,
+        `Invited ${invite.email} (${invite.status}) · roles ${roleList}. They set a password on first login (claim), then join.`,
       );
       setEmail('');
-      setUsername('');
       setFirstName('');
       setLastName('');
       setNickname('');
@@ -186,9 +178,9 @@ export function AdminInviteForm() {
     <View style={styles.wrap}>
       <Text style={styles.heading}>Invite player</Text>
       <Text style={styles.lede}>
-        Reserve an email, username, profile seed, and roles. Profile edit access
-        is always granted. Auth user + membership are created now; the invitee
-        sets a password on first login, then joins the roster.
+        Reserve an email, profile seed, and roles. Profile edit access is always
+        granted. Auth user + membership are created now; the invitee sets a
+        password on first login, then joins the roster.
       </Text>
 
       <Text style={styles.label}>Email</Text>
@@ -201,18 +193,6 @@ export function AdminInviteForm() {
         value={email}
         onChangeText={setEmail}
         placeholder="Email"
-        placeholderTextColor={colors.textMuted}
-      />
-
-      <Text style={styles.label}>Username</Text>
-      <TextInput
-        style={styles.input}
-        autoCapitalize="none"
-        autoCorrect={false}
-        editable={!busy}
-        value={username}
-        onChangeText={setUsername}
-        placeholder="newplayer"
         placeholderTextColor={colors.textMuted}
       />
 
@@ -318,8 +298,8 @@ export function AdminInviteForm() {
           <Text style={styles.emptyList}>No pending invites.</Text>
         ) : null}
         {pendingInvites.map((invite) => (
-          <View key={invite.username} style={styles.listRow}>
-            <Text style={styles.listName}>{invite.username}</Text>
+          <View key={invite.email} style={styles.listRow}>
+            <Text style={styles.listName}>{invite.email}</Text>
             <Text style={styles.listMeta}>
               {(invite.roles.length ? invite.roles : ['(no roles)']).join(', ')}
             </Text>

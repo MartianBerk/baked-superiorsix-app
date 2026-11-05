@@ -34,7 +34,6 @@ export type UpdateDetailsPayload = {
 };
 
 export type InvitePlayerPayload = {
-  username: string;
   email: string;
   first_name?: string;
   last_name?: string;
@@ -44,7 +43,7 @@ export type InvitePlayerPayload = {
 };
 
 export type InvitePlayerResult = {
-  username: string;
+  email: string;
   status: string;
   auth_id: string | null;
   profile: Record<string, unknown>;
@@ -52,7 +51,7 @@ export type InvitePlayerResult = {
 };
 
 export type PendingInvite = {
-  username: string;
+  email: string;
   status: string;
   auth_id: string | null;
   profile: Record<string, unknown>;
@@ -61,20 +60,18 @@ export type PendingInvite = {
 
 export type AddPlayerPayload = {
   auth_id: string;
-  username: string;
+  email: string;
   first_name: string;
   last_name: string;
-  email: string;
   nickname?: string;
 };
 
 export type AcceptInvitePayload = {
-  username: string;
+  email: string;
   password: string;
   first_name?: string;
   last_name?: string;
   nickname?: string;
-  email?: string;
 };
 
 /** `POST /user/acceptinvite` — no invitee bearer; BFF grants roles then returns JWT. */
@@ -107,7 +104,7 @@ export async function listPlayers(
 }
 
 /**
- * Invite a username: passwordless auth user + membership + roster invite
+ * Invite by email: passwordless auth user + membership + roster invite
  * (`POST /admin/inviteplayer`). Requires JWT role `admin`.
  */
 export async function invitePlayer(
@@ -158,7 +155,7 @@ export async function listInvites(token: string): Promise<PendingInvite[]> {
 
 /**
  * Invitee accepts a pending invite after set-password claim
- * (`POST /user/acceptinvite` with username + password; no invitee bearer).
+ * (`POST /user/acceptinvite` with email + password; no invitee bearer).
  * BFF logs in and creates roster (membership already granted at invite).
  */
 export async function acceptInvite(
@@ -170,12 +167,11 @@ export async function acceptInvite(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        username: payload.username.trim().toLowerCase(),
+        email: payload.email.trim().toLowerCase(),
         password: payload.password,
         ...(payload.first_name ? { first_name: payload.first_name } : {}),
         ...(payload.last_name ? { last_name: payload.last_name } : {}),
         ...(payload.nickname ? { nickname: payload.nickname } : {}),
-        ...(payload.email ? { email: payload.email } : {}),
       }),
     });
   } catch {
