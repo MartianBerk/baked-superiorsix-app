@@ -217,7 +217,8 @@ export async function addPlayer(
 /**
  * Patch the caller's roster profile via superiorsix BFF
  * (`POST /user/updatedetails` → baked-user `/me`).
- * Requires JWT role `user-profile` and an existing roster document.
+ * Requires an active roster player JWT; baked-user still needs `user-profile`
+ * on the token (always granted on invite/accept).
  */
 export async function updateProfileDetails(
   token: string,

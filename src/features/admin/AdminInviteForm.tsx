@@ -23,7 +23,6 @@ import { colors } from '@/theme';
 
 const ROLE_LABELS: Record<InvitePermissionRole, string> = {
   player: 'Player',
-  'user-profile': 'User profile',
   worldcup: 'World Cup',
   euros: 'Euros',
 };
@@ -32,7 +31,6 @@ type RoleFlags = Record<InvitePermissionRole, boolean>;
 
 const DEFAULT_ROLES: RoleFlags = {
   player: true,
-  'user-profile': true,
   worldcup: false,
   euros: false,
 };
@@ -183,8 +181,9 @@ export function AdminInviteForm() {
     <View style={styles.wrap}>
       <Text style={styles.heading}>Invite player</Text>
       <Text style={styles.lede}>
-        Reserve a username, email, and roles. The invitee chooses a password on
-        first login; roles apply when they accept — no second admin pass.
+        Reserve a username, email, and roles. Profile edit access is always
+        granted. The invitee chooses a password on first login; roles apply when
+        they accept — no second admin pass.
       </Text>
 
       <Text style={styles.label}>Username</Text>
