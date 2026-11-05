@@ -9,15 +9,23 @@ Bootstrap slice **SS-8**: shell + empty screens only. No predictions / gameday /
 - Node **≥ 20.19.4** (repo `.nvmrc` pins **22** — `nvm use`)
 - npm (comes with Node)
 
-## Run (web)
+## Run (web) against the local API stack
+
+1. Start the backend with [`baked-superiorsix/local-dev`](../baked-superiorsix/local-dev) (auth `:8010`, user `:8020`, superiorsix `:8030`). Bootstrap + invite notes live in that README.
+2. Point this app at those host ports:
 
 ```bash
+cp .env.example .env
+# EXPO_PUBLIC_AUTH_URL=http://127.0.0.1:8010
+# EXPO_PUBLIC_USER_URL=http://127.0.0.1:8020
+# EXPO_PUBLIC_SUPERSIX_URL=http://127.0.0.1:8030
+
 nvm use
 npm install
 npx expo start --web
 ```
 
-Or: `npm run web`.
+Or: `npm run web`. `src/api/client.ts` reads the `EXPO_PUBLIC_*` bases.
 
 Static web build (what Docker uses):
 
@@ -27,25 +35,24 @@ npm run build:web
 
 Native later: `npm run ios` / `npm run android` (Expo Go or EAS). Store builds and push credentials are out of scope for SS-8 — add via **EAS** + `app.json` plugins when ready.
 
-## Docker (dev server)
+## Docker (optional web UI)
 
-Same pattern as [baked-demoapp](../baked-demoapp): multi-stage Node build → nginx static host with API proxies.
+This repo owns front-end compose only. Multi-stage Node build → nginx static host with API proxies to **host-published** backend ports. Prefer host Expo for day-to-day UI.
 
 ```bash
-cp .env.example .env   # optional overrides
+cp .env.example .env   # optional AUTH_/USER_/SUPERSIX_UPSTREAM overrides
 docker compose up --build
 ```
 
 App: [http://127.0.0.1:8040](http://127.0.0.1:8040). Nginx proxies:
 
-| Path | Upstream env | Default (Docker) |
-|------|--------------|------------------|
+| Path | Upstream env | Default |
+|------|--------------|---------|
 | `/auth/` | `AUTH_UPSTREAM` | `http://host.docker.internal:8010` |
 | `/user/` | `USER_UPSTREAM` | `http://host.docker.internal:8020` |
 | `/superiorsix/` | `SUPERSIX_UPSTREAM` | `http://host.docker.internal:8030` |
 
 Rebuild on the self-hosted runner via **Actions → Rebuild dev server** (`workflow_dispatch`). Runner labels: `self-hosted`, `Linux`, `X64`, `baked-superiorsix-app` (repo-scoped runner from `baked-devops`).
-
 ## Theme tokens
 
 Very dark blue background, off-white text (not the legacy grey `#454242`):
@@ -104,16 +111,18 @@ src/
 
 ## Env
 
-Docker / compose upstreams (see `.env.example`):
+See `.env.example`.
 
 | Variable | Purpose |
 |----------|---------|
-| `AUTH_UPSTREAM` | baked-auth (nginx `/auth/`) |
-| `USER_UPSTREAM` | baked-user (nginx `/user/`) |
-| `SUPERSIX_UPSTREAM` | baked-superiorsix (nginx `/superiorsix/`) |
+| `EXPO_PUBLIC_AUTH_URL` | baked-auth base for `apiFetch('auth', …)` (host: `http://127.0.0.1:8010`) |
+| `EXPO_PUBLIC_USER_URL` | baked-user base (host: `http://127.0.0.1:8020`) |
+| `EXPO_PUBLIC_SUPERSIX_URL` | baked-superiorsix base (host: `http://127.0.0.1:8030`) |
+| `AUTH_UPSTREAM` | nginx `/auth/` upstream (Docker only) |
+| `USER_UPSTREAM` | nginx `/user/` upstream (Docker only) |
+| `SUPERSIX_UPSTREAM` | nginx `/superiorsix/` upstream (Docker only) |
 
-Later, when the client is wired, prefer same-origin paths behind that proxy (or `EXPO_PUBLIC_*` base URLs for local `expo start`).
-
+For a static build served behind the `:8040` proxy, you can bake same-origin paths (`/auth`, `/user`, `/superiorsix`) into the `EXPO_PUBLIC_*` vars before `npm run build:web`.
 ## Platform modules
 
 Import device features only via `src/platform/*` (e.g. `@/platform/notifications`). Screens must not import `expo-notifications` directly. Native implementation is the default file; web uses `*.web.ts`.

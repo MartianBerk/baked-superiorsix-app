@@ -1,6 +1,8 @@
 /**
- * HTTP client stub for baked-auth / baked-user / baked-superiorsix.
- * Base URLs come from EXPO_PUBLIC_* env vars when wiring begins.
+ * HTTP client for baked-auth / baked-user / baked-superiorsix.
+ *
+ * Base URLs come from EXPO_PUBLIC_* (see .env.example). Primary local setup:
+ * APIs via baked-superiorsix/local-dev on 127.0.0.1:8010 / 8020 / 8030.
  */
 
 const AUTH_BASE = process.env.EXPO_PUBLIC_AUTH_URL ?? '';
@@ -17,10 +19,29 @@ export function getApiBases(): ApiBases {
   return { auth: AUTH_BASE, user: USER_BASE, game: GAME_BASE };
 }
 
+function resolveUrl(base: keyof ApiBases, path: string): string {
+  const root = getApiBases()[base];
+  if (!root) {
+    throw new Error(
+      `Missing EXPO_PUBLIC_* URL for "${base}". Copy .env.example to .env ` +
+        '(auth → EXPO_PUBLIC_AUTH_URL, user → EXPO_PUBLIC_USER_URL, ' +
+        'game → EXPO_PUBLIC_SUPERSIX_URL).',
+    );
+  }
+  const normalizedRoot = root.replace(/\/$/, '');
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${normalizedRoot}${normalizedPath}`;
+}
+
 export async function apiFetch(
-  _base: keyof ApiBases,
-  _path: string,
-  _init?: RequestInit,
+  base: keyof ApiBases,
+  path: string,
+  init?: RequestInit,
 ): Promise<Response> {
-  throw new Error('API client not wired yet (SS-8 stub).');
+  const url = resolveUrl(base, path);
+  const headers = new Headers(init?.headers);
+  if (!headers.has('Accept')) {
+    headers.set('Accept', 'application/json');
+  }
+  return fetch(url, { ...init, headers });
 }
