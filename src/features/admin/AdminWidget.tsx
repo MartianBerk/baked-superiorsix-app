@@ -55,6 +55,7 @@ export function AdminWidget() {
 
   return (
     <ScrollView
+      style={styles.scrollView}
       contentContainerStyle={styles.scroll}
       keyboardShouldPersistTaps="handled"
     >
@@ -73,9 +74,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 24,
   },
+  scrollView: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   scroll: {
     flexGrow: 1,
     paddingVertical: 24,
+    backgroundColor: colors.background,
   },
   wrap: {
     width: '100%',

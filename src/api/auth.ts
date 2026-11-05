@@ -25,10 +25,12 @@ export type AuthUser = {
   created_at: string;
 };
 
-/** Superior Six membership roles stored on an invite and granted on accept. */
+/**
+ * Selectable Superior Six invite permission chips.
+ * `user-profile` is always granted server-side on invite/accept — not listed here.
+ */
 export const INVITE_PERMISSION_ROLES = [
   'player',
-  'user-profile',
   'worldcup',
   'euros',
 ] as const;

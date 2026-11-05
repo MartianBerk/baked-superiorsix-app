@@ -29,15 +29,16 @@ export type UpdateDetailsPayload = {
   first_name?: string;
   last_name?: string;
   nickname?: string;
+  /** Required by product when saving from the profile form; still optional on the wire for partial patches. */
   email?: string;
 };
 
 export type InvitePlayerPayload = {
   username: string;
+  email: string;
   first_name?: string;
   last_name?: string;
   nickname?: string;
-  email?: string;
   /** Superior Six membership roles stored on the invite (granted on accept). */
   roles: string[];
 };
@@ -63,8 +64,8 @@ export type AddPlayerPayload = {
   username: string;
   first_name: string;
   last_name: string;
+  email: string;
   nickname?: string;
-  email?: string;
 };
 
 export type AcceptInvitePayload = {
@@ -216,7 +217,8 @@ export async function addPlayer(
 /**
  * Patch the caller's roster profile via superiorsix BFF
  * (`POST /user/updatedetails` → baked-user `/me`).
- * Requires JWT role `user-profile` and an existing roster document.
+ * Requires an active roster player JWT; baked-user still needs `user-profile`
+ * on the token (always granted on invite/accept).
  */
 export async function updateProfileDetails(
   token: string,

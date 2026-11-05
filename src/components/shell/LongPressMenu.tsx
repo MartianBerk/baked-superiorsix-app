@@ -27,6 +27,8 @@ export const LONG_PRESS_MS = 500;
 export type LongPressMenuOption = {
   id: string;
   label: string;
+  /** Optional leading icon rendered before the label (e.g. cog / user). */
+  icon?: ReactNode;
   onSelect: () => void;
 };
 
@@ -140,7 +142,7 @@ function MenuCard({
   onSelect: (option: LongPressMenuOption) => void;
 }) {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const menuWidth = 148;
+  const menuWidth = 168;
   const menuHeight = options.length * 44 + 8;
   const pad = 8;
 
@@ -177,6 +179,9 @@ function MenuCard({
             pressed && styles.optionPressed,
           ]}
         >
+          {option.icon ? (
+            <View style={styles.optionIcon}>{option.icon}</View>
+          ) : null}
           <Text style={styles.optionLabel}>{option.label}</Text>
         </Pressable>
       ))}
@@ -202,10 +207,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   option: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     minHeight: 44,
-    justifyContent: 'center',
   },
   optionBorder: {
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -213,6 +219,13 @@ const styles = StyleSheet.create({
   },
   optionPressed: {
     backgroundColor: colors.menuActive,
+  },
+  optionIcon: {
+    marginRight: 10,
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   optionLabel: {
     color: colors.text,

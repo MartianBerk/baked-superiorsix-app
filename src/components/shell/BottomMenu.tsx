@@ -47,7 +47,7 @@ type TabBarProps = {
  * circular selected highlight around each icon.
  *
  * Long-press (~500ms) the user tab when signed in with `admin` offers only
- * the other mode (Admin while on normal, Normal while on admin). Mode swaps
+ * the other mode (Admin while on player, Player while on admin). Mode swaps
  * the profile tab body in place — header + nav stay visible.
  */
 export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
@@ -65,12 +65,13 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
     if (!canAdminMenu || !profileRoute) {
       return null;
     }
-    // Only the other option — never both Normal and Admin together.
+    // Only the other option — never both Player and Admin together.
     if (mode === 'normal') {
       return [
         {
           id: 'admin',
           label: 'Admin',
+          icon: <MenuIcon name="cog" size={18} color={colors.text} />,
           onSelect: () => {
             setMode('admin');
             navigateToTab(profileRoute.key);
@@ -81,7 +82,8 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
     return [
       {
         id: 'normal',
-        label: 'Normal',
+        label: 'Player',
+        icon: <MenuIcon name="users" size={18} color={colors.text} />,
         onSelect: () => {
           setMode('normal');
           navigateToTab(profileRoute.key);
@@ -127,7 +129,12 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
               ]}
             >
               <View style={[styles.hit, focused && styles.hitActive]}>
-                <MenuIcon name={iconName} size={28} active={focused} />
+                <MenuIcon
+                  name={iconName}
+                  size={28}
+                  active={focused}
+                  adminBadge={route.name === 'profile' && mode === 'admin'}
+                />
               </View>
             </LongPressMenu>
           );

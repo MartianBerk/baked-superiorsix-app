@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 
-/** Normal profile widget vs admin invite/roster widget on the user tab. */
+/** Player profile widget vs admin invite/roster widget on the user tab. */
 export type UserTabMode = 'normal' | 'admin';
 
 type UserTabModeContextValue = {
