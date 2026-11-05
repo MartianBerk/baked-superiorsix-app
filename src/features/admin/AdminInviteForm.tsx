@@ -71,16 +71,9 @@ export function AdminInviteForm() {
     try {
       setInvites(await listInvites(token));
     } catch (err) {
-      if (err instanceof ApiError && err.status === 404) {
-        setInvites([]);
-        setInvitesError(
-          'Pending invites list not available yet (SS-57 listinvites). Roster still loads below.',
-        );
-      } else {
-        setInvitesError(
-          err instanceof Error ? err.message : 'Could not load invites.',
-        );
-      }
+      setInvitesError(
+        err instanceof Error ? err.message : 'Could not load invites.',
+      );
     } finally {
       setInvitesLoading(false);
     }
@@ -153,7 +146,7 @@ export function AdminInviteForm() {
         roles: permissionRoles,
       });
       const roleList =
-        (invite.roles?.length ? invite.roles : permissionRoles).join(', ') ||
+        (invite.roles.length ? invite.roles : permissionRoles).join(', ') ||
         'none';
       setNote(
         `Invited ${invite.username} (${invite.status}) · roles ${roleList}. They set a password on first login.`,
@@ -283,7 +276,7 @@ export function AdminInviteForm() {
             </Text>
           </Pressable>
         </View>
-        {invitesError ? <Text style={styles.warn}>{invitesError}</Text> : null}
+        {invitesError ? <Text style={styles.error}>{invitesError}</Text> : null}
         {pendingInvites.length === 0 && !invitesLoading && !invitesError ? (
           <Text style={styles.emptyList}>No pending invites.</Text>
         ) : null}
@@ -348,12 +341,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 16,
-  },
-  warn: {
-    color: '#E0C07A',
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 14,
   },
   label: {
     color: colors.textMuted,

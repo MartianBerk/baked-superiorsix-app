@@ -24,6 +24,7 @@ export {
   updateProfileDetails,
 } from './superiorsix';
 export type {
+  AcceptInvitePayload,
   AcceptInviteResult,
   AddPlayerPayload,
   InvitePlayerPayload,

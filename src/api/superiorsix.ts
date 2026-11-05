@@ -44,7 +44,7 @@ export type InvitePlayerResult = {
   status: string;
   auth_id: string | null;
   profile: Record<string, unknown>;
-  roles?: string[];
+  roles: string[];
 };
 
 export type PendingInvite = {
@@ -63,12 +63,21 @@ export type AddPlayerPayload = {
   nickname?: string;
 };
 
-export type AcceptInviteResult = {
+export type AcceptInvitePayload = {
   username: string;
-  status: string;
-  auth_id: string | null;
+  password: string;
+  first_name?: string;
+  last_name?: string;
+  nickname?: string;
+};
+
+/** `POST /user/acceptinvite` — no invitee bearer; BFF grants roles then returns JWT. */
+export type AcceptInviteResult = {
+  player: PlayerProfile;
   roles: string[];
-  player?: PlayerProfile;
+  access_token: string;
+  token_type?: string;
+  audience?: string;
 };
 
 /** List roster rows via superiorsix BFF (`GET /admin/listplayers`). */
@@ -114,21 +123,25 @@ export async function invitePlayer(
       'Could not reach baked-superiorsix. Is local-dev up on :8030?',
     );
   }
-  return readApiJson<InvitePlayerResult>(response);
+  const invite = await readApiJson<InvitePlayerResult>(response);
+  return {
+    ...invite,
+    roles: Array.isArray(invite.roles) ? invite.roles : [],
+  };
 }
 
 /**
- * List roster invites (`GET /admin/listinvites`). Requires JWT role `admin`.
- * Depends on SS-57 BFF landing; 404 means backend not deployed yet.
+ * List roster invites via baked-user (`GET /superiorsix/invites`).
+ * Requires superiorsix JWT with admin or game-master. Includes invite.roles.
  */
 export async function listInvites(token: string): Promise<PendingInvite[]> {
   let response: Response;
   try {
-    response = await apiFetch('game', '/admin/listinvites', { token });
+    response = await apiFetch('user', '/superiorsix/invites', { token });
   } catch {
     throw new ApiError(
       0,
-      'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+      'Could not reach baked-user. Is local-dev up on :8020?',
     );
   }
   const body = await readApiJson<{ invites: PendingInvite[] }>(response);
@@ -139,18 +152,25 @@ export async function listInvites(token: string): Promise<PendingInvite[]> {
 }
 
 /**
- * Invitee accepts their pending invite: roster profile from seed + grant roles
- * (`POST /user/acceptinvite`). Caller is the invitee (their superiorsix JWT).
- * Depends on SS-57 BFF + server-side auth-admin membership grant.
+ * Invitee accepts a pending invite after register
+ * (`POST /user/acceptinvite` with username + password; no invitee bearer).
+ * BFF grants invite.roles, mints superiorsix JWT, creates roster.
  */
-export async function acceptInvite(token: string): Promise<AcceptInviteResult> {
+export async function acceptInvite(
+  payload: AcceptInvitePayload,
+): Promise<AcceptInviteResult> {
   let response: Response;
   try {
     response = await apiFetch('game', '/user/acceptinvite', {
       method: 'POST',
-      token,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
+      body: JSON.stringify({
+        username: payload.username.trim().toLowerCase(),
+        password: payload.password,
+        ...(payload.first_name ? { first_name: payload.first_name } : {}),
+        ...(payload.last_name ? { last_name: payload.last_name } : {}),
+        ...(payload.nickname ? { nickname: payload.nickname } : {}),
+      }),
     });
   } catch {
     throw new ApiError(

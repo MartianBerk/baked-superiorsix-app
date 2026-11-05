@@ -32,7 +32,7 @@ export function LoginForm({ heading }: Props) {
     heading ?? (mode === 'firstLogin' ? 'First login' : 'Sign in');
   const lede =
     mode === 'firstLogin'
-      ? 'Invited? Register with your reserved username and choose a password. Accept runs automatically after register.'
+      ? 'Invited? Register with your reserved username and choose a password. Acceptinvite grants roles and signs you in.'
       : 'baked-auth token with audience superiorsix. Session is stored on this device.';
 
   const onSubmit = async () => {

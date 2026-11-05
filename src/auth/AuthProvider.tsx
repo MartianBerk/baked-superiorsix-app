@@ -16,11 +16,13 @@ import {
   loginWithPassword,
   registerAuthUser,
   smokeSuperSixBff,
+  type AcceptInviteResult,
   type SuperSixSmokeResult,
 } from '@/api';
 
 import {
   clearSession,
+  decodeJwtPayload,
   loadSession,
   rolesFromJwt,
   saveSession,
@@ -42,8 +44,9 @@ type AuthContextValue = {
   hasRole: (role: string) => boolean;
   signIn: (username: string, password: string) => Promise<void>;
   /**
-   * First login for invitees: register → superiorsix token → accept invite →
-   * re-login so JWT roles reflect the grant.
+   * First login for invitees: register → acceptinvite (username/password) →
+   * session from returned access_token. Does not mint a superiorsix token
+   * before accept (membership does not exist yet).
    */
   registerAndAcceptInvite: (username: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -57,19 +60,28 @@ function isExpired(session: PersistedSession): boolean {
   return Date.now() >= session.expiresAt;
 }
 
-async function buildSession(
-  username: string,
-  password: string,
+function expiresAtFromJwt(token: string, fallbackMs = 60 * 60 * 1000): number {
+  const payload = decodeJwtPayload(token);
+  if (typeof payload?.exp === 'number') {
+    return payload.exp * 1000;
+  }
+  return Date.now() + fallbackMs;
+}
+
+async function enrichSession(
+  accessToken: string,
+  audience: string,
+  expiresAt: number,
+  usernameHint: string,
+  rolesHint: string[],
 ): Promise<PersistedSession> {
-  const token = await loginWithPassword(username, password, SUPERIORSIX_AUDIENCE);
-  const jwtRoles = rolesFromJwt(token.access_token);
-  let resolvedUsername =
-    usernameFromJwt(token.access_token) ?? username.trim().toLowerCase();
-  let userId = subjectFromJwt(token.access_token) ?? '';
-  let roles = jwtRoles;
+  const jwtRoles = rolesFromJwt(accessToken);
+  let resolvedUsername = usernameFromJwt(accessToken) ?? usernameHint;
+  let userId = subjectFromJwt(accessToken) ?? '';
+  let roles = rolesHint.length ? rolesHint : jwtRoles;
 
   try {
-    const me = await fetchAuthMe(token.access_token);
+    const me = await fetchAuthMe(accessToken);
     resolvedUsername = me.username;
     userId = me.id;
     const membership = me.memberships.find(
@@ -88,13 +100,40 @@ async function buildSession(
   }
 
   return {
-    accessToken: token.access_token,
-    audience: token.audience || SUPERIORSIX_AUDIENCE,
-    expiresAt: Date.now() + token.expires_in * 1000,
+    accessToken,
+    audience: audience || SUPERIORSIX_AUDIENCE,
+    expiresAt,
     username: resolvedUsername,
     roles,
     userId,
   };
+}
+
+async function buildSessionFromLogin(
+  username: string,
+  password: string,
+): Promise<PersistedSession> {
+  const token = await loginWithPassword(username, password, SUPERIORSIX_AUDIENCE);
+  return enrichSession(
+    token.access_token,
+    token.audience || SUPERIORSIX_AUDIENCE,
+    Date.now() + token.expires_in * 1000,
+    username.trim().toLowerCase(),
+    rolesFromJwt(token.access_token),
+  );
+}
+
+async function buildSessionFromAccept(
+  result: AcceptInviteResult,
+  usernameHint: string,
+): Promise<PersistedSession> {
+  return enrichSession(
+    result.access_token,
+    result.audience || SUPERIORSIX_AUDIENCE,
+    expiresAtFromJwt(result.access_token),
+    usernameHint,
+    Array.isArray(result.roles) ? result.roles : [],
+  );
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -181,7 +220,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(
     async (username: string, password: string) => {
-      const next = await buildSession(username, password);
+      const next = await buildSessionFromLogin(username, password);
       await persistSignedIn(next);
     },
     [persistSignedIn],
@@ -196,38 +235,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!(err instanceof ApiError && err.status === 409)) {
           throw err;
         }
-        // Identity already exists — continue with login + accept.
+        // Identity already exists — continue with acceptinvite.
       }
 
-      // Needs a superiorsix JWT before accept. SS-57 must make that obtainable
-      // after register (e.g. provisional membership) or adjust accept auth.
-      let next: PersistedSession;
-      try {
-        next = await buildSession(user, password);
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 403) {
-          throw new ApiError(
-            403,
-            'Registered, but no superiorsix token yet. Accept-invite (SS-57) must grant membership so first login can continue — backend not ready or invite missing.',
-          );
-        }
-        throw err;
-      }
-
-      try {
-        await acceptInvite(next.accessToken);
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 404) {
-          throw new ApiError(
-            404,
-            'Accept-invite endpoint not available yet (SS-57). Invite was registered; retry after backend lands.',
-          );
-        }
-        throw err;
-      }
-
-      // Re-issue JWT so roles from the grant are present.
-      next = await buildSession(user, password);
+      // Do not mint a superiorsix token here — membership is granted inside accept.
+      const accepted = await acceptInvite({ username: user, password });
+      const next = await buildSessionFromAccept(accepted, user);
       await persistSignedIn(next);
     },
     [persistSignedIn],
