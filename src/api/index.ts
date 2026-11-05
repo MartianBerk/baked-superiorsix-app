@@ -7,5 +7,14 @@ export {
   loginWithPassword,
 } from './auth';
 export type { AuthUser, MembershipResponse, TokenResponse } from './auth';
-export { smokeSuperSixBff } from './superiorsix';
-export type { SuperSixSmokeResult } from './superiorsix';
+export { smokeSuperSixBff, updateProfileDetails } from './superiorsix';
+export type {
+  PlayerProfile,
+  SuperSixSmokeResult,
+  UpdateDetailsPayload,
+} from './superiorsix';
+export {
+  fetchProfileByAuth,
+  profileFieldsFromDocument,
+} from './user';
+export type { ProfileFields, UserProfileDocument } from './user';

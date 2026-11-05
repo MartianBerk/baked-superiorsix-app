@@ -6,7 +6,7 @@ import { colors } from '@/theme';
 import { LoginForm } from './LoginForm';
 import { SessionPanel } from './SessionPanel';
 
-/** Main user-widget body: login when signed out, session + BFF smoke when in. */
+/** Main user-widget body: login when signed out, profile form when in. */
 export function UserWidget() {
   const { status, isAuthenticated } = useAuth();
 

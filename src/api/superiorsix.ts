@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { apiFetch, readApiJson } from './client';
 import { ApiError } from './errors';
 
 export type SuperSixSmokeResult = {
@@ -11,6 +11,50 @@ export type SuperSixSmokeResult = {
   /** Short human-readable summary. */
   message: string;
 };
+
+/** Player roster row returned by superiorsix BFF profile proxies. */
+export type PlayerProfile = {
+  auth_id: string;
+  id: string;
+  first_name: string;
+  last_name: string;
+  nickname: string | null;
+  avatar_url: string | null;
+  active: boolean;
+  retired: boolean;
+};
+
+export type UpdateDetailsPayload = {
+  first_name?: string;
+  last_name?: string;
+  nickname?: string;
+};
+
+/**
+ * Patch the caller's roster profile via superiorsix BFF
+ * (`POST /user/updatedetails` → baked-user `/me`).
+ * Requires JWT role `user-profile` and an existing roster document.
+ */
+export async function updateProfileDetails(
+  token: string,
+  payload: UpdateDetailsPayload,
+): Promise<PlayerProfile> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/user/updatedetails', {
+      method: 'POST',
+      token,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+    );
+  }
+  return readApiJson<PlayerProfile>(response);
+}
 
 /**
  * Smoke the superiorsix BFF after login: health + one Bearer-protected route.
