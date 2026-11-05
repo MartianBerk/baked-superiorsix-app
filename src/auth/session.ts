@@ -10,13 +10,6 @@ export type PersistedSession = {
   username: string;
   roles: string[];
   userId: string;
-  /**
-   * Optional baked-auth admin token (`aud=auth`, role `admin`).
-   * Used for membership APIs (SS-56); absent when the user is not auth-admin.
-   */
-  authAdminToken?: string | null;
-  /** Epoch ms expiry for `authAdminToken`. */
-  authAdminExpiresAt?: number | null;
 };
 
 export async function loadSession(): Promise<PersistedSession | null> {

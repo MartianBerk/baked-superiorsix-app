@@ -4,9 +4,6 @@ import { ApiError } from './errors';
 /** Application audience for Superior Six resource-server JWTs. */
 export const SUPERIORSIX_AUDIENCE = 'superiorsix';
 
-/** Authorization-server audience for membership admin APIs. */
-export const AUTH_AUDIENCE = 'auth';
-
 export type TokenResponse = {
   access_token: string;
   token_type: string;
@@ -28,7 +25,7 @@ export type AuthUser = {
   created_at: string;
 };
 
-/** Superior Six membership roles the admin invite form can grant. */
+/** Superior Six membership roles stored on an invite and granted on accept. */
 export const INVITE_PERMISSION_ROLES = [
   'player',
   'user-profile',
@@ -101,36 +98,4 @@ export async function registerAuthUser(
     );
   }
   return readApiJson<AuthUser>(response);
-}
-
-/**
- * Assign superiorsix app membership roles.
- * Requires bearer `aud=auth` with role `admin`.
- */
-export async function setAppMembership(
-  authAdminToken: string,
-  username: string,
-  roles: string[],
-  application: string = SUPERIORSIX_AUDIENCE,
-): Promise<MembershipResponse> {
-  const user = username.trim().toLowerCase();
-  let response: Response;
-  try {
-    response = await apiFetch(
-      'auth',
-      `/v1/applications/${application}/memberships/${encodeURIComponent(user)}`,
-      {
-        method: 'PUT',
-        token: authAdminToken,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roles }),
-      },
-    );
-  } catch {
-    throw new ApiError(
-      0,
-      'Could not reach baked-auth. Is local-dev up on :8010?',
-    );
-  }
-  return readApiJson<MembershipResponse>(response);
 }

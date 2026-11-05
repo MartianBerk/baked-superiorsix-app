@@ -12,18 +12,28 @@ import { ApiError } from '@/api';
 import { useAuth } from '@/auth';
 import { colors } from '@/theme';
 
+type Mode = 'signIn' | 'firstLogin';
+
 type Props = {
   /** Shown above the form (e.g. profile tab vs /auth route). */
   heading?: string;
 };
 
-/** Username / password sign-in against baked-auth (`audience=superiorsix`). */
-export function LoginForm({ heading = 'Sign in' }: Props) {
-  const { signIn } = useAuth();
+/** Username / password against baked-auth (`audience=superiorsix`). */
+export function LoginForm({ heading }: Props) {
+  const { signIn, registerAndAcceptInvite } = useAuth();
+  const [mode, setMode] = useState<Mode>('signIn');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const title =
+    heading ?? (mode === 'firstLogin' ? 'First login' : 'Sign in');
+  const lede =
+    mode === 'firstLogin'
+      ? 'Invited? Register with your reserved username and choose a password. Accept runs automatically after register.'
+      : 'baked-auth token with audience superiorsix. Session is stored on this device.';
 
   const onSubmit = async () => {
     setError(null);
@@ -31,16 +41,24 @@ export function LoginForm({ heading = 'Sign in' }: Props) {
       setError('Enter username and password.');
       return;
     }
+    if (mode === 'firstLogin' && password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
     setBusy(true);
     try {
-      await signIn(username, password);
+      if (mode === 'firstLogin') {
+        await registerAndAcceptInvite(username, password);
+      } else {
+        await signIn(username, password);
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
       } else if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('Sign in failed.');
+        setError(mode === 'firstLogin' ? 'First login failed.' : 'Sign in failed.');
       }
     } finally {
       setBusy(false);
@@ -49,11 +67,55 @@ export function LoginForm({ heading = 'Sign in' }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.heading}>{heading}</Text>
-      <Text style={styles.lede}>
-        baked-auth token with audience superiorsix. Session is stored on this
-        device.
-      </Text>
+      <Text style={styles.heading}>{title}</Text>
+      <Text style={styles.lede}>{lede}</Text>
+
+      <View style={styles.modeRow}>
+        <Pressable
+          accessibilityRole="button"
+          disabled={busy}
+          onPress={() => {
+            setMode('signIn');
+            setError(null);
+          }}
+          style={({ pressed }) => [
+            styles.modeChip,
+            mode === 'signIn' && styles.modeChipOn,
+            (pressed || busy) && styles.pressed,
+          ]}
+        >
+          <Text
+            style={[
+              styles.modeChipText,
+              mode === 'signIn' && styles.modeChipTextOn,
+            ]}
+          >
+            Sign in
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          disabled={busy}
+          onPress={() => {
+            setMode('firstLogin');
+            setError(null);
+          }}
+          style={({ pressed }) => [
+            styles.modeChip,
+            mode === 'firstLogin' && styles.modeChipOn,
+            (pressed || busy) && styles.pressed,
+          ]}
+        >
+          <Text
+            style={[
+              styles.modeChipText,
+              mode === 'firstLogin' && styles.modeChipTextOn,
+            ]}
+          >
+            First login
+          </Text>
+        </Pressable>
+      </View>
 
       <Text style={styles.label}>Username</Text>
       <TextInput
@@ -67,21 +129,27 @@ export function LoginForm({ heading = 'Sign in' }: Props) {
         onChangeText={setUsername}
         placeholder="username"
         placeholderTextColor={colors.textMuted}
-        onSubmitEditing={onSubmit}
+        onSubmitEditing={() => {
+          void onSubmit();
+        }}
       />
 
-      <Text style={styles.label}>Password</Text>
+      <Text style={styles.label}>
+        {mode === 'firstLogin' ? 'Choose password' : 'Password'}
+      </Text>
       <TextInput
         style={styles.input}
         secureTextEntry
-        autoComplete="current-password"
-        textContentType="password"
+        autoComplete={mode === 'firstLogin' ? 'new-password' : 'current-password'}
+        textContentType={mode === 'firstLogin' ? 'newPassword' : 'password'}
         editable={!busy}
         value={password}
         onChangeText={setPassword}
-        placeholder="password"
+        placeholder={mode === 'firstLogin' ? 'min 8 characters' : 'password'}
         placeholderTextColor={colors.textMuted}
-        onSubmitEditing={onSubmit}
+        onSubmitEditing={() => {
+          void onSubmit();
+        }}
       />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -89,7 +157,9 @@ export function LoginForm({ heading = 'Sign in' }: Props) {
       <Pressable
         accessibilityRole="button"
         disabled={busy}
-        onPress={onSubmit}
+        onPress={() => {
+          void onSubmit();
+        }}
         style={({ pressed }) => [
           styles.button,
           (pressed || busy) && styles.buttonPressed,
@@ -98,7 +168,9 @@ export function LoginForm({ heading = 'Sign in' }: Props) {
         {busy ? (
           <ActivityIndicator color={colors.text} />
         ) : (
-          <Text style={styles.buttonText}>Sign in</Text>
+          <Text style={styles.buttonText}>
+            {mode === 'firstLogin' ? 'Register & join' : 'Sign in'}
+          </Text>
         )}
       </Pressable>
     </View>
@@ -123,7 +195,33 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
-    marginBottom: 20,
+    marginBottom: 16,
+  },
+  modeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  modeChip: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: colors.surface,
+  },
+  modeChipOn: {
+    borderColor: colors.accentBright,
+    backgroundColor: colors.menuActive,
+  },
+  modeChipText: {
+    color: colors.textMuted,
+    fontSize: 14,
+  },
+  modeChipTextOn: {
+    color: colors.text,
+    fontWeight: '600',
   },
   label: {
     color: colors.textMuted,
@@ -158,6 +256,9 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   buttonPressed: {
+    opacity: 0.85,
+  },
+  pressed: {
     opacity: 0.85,
   },
   buttonText: {

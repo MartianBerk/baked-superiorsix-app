@@ -2,13 +2,11 @@ export { apiFetch, getApiBases, readApiJson } from './client';
 export type { ApiBases, ApiFetchInit } from './client';
 export { ApiError, formatApiDetail } from './errors';
 export {
-  AUTH_AUDIENCE,
   INVITE_PERMISSION_ROLES,
   SUPERIORSIX_AUDIENCE,
   fetchAuthMe,
   loginWithPassword,
   registerAuthUser,
-  setAppMembership,
 } from './auth';
 export type {
   AuthUser,
@@ -17,16 +15,20 @@ export type {
   TokenResponse,
 } from './auth';
 export {
+  acceptInvite,
   addPlayer,
   invitePlayer,
+  listInvites,
   listPlayers,
   smokeSuperSixBff,
   updateProfileDetails,
 } from './superiorsix';
 export type {
+  AcceptInviteResult,
   AddPlayerPayload,
   InvitePlayerPayload,
   InvitePlayerResult,
+  PendingInvite,
   PlayerProfile,
   SuperSixSmokeResult,
   UpdateDetailsPayload,
