@@ -1,3 +1,7 @@
+# Standalone app container. Expects APIs on the host (baked-devops/local-dev
+# publishes 8010/8020/8030). For an all-in-one stack with Docker DNS upstreams,
+# use: baked-devops/local-dev  →  docker compose --profile app up --build
+
 services:
   baked-superiorsix-app:
     build: .
