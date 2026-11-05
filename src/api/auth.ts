@@ -4,6 +4,9 @@ import { ApiError } from './errors';
 /** Application audience for Superior Six resource-server JWTs. */
 export const SUPERIORSIX_AUDIENCE = 'superiorsix';
 
+/** Authorization-server audience for membership admin APIs. */
+export const AUTH_AUDIENCE = 'auth';
+
 export type TokenResponse = {
   access_token: string;
   token_type: string;
@@ -24,6 +27,16 @@ export type AuthUser = {
   memberships: MembershipResponse[];
   created_at: string;
 };
+
+/** Superior Six membership roles the admin invite form can grant. */
+export const INVITE_PERMISSION_ROLES = [
+  'player',
+  'user-profile',
+  'worldcup',
+  'euros',
+] as const;
+
+export type InvitePermissionRole = (typeof INVITE_PERMISSION_ROLES)[number];
 
 /** OAuth2 password login with required `audience` (e.g. superiorsix). */
 export async function loginWithPassword(
@@ -64,4 +77,60 @@ export async function fetchAuthMe(token: string): Promise<AuthUser> {
     );
   }
   return readApiJson<AuthUser>(response);
+}
+
+/** Create a baked-auth identity (no membership). 409 if username taken. */
+export async function registerAuthUser(
+  username: string,
+  password: string,
+): Promise<AuthUser> {
+  let response: Response;
+  try {
+    response = await apiFetch('auth', '/v1/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: username.trim().toLowerCase(),
+        password,
+      }),
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      'Could not reach baked-auth. Is local-dev up on :8010?',
+    );
+  }
+  return readApiJson<AuthUser>(response);
+}
+
+/**
+ * Assign superiorsix app membership roles.
+ * Requires bearer `aud=auth` with role `admin`.
+ */
+export async function setAppMembership(
+  authAdminToken: string,
+  username: string,
+  roles: string[],
+  application: string = SUPERIORSIX_AUDIENCE,
+): Promise<MembershipResponse> {
+  const user = username.trim().toLowerCase();
+  let response: Response;
+  try {
+    response = await apiFetch(
+      'auth',
+      `/v1/applications/${application}/memberships/${encodeURIComponent(user)}`,
+      {
+        method: 'PUT',
+        token: authAdminToken,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roles }),
+      },
+    );
+  } catch {
+    throw new ApiError(
+      0,
+      'Could not reach baked-auth. Is local-dev up on :8010?',
+    );
+  }
+  return readApiJson<MembershipResponse>(response);
 }

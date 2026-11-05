@@ -97,17 +97,19 @@ app/
   (super-six)/       # core shell: header + bottom tabs + empty screens
   (euro-wizard)/     # empty stub
   (qatar-hero)/      # empty stub
-  (admin)/           # empty stub (role gate placeholder)
+  (admin)/           # invite + roster (SS-56; long-press user tab)
 src/
-  components/shell/  # AppHeader, BottomMenu, EmptyScreen
+  components/shell/  # AppHeader, BottomMenu, EmptyScreen, LongPressMenu
   components/icons/  # Menu icons from legacy supersixapp SVGs
   theme/
   platform/notifications/  # .ts + .web.ts stubs
-  api/               # client + login + superiorsix smoke (EXPO_PUBLIC_*)
-  auth/              # AuthProvider + persisted session
-  features/auth/     # LoginForm / SessionPanel / UserWidget
+  api/               # client + login + superiorsix admin/roster (EXPO_PUBLIC_*)
+  auth/              # AuthProvider + persisted session (+ optional auth-admin token)
+  features/auth/     # LoginForm / SessionPanel / UserWidget / ProfileForm
+  features/admin/    # AdminWidget invite + roster
   platform/storage/  # SecureStore native / localStorage web
 ```
+
 
 
 ### Shell UX vs legacy

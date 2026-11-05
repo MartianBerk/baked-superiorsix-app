@@ -1,10 +1,5 @@
-import { EmptyScreen } from '@/components/shell/EmptyScreen';
+import { AdminWidget } from '@/features/admin/AdminWidget';
 
 export default function AdminScreen() {
-  return (
-    <EmptyScreen
-      title="Admin"
-      subtitle="Stub experience — role-gated admin UI later."
-    />
-  );
+  return <AdminWidget />;
 }

@@ -1,17 +1,12 @@
 import { Stack } from 'expo-router';
 
-import { useAuth } from '@/auth';
 import { colors } from '@/theme';
 
 /**
- * Admin experience boundary. Role gate stub — real ADMIN/DETAILS checks later.
- * Keep admin UI out of player Super Six screens.
+ * Admin experience boundary (SS-56).
+ * Role gate lives in AdminWidget so signed-out admins can still sign in here.
  */
 export default function AdminLayout() {
-  const { hasRole } = useAuth();
-  // Stub: allow navigation for scaffold; gate when auth is wired.
-  void hasRole;
-
   return (
     <Stack
       screenOptions={{

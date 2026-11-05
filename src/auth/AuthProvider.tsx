@@ -10,6 +10,7 @@ import {
 
 import {
   ApiError,
+  AUTH_AUDIENCE,
   SUPERIORSIX_AUDIENCE,
   fetchAuthMe,
   loginWithPassword,
@@ -35,6 +36,8 @@ type AuthContextValue = {
   status: AuthStatus;
   session: AuthSession | null;
   token: string | null;
+  /** Auth-audience admin token when the signed-in user is also auth admin. */
+  authAdminToken: string | null;
   roles: string[];
   isAuthenticated: boolean;
   hasRole: (role: string) => boolean;
@@ -43,6 +46,36 @@ type AuthContextValue = {
   lastSmoke: SuperSixSmokeResult | null;
   runSmoke: () => Promise<SuperSixSmokeResult | null>;
 };
+
+/** Try to obtain an `aud=auth` admin token for membership APIs (SS-56). */
+async function tryAuthAdminToken(
+  username: string,
+  password: string,
+): Promise<{ token: string; expiresAt: number } | null> {
+  try {
+    const authToken = await loginWithPassword(username, password, AUTH_AUDIENCE);
+    const roles = rolesFromJwt(authToken.access_token);
+    if (!roles.includes('admin')) {
+      return null;
+    }
+    return {
+      token: authToken.access_token,
+      expiresAt: Date.now() + authToken.expires_in * 1000,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function liveAuthAdminToken(session: PersistedSession | null): string | null {
+  if (!session?.authAdminToken || !session.authAdminExpiresAt) {
+    return null;
+  }
+  if (Date.now() >= session.authAdminExpiresAt) {
+    return null;
+  }
+  return session.authAdminToken;
+}
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -139,6 +172,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    const authAdmin = await tryAuthAdminToken(username, password);
+
     const next: PersistedSession = {
       accessToken: token.access_token,
       audience: token.audience || SUPERIORSIX_AUDIENCE,
@@ -146,6 +181,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       username: resolvedUsername,
       roles,
       userId,
+      authAdminToken: authAdmin?.token ?? null,
+      authAdminExpiresAt: authAdmin?.expiresAt ?? null,
     };
 
     await saveSession(next);
@@ -177,6 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       status,
       session,
       token: session?.accessToken ?? null,
+      authAdminToken: liveAuthAdminToken(session),
       roles,
       isAuthenticated: status === 'signedIn' && !!session,
       hasRole: (role: string) => roles.includes(role),

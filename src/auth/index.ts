@@ -6,5 +6,7 @@ export {
   saveSession,
   decodeJwtPayload,
   rolesFromJwt,
+  subjectFromJwt,
+  usernameFromJwt,
 } from './session';
 export type { PersistedSession } from './session';

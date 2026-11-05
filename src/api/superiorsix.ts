@@ -30,6 +30,99 @@ export type UpdateDetailsPayload = {
   nickname?: string;
 };
 
+export type InvitePlayerPayload = {
+  username: string;
+  first_name?: string;
+  last_name?: string;
+  nickname?: string;
+};
+
+export type InvitePlayerResult = {
+  username: string;
+  status: string;
+  auth_id: string | null;
+  profile: Record<string, unknown>;
+};
+
+export type AddPlayerPayload = {
+  auth_id: string;
+  username: string;
+  first_name: string;
+  last_name: string;
+  nickname?: string;
+};
+
+/** List roster rows via superiorsix BFF (`GET /admin/listplayers`). */
+export async function listPlayers(
+  token: string,
+  active?: boolean,
+): Promise<PlayerProfile[]> {
+  const query =
+    typeof active === 'boolean' ? `?active=${active ? 'true' : 'false'}` : '';
+  let response: Response;
+  try {
+    response = await apiFetch('game', `/admin/listplayers${query}`, { token });
+  } catch {
+    throw new ApiError(
+      0,
+      'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+    );
+  }
+  const body = await readApiJson<{ players: PlayerProfile[] }>(response);
+  return body.players ?? [];
+}
+
+/**
+ * Reserve a username on the invite list
+ * (`POST /admin/inviteplayer` → baked-user invites).
+ * Requires JWT role `admin`.
+ */
+export async function invitePlayer(
+  token: string,
+  payload: InvitePlayerPayload,
+): Promise<InvitePlayerResult> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/admin/inviteplayer', {
+      method: 'POST',
+      token,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+    );
+  }
+  return readApiJson<InvitePlayerResult>(response);
+}
+
+/**
+ * Create roster profile for an invited auth subject
+ * (`POST /admin/addplayer`). Requires JWT role `admin`.
+ */
+export async function addPlayer(
+  token: string,
+  payload: AddPlayerPayload,
+): Promise<PlayerProfile> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/admin/addplayer', {
+      method: 'POST',
+      token,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+    );
+  }
+  return readApiJson<PlayerProfile>(response);
+}
+
 /**
  * Patch the caller's roster profile via superiorsix BFF
  * (`POST /user/updatedetails` → baked-user `/me`).
