@@ -46,7 +46,7 @@ type TabBarProps = {
  * Main menu at the bottom — inset ~3% each side, rounded bar,
  * circular selected highlight around each icon.
  *
- * SS-55: when signed in with `admin`, long-press (~2s) the user tab for
+ * SS-55: when signed in with `admin`, long-press (~1s) the user tab for
  * User vs Admin destinations. Same LongPressMenu pattern can wire other
  * tabs later (fixtures → admin match builder, etc.).
  */

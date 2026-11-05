@@ -18,8 +18,8 @@ import {
 
 import { colors } from '@/theme';
 
-/** Hold duration before the alternate-destination menu opens (~2s). */
-export const LONG_PRESS_MS = 2000;
+/** Hold duration before the alternate-destination menu opens (~1s). */
+export const LONG_PRESS_MS = 1000;
 
 export type LongPressMenuOption = {
   id: string;
