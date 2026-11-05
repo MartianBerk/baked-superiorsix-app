@@ -22,7 +22,7 @@ import { colors } from '@/theme';
  * Shared long-press delay for every LongPressMenu (all nav buttons inherit this).
  * Do not override per-tab unless product explicitly asks.
  */
-export const LONG_PRESS_MS = 1000;
+export const LONG_PRESS_MS = 500;
 
 export type LongPressMenuOption = {
   id: string;
@@ -50,7 +50,7 @@ type Props = {
 /**
  * Pressable that optionally opens a small anchored submenu after a long press.
  * Reusable for later bottom-menu tabs (fixtures → admin match builder, etc.).
- * Delay is always {@link LONG_PRESS_MS} (1000ms) — shared default, not per-tab.
+ * Delay is always {@link LONG_PRESS_MS} (500ms) — shared default, not per-tab.
  */
 export function LongPressMenu({
   options,
