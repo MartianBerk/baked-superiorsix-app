@@ -28,7 +28,7 @@ const EMPTY_FIELDS: ProfileFields = {
 type LoadState = 'loading' | 'ready' | 'missing' | 'error';
 
 /**
- * Signed-in profile submission: first name, last name, nickname, email.
+ * Signed-in profile submission: email, first name, last name, nickname.
  * Loads via baked-user by-auth; saves via superiorsix `/user/updatedetails`.
  */
 export function ProfileForm() {
@@ -149,12 +149,26 @@ export function ProfileForm() {
       <Text style={styles.heading}>Your profile</Text>
       <Text style={styles.lede}>
         {session?.username ? `${session.username} · ` : ''}
-        first name, last name, nickname, and email.
+        email, first name, last name, and nickname.
       </Text>
 
       {loadState === 'missing' || loadState === 'error' ? (
         <Text style={styles.warn}>{loadError}</Text>
       ) : null}
+
+      <Text style={styles.label}>Email</Text>
+      <TextInput
+        style={styles.input}
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="email-address"
+        editable={!busy && loadState === 'ready'}
+        value={fields.email}
+        onChangeText={(v) => setField('email', v)}
+        placeholder="Email"
+        placeholderTextColor={colors.textMuted}
+        returnKeyType="next"
+      />
 
       <Text style={styles.label}>First name</Text>
       <TextInput
@@ -191,20 +205,6 @@ export function ProfileForm() {
         value={fields.nickname}
         onChangeText={(v) => setField('nickname', v)}
         placeholder="Optional nickname"
-        placeholderTextColor={colors.textMuted}
-        returnKeyType="next"
-      />
-
-      <Text style={styles.label}>Email</Text>
-      <TextInput
-        style={styles.input}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="email-address"
-        editable={!busy && loadState === 'ready'}
-        value={fields.email}
-        onChangeText={(v) => setField('email', v)}
-        placeholder="Email"
         placeholderTextColor={colors.textMuted}
         returnKeyType="done"
         onSubmitEditing={() => {

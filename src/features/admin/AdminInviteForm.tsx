@@ -40,15 +40,16 @@ function selectedRoles(flags: RoleFlags): InvitePermissionRole[] {
 }
 
 /**
- * Admin invite form: username + name seed + role chips.
+ * Admin invite form: email + username + name/nickname seed + role chips.
  * Invite-only — invitee sets password on first login; roles grant on accept.
  */
 export function AdminInviteForm() {
   const { token } = useAuth();
+  const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
+  const [nickname, setNickname] = useState('');
   const [roles, setRoles] = useState<RoleFlags>(DEFAULT_ROLES);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,22 +115,23 @@ export function AdminInviteForm() {
     setError(null);
     setNote(null);
 
+    const mail = email.trim();
     const user = username.trim().toLowerCase();
     const first = firstName.trim();
     const last = lastName.trim();
-    const mail = email.trim();
+    const nick = nickname.trim();
     const permissionRoles = selectedRoles(roles);
 
-    if (!user || !first || !last || !mail) {
-      setError('Username, first name, last name, and email are required.');
-      return;
-    }
-    if (!/^[a-zA-Z0-9_]{3,64}$/.test(user)) {
-      setError('Username must be 3–64 letters, numbers, or underscores.');
+    if (!mail || !user || !first || !last) {
+      setError('Email, username, first name, and last name are required.');
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
       setError('Enter a valid email address.');
+      return;
+    }
+    if (!/^[a-zA-Z0-9_]{3,64}$/.test(user)) {
+      setError('Username must be 3–64 letters, numbers, or underscores.');
       return;
     }
     if (!token) {
@@ -145,9 +147,10 @@ export function AdminInviteForm() {
     try {
       const invite = await invitePlayer(token, {
         username: user,
+        email: mail,
         first_name: first,
         last_name: last,
-        email: mail,
+        ...(nick ? { nickname: nick } : {}),
         roles: permissionRoles,
       });
       const roleList =
@@ -156,10 +159,11 @@ export function AdminInviteForm() {
       setNote(
         `Invited ${invite.username} (${invite.status}) · roles ${roleList}. They set a password on first login.`,
       );
+      setEmail('');
       setUsername('');
       setFirstName('');
       setLastName('');
-      setEmail('');
+      setNickname('');
       setRoles(DEFAULT_ROLES);
       await refreshAll();
     } catch (err) {
@@ -181,10 +185,23 @@ export function AdminInviteForm() {
     <View style={styles.wrap}>
       <Text style={styles.heading}>Invite player</Text>
       <Text style={styles.lede}>
-        Reserve a username, email, and roles. Profile edit access is always
-        granted. The invitee chooses a password on first login; roles apply when
-        they accept — no second admin pass.
+        Reserve an email, username, profile seed, and roles. Profile edit access
+        is always granted. The invitee chooses a password on first login; roles
+        apply when they accept — no second admin pass.
       </Text>
+
+      <Text style={styles.label}>Email</Text>
+      <TextInput
+        style={styles.input}
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="email-address"
+        editable={!busy}
+        value={email}
+        onChangeText={setEmail}
+        placeholder="Email"
+        placeholderTextColor={colors.textMuted}
+      />
 
       <Text style={styles.label}>Username</Text>
       <TextInput
@@ -222,16 +239,15 @@ export function AdminInviteForm() {
         placeholderTextColor={colors.textMuted}
       />
 
-      <Text style={styles.label}>Email</Text>
+      <Text style={styles.label}>Nickname</Text>
       <TextInput
         style={styles.input}
-        autoCapitalize="none"
+        autoCapitalize="words"
         autoCorrect={false}
-        keyboardType="email-address"
         editable={!busy}
-        value={email}
-        onChangeText={setEmail}
-        placeholder="Email"
+        value={nickname}
+        onChangeText={setNickname}
+        placeholder="Optional nickname"
         placeholderTextColor={colors.textMuted}
       />
 

@@ -53,7 +53,8 @@ export function MenuIcon({
     return icon;
   }
 
-  const badgeSize = Math.max(10, Math.round(size * 0.42));
+  // ~1.5× the previous 0.42 ratio so the admin cog reads clearly on the tab.
+  const badgeSize = Math.max(15, Math.round(size * 0.63));
   const cogXml = COG.replaceAll('CURRENT', stroke);
 
   return (
