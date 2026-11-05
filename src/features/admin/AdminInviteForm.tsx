@@ -130,8 +130,8 @@ export function AdminInviteForm() {
       setError('Enter a valid email address.');
       return;
     }
-    if (!/^[a-zA-Z0-9_]{3,64}$/.test(user)) {
-      setError('Username must be 3–64 letters, numbers, or underscores.');
+    if (!/^[a-zA-Z0-9_-]{3,64}$/.test(user)) {
+      setError('Username must be 3–64 letters, numbers, underscores, or hyphens.');
       return;
     }
     if (!token) {
@@ -247,7 +247,7 @@ export function AdminInviteForm() {
         editable={!busy}
         value={nickname}
         onChangeText={setNickname}
-        placeholder="Optional nickname"
+        placeholder="Nickname"
         placeholderTextColor={colors.textMuted}
       />
 

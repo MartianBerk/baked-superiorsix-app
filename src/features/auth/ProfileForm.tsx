@@ -204,7 +204,7 @@ export function ProfileForm() {
         editable={!busy && loadState === 'ready'}
         value={fields.nickname}
         onChangeText={(v) => setField('nickname', v)}
-        placeholder="Optional nickname"
+        placeholder="Nickname"
         placeholderTextColor={colors.textMuted}
         returnKeyType="done"
         onSubmitEditing={() => {
