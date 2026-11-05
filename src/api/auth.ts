@@ -22,6 +22,7 @@ export type AuthUser = {
   is_active: boolean;
   roles: string[];
   memberships: MembershipResponse[];
+  must_set_password?: boolean;
   created_at: string;
 };
 
@@ -78,14 +79,17 @@ export async function fetchAuthMe(token: string): Promise<AuthUser> {
   return readApiJson<AuthUser>(response);
 }
 
-/** Create a baked-auth identity (no membership). 409 if username taken. */
-export async function registerAuthUser(
+/**
+ * Claim an invite-ready account (SS-66): set the first password.
+ * Returns UserResponse (no token). 409 if password already set; then use login.
+ */
+export async function setPasswordAuthUser(
   username: string,
   password: string,
 ): Promise<AuthUser> {
   let response: Response;
   try {
-    response = await apiFetch('auth', '/v1/auth/register', {
+    response = await apiFetch('auth', '/v1/auth/set-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

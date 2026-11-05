@@ -41,7 +41,8 @@ function selectedRoles(flags: RoleFlags): InvitePermissionRole[] {
 
 /**
  * Admin invite form: email + username + name/nickname seed + role chips.
- * Invite-only — invitee sets password on first login; roles grant on accept.
+ * Invite-only — creates passwordless auth user + membership; invitee claims
+ * password on first login, then accepts the roster.
  */
 export function AdminInviteForm() {
   const { token } = useAuth();
@@ -157,7 +158,7 @@ export function AdminInviteForm() {
         (invite.roles.length ? invite.roles : permissionRoles).join(', ') ||
         'none';
       setNote(
-        `Invited ${invite.username} (${invite.status}) · roles ${roleList}. They set a password on first login.`,
+        `Invited ${invite.username} (${invite.status}) · roles ${roleList}. They set a password on first login (claim), then join.`,
       );
       setEmail('');
       setUsername('');
@@ -186,8 +187,8 @@ export function AdminInviteForm() {
       <Text style={styles.heading}>Invite player</Text>
       <Text style={styles.lede}>
         Reserve an email, username, profile seed, and roles. Profile edit access
-        is always granted. The invitee chooses a password on first login; roles
-        apply when they accept — no second admin pass.
+        is always granted. Auth user + membership are created now; the invitee
+        sets a password on first login, then joins the roster.
       </Text>
 
       <Text style={styles.label}>Email</Text>

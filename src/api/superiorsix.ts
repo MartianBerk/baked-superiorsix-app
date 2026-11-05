@@ -107,9 +107,8 @@ export async function listPlayers(
 }
 
 /**
- * Reserve a username on the invite list with roles to grant on accept
- * (`POST /admin/inviteplayer` → baked-user invites).
- * Requires JWT role `admin`. Invite-only — no auth register / membership / addplayer.
+ * Invite a username: passwordless auth user + membership + roster invite
+ * (`POST /admin/inviteplayer`). Requires JWT role `admin`.
  */
 export async function invitePlayer(
   token: string,
@@ -158,9 +157,9 @@ export async function listInvites(token: string): Promise<PendingInvite[]> {
 }
 
 /**
- * Invitee accepts a pending invite after register
+ * Invitee accepts a pending invite after set-password claim
  * (`POST /user/acceptinvite` with username + password; no invitee bearer).
- * BFF grants invite.roles, mints superiorsix JWT, creates roster.
+ * BFF logs in and creates roster (membership already granted at invite).
  */
 export async function acceptInvite(
   payload: AcceptInvitePayload,

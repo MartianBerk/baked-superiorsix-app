@@ -14,7 +14,7 @@ import {
   acceptInvite,
   fetchAuthMe,
   loginWithPassword,
-  registerAuthUser,
+  setPasswordAuthUser,
   smokeSuperSixBff,
   type AcceptInviteResult,
   type SuperSixSmokeResult,
@@ -44,11 +44,10 @@ type AuthContextValue = {
   hasRole: (role: string) => boolean;
   signIn: (username: string, password: string) => Promise<void>;
   /**
-   * First login for invitees: register → acceptinvite (username/password) →
-   * session from returned access_token. Does not mint a superiorsix token
-   * before accept (membership does not exist yet).
+   * First login for invitees: set-password claim → acceptinvite →
+   * session from returned access_token. Membership was granted at invite.
    */
-  registerAndAcceptInvite: (username: string, password: string) => Promise<void>;
+  claimAndAcceptInvite: (username: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   lastSmoke: SuperSixSmokeResult | null;
   runSmoke: () => Promise<SuperSixSmokeResult | null>;
@@ -226,19 +225,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [persistSignedIn],
   );
 
-  const registerAndAcceptInvite = useCallback(
+  const claimAndAcceptInvite = useCallback(
     async (username: string, password: string) => {
       const user = username.trim().toLowerCase();
       try {
-        await registerAuthUser(user, password);
+        await setPasswordAuthUser(user, password);
       } catch (err) {
         if (!(err instanceof ApiError && err.status === 409)) {
           throw err;
         }
-        // Identity already exists — continue with acceptinvite.
+        // Password already claimed — continue with acceptinvite / login.
       }
 
-      // Do not mint a superiorsix token here — membership is granted inside accept.
       const accepted = await acceptInvite({ username: user, password });
       const next = await buildSessionFromAccept(accepted, user);
       await persistSignedIn(next);
@@ -263,7 +261,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: status === 'signedIn' && !!session,
       hasRole: (role: string) => roles.includes(role),
       signIn,
-      registerAndAcceptInvite,
+      claimAndAcceptInvite,
       signOut,
       lastSmoke,
       runSmoke,
@@ -272,7 +270,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     status,
     session,
     signIn,
-    registerAndAcceptInvite,
+    claimAndAcceptInvite,
     signOut,
     lastSmoke,
     runSmoke,

@@ -6,7 +6,7 @@ export {
   SUPERIORSIX_AUDIENCE,
   fetchAuthMe,
   loginWithPassword,
-  registerAuthUser,
+  setPasswordAuthUser,
 } from './auth';
 export type {
   AuthUser,

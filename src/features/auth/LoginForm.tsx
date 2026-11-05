@@ -21,7 +21,7 @@ type Props = {
 
 /** Username / password against baked-auth (`audience=superiorsix`). */
 export function LoginForm({ heading }: Props) {
-  const { signIn, registerAndAcceptInvite } = useAuth();
+  const { signIn, claimAndAcceptInvite } = useAuth();
   const [mode, setMode] = useState<Mode>('signIn');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -32,7 +32,7 @@ export function LoginForm({ heading }: Props) {
     heading ?? (mode === 'firstLogin' ? 'First login' : 'Sign in');
   const lede =
     mode === 'firstLogin'
-      ? 'Invited? Register with your reserved username and choose a password. Acceptinvite grants roles and signs you in.'
+      ? 'Invited? Set a password for your reserved username, then join the roster. Roles were granted when you were invited.'
       : 'baked-auth token with audience superiorsix. Session is stored on this device.';
 
   const onSubmit = async () => {
@@ -48,7 +48,7 @@ export function LoginForm({ heading }: Props) {
     setBusy(true);
     try {
       if (mode === 'firstLogin') {
-        await registerAndAcceptInvite(username, password);
+        await claimAndAcceptInvite(username, password);
       } else {
         await signIn(username, password);
       }
@@ -169,7 +169,7 @@ export function LoginForm({ heading }: Props) {
           <ActivityIndicator color={colors.text} />
         ) : (
           <Text style={styles.buttonText}>
-            {mode === 'firstLogin' ? 'Register & join' : 'Sign in'}
+            {mode === 'firstLogin' ? 'Set password & join' : 'Sign in'}
           </Text>
         )}
       </Pressable>

@@ -58,7 +58,7 @@ export function ProfileForm() {
         setFields(EMPTY_FIELDS);
         setLoadState('missing');
         setLoadError(
-          'No roster profile yet. If you were invited, use First login to register and accept, then reload.',
+          'No roster profile yet. If you were invited, use First login to set a password and join, then reload.',
         );
         return;
       }
@@ -100,7 +100,7 @@ export function ProfileForm() {
     }
     if (loadState === 'missing') {
       setSubmitError(
-        'Cannot save — no roster profile. Complete First login (register & join) first.',
+        'Cannot save — no roster profile. Complete First login (set password & join) first.',
       );
       return;
     }
