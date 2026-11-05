@@ -11,7 +11,7 @@ Bootstrap slice **SS-8**: shell + empty screens only. No predictions / gameday /
 
 ## Run (web) against the local API stack
 
-1. Start APIs with [`baked-devops/local-dev`](../baked-devops/local-dev) (auth `:8010`, user `:8020`, superiorsix `:8030`). Bootstrap + invite notes live in that README.
+1. Start the backend with [`baked-superiorsix/local-dev`](../baked-superiorsix/local-dev) (auth `:8010`, user `:8020`, superiorsix `:8030`). Bootstrap + invite notes live in that README.
 2. Point this app at those host ports:
 
 ```bash
@@ -37,19 +37,17 @@ Native later: `npm run ios` / `npm run android` (Expo Go or EAS). Store builds a
 
 ## Docker (optional web UI)
 
-Same pattern as [baked-demoapp](../baked-demoapp): multi-stage Node build → nginx static host with API proxies. Prefer host Expo for day-to-day UI; use Docker when you want a single published web port.
+This repo owns front-end compose only. Multi-stage Node build → nginx static host with API proxies to **host-published** backend ports. Prefer host Expo for day-to-day UI.
 
 ```bash
 cp .env.example .env   # optional AUTH_/USER_/SUPERSIX_UPSTREAM overrides
 docker compose up --build
 ```
 
-Or from the full stack: `docker compose --profile app up --build` in `baked-devops/local-dev` (upstreams use Docker DNS to the sibling services).
-
 App: [http://127.0.0.1:8040](http://127.0.0.1:8040). Nginx proxies:
 
-| Path | Upstream env | Default (this compose) |
-|------|--------------|------------------------|
+| Path | Upstream env | Default |
+|------|--------------|---------|
 | `/auth/` | `AUTH_UPSTREAM` | `http://host.docker.internal:8010` |
 | `/user/` | `USER_UPSTREAM` | `http://host.docker.internal:8020` |
 | `/superiorsix/` | `SUPERSIX_UPSTREAM` | `http://host.docker.internal:8030` |

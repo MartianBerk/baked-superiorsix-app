@@ -2,7 +2,7 @@
  * HTTP client for baked-auth / baked-user / baked-superiorsix.
  *
  * Base URLs come from EXPO_PUBLIC_* (see .env.example). Primary local setup:
- * APIs via baked-devops/local-dev on 127.0.0.1:8010 / 8020 / 8030.
+ * APIs via baked-superiorsix/local-dev on 127.0.0.1:8010 / 8020 / 8030.
  */
 
 const AUTH_BASE = process.env.EXPO_PUBLIC_AUTH_URL ?? '';

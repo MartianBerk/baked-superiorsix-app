@@ -1,6 +1,6 @@
-# Standalone app container. Expects APIs on the host (baked-devops/local-dev
-# publishes 8010/8020/8030). For an all-in-one stack with Docker DNS upstreams,
-# use: baked-devops/local-dev  →  docker compose --profile app up --build
+# Front-end only. Expects the backend stack published on the host
+# (baked-superiorsix/local-dev → 8010 / 8020 / 8030).
+# Primary UI workflow remains: npx expo start --web on the host.
 
 services:
   baked-superiorsix-app:
