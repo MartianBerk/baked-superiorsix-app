@@ -53,8 +53,8 @@ export function MenuIcon({
     return icon;
   }
 
-  // ~1.5× the previous 0.42 ratio, then ×0.9 so the admin cog stays clear but smaller.
-  const badgeSize = Math.max(14, Math.round(size * 0.567));
+  // Prior 0.567 factor ×0.9 again for a smaller admin cog badge.
+  const badgeSize = Math.max(13, Math.round(size * 0.5103));
   const cogXml = COG.replaceAll('CURRENT', stroke);
 
   return (
