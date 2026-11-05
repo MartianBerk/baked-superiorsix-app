@@ -1,10 +1,6 @@
-import { EmptyScreen } from '@/components/shell/EmptyScreen';
+import { UserWidget } from '@/features/auth/UserWidget';
 
+/** User widget (rightmost tab) — login / session. Profile edit is SS-51. */
 export default function ProfileScreen() {
-  return (
-    <EmptyScreen
-      title="Profile"
-      subtitle="Account / login UI comes in a later slice."
-    />
-  );
+  return <UserWidget />;
 }
