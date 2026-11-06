@@ -74,6 +74,15 @@ export type AcceptInvitePayload = {
   nickname?: string;
 };
 
+/**
+ * Prediction difficulty from SS-79 (`score` 0–1 higher=harder, `band` 1–5).
+ * Optional until Docker / BE includes baked-superiorsix#22.
+ */
+export type MatchDifficulty = {
+  score: number;
+  band: number;
+};
+
 /** Admin fixture row from `/admin/listmatches`. */
 export type AdminMatch = {
   id: number;
@@ -89,6 +98,7 @@ export type AdminMatch = {
   away_score: number | null;
   game_number: number | null;
   last_updated?: string | null;
+  difficulty?: MatchDifficulty | null;
 };
 
 export type LeagueInfo = {
@@ -105,6 +115,7 @@ export type MatchDetailPayload = {
   league_position: Record<string, string | null>;
   team_performance: Record<string, TeamResultCode[]>;
   head_to_head: Record<string, TeamResultCode[]>;
+  difficulty?: MatchDifficulty | null;
 };
 
 /** `POST /user/acceptinvite` — no invitee bearer; BFF grants roles then returns JWT. */

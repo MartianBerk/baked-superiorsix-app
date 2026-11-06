@@ -19,6 +19,14 @@ export const colors = {
   accent: '#116618',
   /** Brighter accent for focus */
   accentBright: '#2E9B4A',
+  /**
+   * Form / performance result pips + difficulty tiers.
+   * Win green matches `accent`; lose is the muted red used by match detail.
+   */
+  resultWin: '#116618',
+  resultLose: '#6B2A2A',
+  /** Muted gold for mid difficulty (same family as result greens/reds). */
+  difficultyMedium: '#7A6230',
   /** Subtle borders */
   border: '#1A3352',
   /** Floating user button background */
