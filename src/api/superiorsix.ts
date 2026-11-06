@@ -117,6 +117,26 @@ export type Subround = {
   is_open_for_editing: boolean;
 };
 
+/** Parent game round (`GET /admin/currentround`, `POST /admin/addround`). */
+export type RoundInfo = {
+  id: number;
+  start_date: string;
+  end_date: string | null;
+  buy_in_pence: number;
+};
+
+/** True when BE has no open round (subround list/create need one first). */
+export function isNoRoundInProgressError(err: unknown): boolean {
+  if (!(err instanceof ApiError)) {
+    return false;
+  }
+  const detail = err.message.toLowerCase();
+  return (
+    detail.includes('no round in progress') ||
+    (err.status === 400 && detail.includes('round'))
+  );
+}
+
 export type LeagueInfo = {
   id: number;
   name: string;
@@ -424,9 +444,46 @@ export async function addPrediction(
   return { matchId: body.match_id, prediction: value };
 }
 
+/** `GET /admin/currentround` — open parent round or null. */
+export async function getCurrentRound(token: string): Promise<RoundInfo | null> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/admin/currentround', { token });
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{ current_round: RoundInfo | null }>(response);
+  return body.current_round ?? null;
+}
+
+/**
+ * `POST /admin/addround` — open the first (or next) parent round.
+ * Fails with 400 if a round is already in progress.
+ */
+export async function addRound(
+  token: string,
+  opts: { startDate: string; buyInPence?: number },
+): Promise<RoundInfo> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/admin/addround', {
+      method: 'POST',
+      token,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        start_date: opts.startDate,
+        buy_in_pence: opts.buyInPence ?? 0,
+      }),
+    });
+  } catch {
+    throw gameUnreachable();
+  }
+  return readApiJson<RoundInfo>(response);
+}
+
 /**
  * `GET /game/listsubrounds` — player-facing slates for the current (or given)
- * parent round. Public.
+ * parent round. Public. 400 ``No round in progress.`` when none open.
  */
 export async function listGameSubrounds(roundId?: number): Promise<Subround[]> {
   const params = new URLSearchParams();

@@ -12,6 +12,7 @@ import {
   addPrediction,
   fetchMatchDetail,
   getPrediction,
+  isNoRoundInProgressError,
   listGameSubrounds,
   listLiveMatches,
   type PredictionChoice,
@@ -194,14 +195,24 @@ export function MatchPlayerWidget() {
       setError(null);
       setRowError(null);
       try {
-        const [listed, dayResults] = await Promise.all([
-          listGameSubrounds(),
-          Promise.all(
-            discoveryDayKeys().map((dayKey) =>
-              listLiveMatches(toLegacyDateParam(dayKey)),
-            ),
+        // Subround list 400s with no open round — don't block livematches.
+        let listed: Subround[] = [];
+        let noRound = false;
+        try {
+          listed = await listGameSubrounds();
+        } catch (err) {
+          if (isNoRoundInProgressError(err)) {
+            noRound = true;
+          } else {
+            throw err;
+          }
+        }
+
+        const dayResults = await Promise.all(
+          discoveryDayKeys().map((dayKey) =>
+            listLiveMatches(toLegacyDateParam(dayKey)),
           ),
-        ]);
+        );
 
         const byId = new Map<number, PlayerMatch>();
         for (const dayMatches of dayResults) {
@@ -241,6 +252,13 @@ export function MatchPlayerWidget() {
 
         setSubrounds(navigable);
         setMatchesBySubround(bySubround);
+
+        if (noRound) {
+          setSelectedSubroundId(null);
+          setDraft({});
+          setError(null);
+          return;
+        }
 
         const next = pickPlayerSubround(
           navigable,
@@ -389,8 +407,9 @@ export function MatchPlayerWidget() {
           </View>
         ) : matches.length === 0 ? (
           <Text style={styles.empty}>
-            No Super Six selections available yet. Once a game master picks the
-            six, they show up here.
+            {subrounds.length === 0
+              ? 'No round or selections yet. A game master needs to start a round and pick the six.'
+              : 'No Super Six selections available yet. Once a game master picks the six, they show up here.'}
           </Text>
         ) : (
           <View style={styles.card}>
