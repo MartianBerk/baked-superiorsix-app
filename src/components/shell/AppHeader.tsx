@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SuperiorSixLogo } from '@/components/icons/SuperiorSixLogo';
+import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
 import { colors } from '@/theme';
 
 import { RoundStatusStrip } from './RoundStatusStrip';
@@ -19,9 +20,20 @@ type Props = {
   /**
    * Thin status strip under the logo row.
    * Omit to use SS-8 tab demos: Scores → live correct; Leaders → + rival all 6.
+   * Hidden entirely in admin match-day mode (count lives in the widget strip).
    */
   roundStatus?: RoundStatus;
 };
+
+function isFixturesPath(pathname: string): boolean {
+  if (pathname.includes('/scores') || pathname.includes('/leaders')) {
+    return false;
+  }
+  if (pathname.includes('/profile')) {
+    return false;
+  }
+  return true;
+}
 
 /**
  * Top shell: round left, logo center, prize pot right,
@@ -34,6 +46,9 @@ export function AppHeader({
 }: Props) {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
+  const { mode: fixturesMode } = useFixturesTabMode();
+  const hideStatusStrip =
+    fixturesMode === 'admin' && isFixturesPath(pathname);
   const status = roundStatus ?? demoRoundStatusForPath(pathname);
 
   return (
@@ -60,7 +75,7 @@ export function AppHeader({
           </View>
         </View>
 
-        <RoundStatusStrip status={status} />
+        {hideStatusStrip ? null : <RoundStatusStrip status={status} />}
       </View>
     </View>
   );

@@ -74,6 +74,39 @@ export type AcceptInvitePayload = {
   nickname?: string;
 };
 
+/** Admin fixture row from `/admin/listmatches`. */
+export type AdminMatch = {
+  id: number;
+  external_id: string;
+  league_id: number;
+  match_date: string;
+  match_minute: number | null;
+  status: string;
+  home_team: string;
+  away_team: string;
+  use_match: boolean;
+  home_score: number | null;
+  away_score: number | null;
+  game_number: number | null;
+  last_updated?: string | null;
+};
+
+export type LeagueInfo = {
+  id: number;
+  name: string;
+  code: string;
+  start_date: string;
+};
+
+/** Result codes from `/game/matchdetail` form / H2H rows. */
+export type TeamResultCode = 'WIN' | 'DRAW' | 'LOSE';
+
+export type MatchDetailPayload = {
+  league_position: Record<string, string | null>;
+  team_performance: Record<string, TeamResultCode[]>;
+  head_to_head: Record<string, TeamResultCode[]>;
+};
+
 /** `POST /user/acceptinvite` — no invitee bearer; BFF grants roles then returns JWT. */
 export type AcceptInviteResult = {
   player: PlayerProfile;
@@ -234,6 +267,137 @@ export async function updateProfileDetails(
     );
   }
   return readApiJson<PlayerProfile>(response);
+}
+
+function gameUnreachable(): ApiError {
+  return new ApiError(
+    0,
+    'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+  );
+}
+
+/**
+ * `GET /game/matchdetail` — league position, recent form, head-to-head.
+ * Public game route; `matchDate` is legacy `dd-mm-yyyy`.
+ */
+export async function fetchMatchDetail(opts: {
+  homeTeam: string;
+  awayTeam: string;
+  matchDate: string;
+}): Promise<MatchDetailPayload> {
+  const params = new URLSearchParams({
+    hometeam: opts.homeTeam,
+    awayteam: opts.awayTeam,
+    matchdate: opts.matchDate,
+  });
+  let response: Response;
+  try {
+    response = await apiFetch('game', `/game/matchdetail?${params.toString()}`);
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{ match_detail: MatchDetailPayload }>(response);
+  return body.match_detail;
+}
+
+/** `GET /admin/listleagues` — league id → code map for kickoff headers. */
+export async function listLeagues(token: string): Promise<LeagueInfo[]> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/admin/listleagues', { token });
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{ leagues: LeagueInfo[] }>(response);
+  return body.leagues ?? [];
+}
+
+/**
+ * `GET /admin/listmatches` — fixtures for an inclusive UTC range (`dd-mm-yyyy`).
+ * Both fromDate and toDate required; max 7 calendar days; same day = one day.
+ */
+export async function listMatches(
+  token: string,
+  opts: { fromDate: string; toDate: string },
+): Promise<AdminMatch[]> {
+  const params = new URLSearchParams({
+    fromDate: opts.fromDate,
+    toDate: opts.toDate,
+  });
+  let response: Response;
+  try {
+    response = await apiFetch('game', `/admin/listmatches?${params.toString()}`, {
+      token,
+    });
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{ matches: AdminMatch[] }>(response);
+  return body.matches ?? [];
+}
+
+/** `POST /admin/addmatch` — select a fixture as Super Six game N. */
+export async function addMatch(
+  token: string,
+  matchId: number,
+  gameNumber: number,
+): Promise<AdminMatch> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/admin/addmatch', {
+      method: 'POST',
+      token,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: matchId, game_number: gameNumber }),
+    });
+  } catch {
+    throw gameUnreachable();
+  }
+  return readApiJson<AdminMatch>(response);
+}
+
+/**
+ * `POST /admin/addmatches?matchDate=` — batch replace a day's Super Six
+ * selections (0–6). `matchDate` is legacy `dd-mm-yyyy`.
+ */
+export async function addMatches(
+  token: string,
+  matchDate: string,
+  selections: { id: number; game_number: number }[],
+): Promise<AdminMatch[]> {
+  let response: Response;
+  try {
+    response = await apiFetch(
+      'game',
+      `/admin/addmatches?matchDate=${encodeURIComponent(matchDate)}`,
+      {
+        method: 'POST',
+        token,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(selections),
+      },
+    );
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{ matches: AdminMatch[] }>(response);
+  return body.matches ?? [];
+}
+
+/** `GET /admin/dropmatch?id=` — clear Super Six selection on a fixture. */
+export async function dropMatch(
+  token: string,
+  matchId: number,
+): Promise<AdminMatch> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', `/admin/dropmatch?id=${matchId}`, {
+      token,
+    });
+  } catch {
+    throw gameUnreachable();
+  }
+  return readApiJson<AdminMatch>(response);
 }
 
 /**
