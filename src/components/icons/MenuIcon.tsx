@@ -34,9 +34,18 @@ type Props = {
   size?: number;
   color?: string;
   active?: boolean;
-  /** When true on the user icon, overlays a small top-right cog badge. */
+  /**
+   * When true on fixtures / leaders / users tab icons, overlays a small
+   * top-right cog badge (in-place admin mode).
+   */
   adminBadge?: boolean;
 };
+
+const ADMIN_BADGE_ICONS: ReadonlySet<MenuIconName> = new Set([
+  'fixtures',
+  'leaders',
+  'users',
+]);
 
 export function MenuIcon({
   name,
@@ -49,7 +58,7 @@ export function MenuIcon({
   const xml = ICONS[name].replaceAll('CURRENT', stroke);
   const icon = <SvgXml xml={xml} width={size} height={size} />;
 
-  if (!adminBadge || (name !== 'users' && name !== 'fixtures')) {
+  if (!adminBadge || !ADMIN_BADGE_ICONS.has(name)) {
     return icon;
   }
 

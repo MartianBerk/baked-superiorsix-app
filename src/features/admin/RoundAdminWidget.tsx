@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -32,7 +31,22 @@ import {
 import { colors } from '@/theme';
 
 const ADMIN_ROLE = 'admin';
+/** Round open/close routes require `game-master` on the BE. */
 const GAME_MASTER_ROLE = 'game-master';
+
+type PendingConfirm =
+  | {
+      kind: 'start';
+      message: string;
+      startDate: string;
+      buyInPence: number;
+    }
+  | {
+      kind: 'close';
+      message: string;
+      endDate: string;
+      winnerIds: string[];
+    };
 
 function playerLabel(player: PlayerProfile): string {
   const nick = player.nickname?.trim();
@@ -59,6 +73,19 @@ function parseStakePounds(raw: string): number | null {
   return Math.round(value * 100);
 }
 
+function formatRoundApiError(err: unknown, fallback: string): string {
+  if (err instanceof ApiError) {
+    if (err.status === 403) {
+      return `${err.message} Round start/close needs the game-master role.`;
+    }
+    return err.message;
+  }
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return fallback;
+}
+
 /**
  * Admin parent-round start/close. Rendered inside the leaders tab when mode
  * is admin — header + nav stay visible (same pattern as fixtures/users).
@@ -80,9 +107,14 @@ export function RoundAdminWidget() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  /** In-widget confirm — `Alert.alert` is unreliable on web (Start looked like a no-op). */
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(
+    null,
+  );
 
   const canManage =
     isAuthenticated && (hasRole(GAME_MASTER_ROLE) || hasRole(ADMIN_ROLE));
+  const hasGameMaster = hasRole(GAME_MASTER_ROLE);
 
   const activePlayers = useMemo(
     () => players.filter((player) => player.active && !player.retired),
@@ -161,11 +193,18 @@ export function RoundAdminWidget() {
     setNote(null);
   };
 
-  const confirmStart = () => {
+  const requestStart = () => {
     setError(null);
     setNote(null);
+    setPendingConfirm(null);
     if (!token) {
       setError('Not signed in.');
+      return;
+    }
+    if (!hasGameMaster) {
+      setError(
+        'Starting a round needs the game-master role (admin alone is not enough).',
+      );
       return;
     }
     if (round != null) {
@@ -174,7 +213,8 @@ export function RoundAdminWidget() {
       );
       return;
     }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate.trim())) {
+    const day = startDate.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
       setError('Start date must be YYYY-MM-DD.');
       return;
     }
@@ -184,19 +224,12 @@ export function RoundAdminWidget() {
       return;
     }
 
-    Alert.alert(
-      'Start round?',
-      `Start on ${formatScrubberDate(startDate.trim())} with a buy-in of ${formatPounds(buyInPence)}.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Start',
-          onPress: () => {
-            void submitStart(startDate.trim(), buyInPence);
-          },
-        },
-      ],
-    );
+    setPendingConfirm({
+      kind: 'start',
+      message: `Start on ${formatScrubberDate(day)} with a buy-in of ${formatPounds(buyInPence)}. Proceed?`,
+      startDate: day,
+      buyInPence,
+    });
   };
 
   const submitStart = async (day: string, buyInPence: number) => {
@@ -206,37 +239,45 @@ export function RoundAdminWidget() {
     setBusy(true);
     setError(null);
     setNote(null);
+    setPendingConfirm(null);
     try {
       const created = await addRound(token, {
         startDate: day,
         buyInPence,
       });
       setRound(created);
+      setEndDate(utcDayKey(new Date()));
+      setSelectedWinnerIds([]);
       setNote(
         `Round ${created.id} started · buy-in ${formatPounds(created.buy_in_pence)}.`,
       );
-      setSelectedWinnerIds([]);
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : 'Could not start the round.',
-      );
+      setError(formatRoundApiError(err, 'Could not start the round.'));
     } finally {
       setBusy(false);
     }
   };
 
-  const confirmClose = () => {
+  const requestClose = () => {
     setError(null);
     setNote(null);
+    setPendingConfirm(null);
     if (!token) {
       setError('Not signed in.');
+      return;
+    }
+    if (!hasGameMaster) {
+      setError(
+        'Closing a round needs the game-master role (admin alone is not enough).',
+      );
       return;
     }
     if (round == null) {
       setError('No round in progress.');
       return;
     }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate.trim())) {
+    const day = endDate.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
       setError('End date must be YYYY-MM-DD.');
       return;
     }
@@ -246,20 +287,12 @@ export function RoundAdminWidget() {
     }
 
     const winnerNames = selectedWinners.map(playerLabel);
-    Alert.alert(
-      'Close round?',
-      `End round ${round.id} on ${formatScrubberDate(endDate.trim())}.\nWinners (${winnerNames.length}): ${winnerNames.join(', ')}.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Close',
-          style: 'destructive',
-          onPress: () => {
-            void submitClose(endDate.trim(), selectedWinnerIds);
-          },
-        },
-      ],
-    );
+    setPendingConfirm({
+      kind: 'close',
+      message: `End round ${round.id} on ${formatScrubberDate(day)}. Winners (${winnerNames.length}): ${winnerNames.join(', ')}. Proceed?`,
+      endDate: day,
+      winnerIds: [...selectedWinnerIds],
+    });
   };
 
   const submitClose = async (day: string, winnerIds: string[]) => {
@@ -269,6 +302,7 @@ export function RoundAdminWidget() {
     setBusy(true);
     setError(null);
     setNote(null);
+    setPendingConfirm(null);
     try {
       const closed = await endRound(token, {
         endDate: day,
@@ -282,12 +316,21 @@ export function RoundAdminWidget() {
         `Round closed on ${formatScrubberDate(day)} with ${count} winner(s).`,
       );
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : 'Could not close the round.',
-      );
+      setError(formatRoundApiError(err, 'Could not close the round.'));
     } finally {
       setBusy(false);
     }
+  };
+
+  const onConfirmYes = () => {
+    if (!pendingConfirm || busy) {
+      return;
+    }
+    if (pendingConfirm.kind === 'start') {
+      void submitStart(pendingConfirm.startDate, pendingConfirm.buyInPence);
+      return;
+    }
+    void submitClose(pendingConfirm.endDate, pendingConfirm.winnerIds);
   };
 
   if (status === 'loading') {
@@ -360,6 +403,55 @@ export function RoundAdminWidget() {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {note ? <Text style={styles.saved}>{note}</Text> : null}
+        {!hasGameMaster ? (
+          <Text style={styles.gapNote}>
+            Your token is missing game-master. Round start/close will be
+            rejected by the API until that role is granted (bootstrap ops has
+            both admin and game-master).
+          </Text>
+        ) : null}
+
+        {pendingConfirm ? (
+          <View style={styles.confirmBox}>
+            <Text style={styles.confirmText}>{pendingConfirm.message}</Text>
+            <View style={styles.confirmRow}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Cancel confirmation"
+                disabled={busy}
+                onPress={() => setPendingConfirm(null)}
+                style={({ pressed }) => [
+                  styles.confirmButton,
+                  styles.confirmCancel,
+                  (pressed || busy) && styles.pressed,
+                ]}
+              >
+                <Text style={styles.buttonText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Confirm action"
+                disabled={busy}
+                onPress={onConfirmYes}
+                style={({ pressed }) => [
+                  styles.confirmButton,
+                  pendingConfirm.kind === 'close'
+                    ? styles.buttonDanger
+                    : styles.confirmYes,
+                  (pressed || busy) && styles.pressed,
+                ]}
+              >
+                {busy ? (
+                  <ActivityIndicator color={colors.text} />
+                ) : (
+                  <Text style={styles.buttonText}>
+                    {pendingConfirm.kind === 'close' ? 'Close' : 'Start'}
+                  </Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
 
         {round == null ? (
           <View style={styles.block}>
@@ -396,14 +488,18 @@ export function RoundAdminWidget() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Start round"
-              disabled={busy}
-              onPress={confirmStart}
+              disabled={busy || pendingConfirm != null}
+              onPress={requestStart}
               style={({ pressed }) => [
                 styles.button,
-                (pressed || busy) && styles.pressed,
+                (busy || pendingConfirm != null) && styles.buttonDisabled,
+                pressed &&
+                  !busy &&
+                  pendingConfirm == null &&
+                  styles.pressed,
               ]}
             >
-              {busy ? (
+              {busy && pendingConfirm?.kind === 'start' ? (
                 <ActivityIndicator color={colors.text} />
               ) : (
                 <Text style={styles.buttonText}>Start round</Text>
@@ -481,20 +577,27 @@ export function RoundAdminWidget() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Close round"
-              disabled={busy || selectedWinnerIds.length === 0}
-              onPress={confirmClose}
+              disabled={
+                busy ||
+                pendingConfirm != null ||
+                selectedWinnerIds.length === 0
+              }
+              onPress={requestClose}
               style={({ pressed }) => [
                 styles.button,
                 styles.buttonDanger,
-                (busy || selectedWinnerIds.length === 0) &&
+                (busy ||
+                  pendingConfirm != null ||
+                  selectedWinnerIds.length === 0) &&
                   styles.buttonDisabled,
                 pressed &&
                   !busy &&
+                  pendingConfirm == null &&
                   selectedWinnerIds.length > 0 &&
                   styles.pressed,
               ]}
             >
-              {busy ? (
+              {busy && pendingConfirm?.kind === 'close' ? (
                 <ActivityIndicator color={colors.text} />
               ) : (
                 <Text style={styles.buttonText}>Close round</Text>
@@ -586,6 +689,44 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: -8,
     marginBottom: 14,
+  },
+  gapNote: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  confirmBox: {
+    marginBottom: 16,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    gap: 12,
+  },
+  confirmText: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  confirmRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  confirmButton: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+  },
+  confirmCancel: {
+    backgroundColor: colors.menuActive,
+  },
+  confirmYes: {
+    backgroundColor: colors.accent,
   },
   meta: {
     color: colors.text,
