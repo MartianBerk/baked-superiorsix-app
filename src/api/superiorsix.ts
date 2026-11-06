@@ -98,6 +98,15 @@ export type LeagueInfo = {
   start_date: string;
 };
 
+/** Result codes from `/game/matchdetail` form / H2H rows. */
+export type TeamResultCode = 'WIN' | 'DRAW' | 'LOSE';
+
+export type MatchDetailPayload = {
+  league_position: Record<string, string | null>;
+  team_performance: Record<string, TeamResultCode[]>;
+  head_to_head: Record<string, TeamResultCode[]>;
+};
+
 /** `POST /user/acceptinvite` — no invitee bearer; BFF grants roles then returns JWT. */
 export type AcceptInviteResult = {
   player: PlayerProfile;
@@ -265,6 +274,30 @@ function gameUnreachable(): ApiError {
     0,
     'Could not reach baked-superiorsix. Is local-dev up on :8030?',
   );
+}
+
+/**
+ * `GET /game/matchdetail` — league position, recent form, head-to-head.
+ * Public game route; `matchDate` is legacy `dd-mm-yyyy`.
+ */
+export async function fetchMatchDetail(opts: {
+  homeTeam: string;
+  awayTeam: string;
+  matchDate: string;
+}): Promise<MatchDetailPayload> {
+  const params = new URLSearchParams({
+    hometeam: opts.homeTeam,
+    awayteam: opts.awayTeam,
+    matchdate: opts.matchDate,
+  });
+  let response: Response;
+  try {
+    response = await apiFetch('game', `/game/matchdetail?${params.toString()}`);
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{ match_detail: MatchDetailPayload }>(response);
+  return body.match_detail;
 }
 
 /** `GET /admin/listleagues` — league id → code map for kickoff headers. */

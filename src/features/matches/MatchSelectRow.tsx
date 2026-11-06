@@ -6,6 +6,8 @@ import type { AdminMatch } from '@/api/superiorsix';
 import { SelectionToggleIcon } from '@/components/icons/SelectionToggleIcon';
 import { colors } from '@/theme';
 
+import { MatchDetailPanel } from './MatchDetailPanel';
+
 const CHEVRON_DOWN = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
 const CHEVRON_UP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>`;
 
@@ -18,7 +20,7 @@ type Props = {
 
 /**
  * Fixture row: home above away (left); add/drop + expand/collapse
- * vertically centered on the right.
+ * vertically centered on the right. Expand loads match detail.
  */
 export function MatchSelectRow({ match, busy, disabled, onToggle }: Props) {
   const [expanded, setExpanded] = useState(false);
@@ -87,9 +89,11 @@ export function MatchSelectRow({ match, busy, disabled, onToggle }: Props) {
       </View>
 
       {expanded ? (
-        <View style={styles.detail}>
-          <Text style={styles.detailText}>Status: {match.status}</Text>
-        </View>
+        <MatchDetailPanel
+          homeTeam={match.home_team}
+          awayTeam={match.away_team}
+          matchDateIso={match.match_date}
+        />
       ) : null}
     </View>
   );
@@ -125,7 +129,7 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 14,
   },
   slot: {
     color: colors.accentBright,
@@ -147,14 +151,5 @@ const styles = StyleSheet.create({
   },
   actionDisabled: {
     opacity: 0.45,
-  },
-  detail: {
-    paddingHorizontal: 12,
-    paddingBottom: 8,
-  },
-  detailText: {
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: '500',
   },
 });
