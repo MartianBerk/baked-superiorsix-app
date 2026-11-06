@@ -33,7 +33,11 @@ import {
   type PlayerMatch,
 } from './MatchPredictRow';
 
-/** BE cutoff: predictions lock 10 minutes before kickoff. */
+/**
+ * FE week lock: all picks for a game week lock once
+ * `now + 10m >= earliest kickoff` among that week's matches.
+ * BE `/user/addprediction` remains per-match.
+ */
 const CUTOFF_MS = 10 * 60 * 1000;
 
 function isPastCutoff(matchDateIso: string, now: Date = new Date()): boolean {
@@ -42,6 +46,19 @@ function isPastCutoff(matchDateIso: string, now: Date = new Date()): boolean {
     return false;
   }
   return now.getTime() + CUTOFF_MS >= kickoff;
+}
+
+function earliestKickoffIso(matches: PlayerMatch[]): string | null {
+  if (matches.length === 0) {
+    return null;
+  }
+  let earliest = matches[0].match_date;
+  for (const match of matches.slice(1)) {
+    if (match.match_date.localeCompare(earliest) < 0) {
+      earliest = match.match_date;
+    }
+  }
+  return earliest;
 }
 
 function sortPlayerMatches(matches: PlayerMatch[]): PlayerMatch[] {
@@ -104,19 +121,22 @@ export function MatchPlayerWidget() {
     [selectedWeek, matchesByWeek],
   );
 
+  const earliestKickoff = useMemo(
+    () => earliestKickoffIso(matches),
+    [matches],
+  );
+
   /** Earliest kickoff day in the selected week (banner date — not Monday). */
-  const labelDayKey = useMemo(() => {
-    if (matches.length === 0) {
-      return null;
-    }
-    let earliest = matches[0];
-    for (const match of matches.slice(1)) {
-      if (match.match_date.localeCompare(earliest.match_date) < 0) {
-        earliest = match;
-      }
-    }
-    return utcDayKey(earliest.match_date);
-  }, [matches]);
+  const labelDayKey = useMemo(
+    () => (earliestKickoff ? utcDayKey(earliestKickoff) : null),
+    [earliestKickoff],
+  );
+
+  /** Lock every Home/Draw/Away in this week once the earliest kickoff hits cutoff. */
+  const weekLocked = useMemo(
+    () => (earliestKickoff ? isPastCutoff(earliestKickoff) : false),
+    [earliestKickoff],
+  );
 
   const loadPredictions = useCallback(
     async (weekMatches: PlayerMatch[]) => {
@@ -251,8 +271,12 @@ export function MatchPlayerWidget() {
       if (draft[match.id] === choice) {
         return;
       }
-      if (isPastCutoff(match.match_date) || match.status === 'POSTPONED') {
-        setRowError('Past cutoff for prediction set.');
+      if (weekLocked || match.status === 'POSTPONED') {
+        setRowError(
+          weekLocked
+            ? 'Past cutoff for this game week\'s predictions.'
+            : 'Past cutoff for prediction set.',
+        );
         return;
       }
       setBusyId(match.id);
@@ -273,7 +297,7 @@ export function MatchPlayerWidget() {
         setBusyId(null);
       }
     },
-    [token, canPredict, draft],
+    [token, canPredict, draft, weekLocked],
   );
 
   if (status === 'loading' || loading) {
@@ -308,6 +332,12 @@ export function MatchPlayerWidget() {
         />
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {rowError ? <Text style={styles.error}>{rowError}</Text> : null}
+        {weekLocked && matches.length > 0 ? (
+          <Text style={styles.lede}>
+            Predictions locked — within 10 minutes of this week&apos;s first
+            kickoff.
+          </Text>
+        ) : null}
 
         {!isAuthenticated ? (
           <View style={styles.loginBlock}>
@@ -343,7 +373,7 @@ export function MatchPlayerWidget() {
                 match={match}
                 prediction={draft[match.id] ?? null}
                 busy={busyId === match.id}
-                locked={isPastCutoff(match.match_date)}
+                locked={weekLocked}
                 canPredict={canPredict}
                 onPredict={(choice) => {
                   void onPredict(match, choice);
