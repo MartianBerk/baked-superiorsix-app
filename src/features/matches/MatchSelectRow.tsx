@@ -49,10 +49,23 @@ export function MatchSelectRow({ match, busy, disabled, onToggle }: Props) {
       <View style={styles.row}>
         {band != null ? (
           <View
-            accessibilityLabel={`Difficulty ${difficultyLabel(band)}, band ${band}`}
-            style={[styles.difficulty, { backgroundColor: difficultyColor(band) }]}
+            accessibilityLabel={`Difficulty ${difficultyLabel(band)}, band ${band} of 5`}
+            style={styles.difficulty}
           >
-            <Text style={styles.difficultyText}>{band}</Text>
+            {Array.from({ length: 5 }, (_, index) => {
+              const filled = index < band;
+              return (
+                <View
+                  key={index}
+                  style={[
+                    styles.difficultyPip,
+                    filled
+                      ? { backgroundColor: difficultyColor(band) }
+                      : styles.difficultyPipEmpty,
+                  ]}
+                />
+              );
+            })}
           </View>
         ) : null}
         <View style={styles.teams}>
@@ -135,18 +148,20 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
+  /** Five band pips (~75% of form W/L 14px badges). */
   difficulty: {
-    width: 22,
-    height: 22,
-    borderRadius: 4,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 2,
     flexShrink: 0,
   },
-  difficultyText: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: '800',
+  difficultyPip: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  difficultyPipEmpty: {
+    backgroundColor: colors.border,
   },
   teams: {
     flex: 1,
