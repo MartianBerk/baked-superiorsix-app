@@ -313,7 +313,7 @@ export function MatchAdminWidget() {
       <View style={styles.wrap}>
         <View style={styles.headerStrip}>
           <Text style={styles.headerLabel}>
-            Match Day {selectedCount} / 6 selections
+            {`Match Day:   ${selectedCount} / 6 selections`}
           </Text>
           <Pressable
             accessibilityRole="button"
