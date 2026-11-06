@@ -74,3 +74,40 @@ export function adminScrubberRange(now: Date = new Date()): {
     toDate: toLegacyDateParam(utcDayKey(end)),
   };
 }
+
+/** Monday (UTC) of the week containing `dayKey` / `now`. */
+export function utcMondayKey(input: string | Date = new Date()): string {
+  const key = typeof input === 'string' ? input : utcDayKey(input);
+  const [y, m, d] = key.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d, 12));
+  // getUTCDay: Sun=0 … Sat=6 → days since Monday
+  const sinceMonday = (date.getUTCDay() + 6) % 7;
+  date.setUTCDate(date.getUTCDate() - sinceMonday);
+  return utcDayKey(date);
+}
+
+/** Seven UTC day keys Mon…Sun for a Monday-commencing game week. */
+export function gameWeekDayKeys(mondayKey: string): string[] {
+  const [y, m, d] = mondayKey.split('-').map(Number);
+  return Array.from({ length: 7 }, (_, i) =>
+    utcDayKey(new Date(Date.UTC(y, m - 1, d + i, 12))),
+  );
+}
+
+/**
+ * Navigable Monday keys for the player G/W scrubber.
+ * Defaults: 12 weeks back … 4 weeks forward (empty weeks still listed).
+ */
+export function gameWeekStartKeys(
+  now: Date = new Date(),
+  pastWeeks = 12,
+  futureWeeks = 4,
+): string[] {
+  const current = utcMondayKey(now);
+  const [y, m, d] = current.split('-').map(Number);
+  const keys: string[] = [];
+  for (let offset = -pastWeeks; offset <= futureWeeks; offset += 1) {
+    keys.push(utcDayKey(new Date(Date.UTC(y, m - 1, d + offset * 7, 12))));
+  }
+  return keys;
+}

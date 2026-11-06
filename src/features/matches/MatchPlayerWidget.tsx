@@ -20,26 +20,21 @@ import { useAuth } from '@/auth';
 import { LoginForm } from '@/features/auth/LoginForm';
 import { colors } from '@/theme';
 
-import { toLegacyDateParam, utcDayKey } from './formatMatchDate';
+import {
+  gameWeekDayKeys,
+  gameWeekStartKeys,
+  toLegacyDateParam,
+  utcDayKey,
+  utcMondayKey,
+} from './formatMatchDate';
+import { GameWeekScrubber } from './GameWeekScrubber';
 import {
   MatchPredictRow,
   type PlayerMatch,
 } from './MatchPredictRow';
-import { WeekCommencingBadge } from './WeekCommencingBadge';
 
 /** BE cutoff: predictions lock 10 minutes before kickoff. */
 const CUTOFF_MS = 10 * 60 * 1000;
-
-/** UTC today … today+6 — same window as admin scrubber / listmatches cap. */
-function weekDayKeys(now: Date = new Date()): string[] {
-  const fromKey = utcDayKey(now);
-  const [y, m, d] = fromKey.split('-').map(Number);
-  const keys: string[] = [];
-  for (let i = 0; i < 7; i += 1) {
-    keys.push(utcDayKey(new Date(Date.UTC(y, m - 1, d + i, 12))));
-  }
-  return keys;
-}
 
 function isPastCutoff(matchDateIso: string, now: Date = new Date()): boolean {
   const kickoff = new Date(matchDateIso).getTime();
@@ -61,12 +56,16 @@ function sortPlayerMatches(matches: PlayerMatch[]): PlayerMatch[] {
 }
 
 /**
- * Player fixtures tab: selected Super Six matches for the week, W/C badge,
- * expandable detail, Home/Draw/Away predictions.
+ * Player fixtures tab: selected Super Six matches for the game week, G/W
+ * scrubber, expandable detail, Home/Draw/Away predictions.
  */
 export function MatchPlayerWidget() {
   const { status, isAuthenticated, token, hasRole } = useAuth();
 
+  const weeks = useMemo(() => gameWeekStartKeys(), []);
+  const [selectedWeek, setSelectedWeek] = useState<string>(() =>
+    utcMondayKey(),
+  );
   const [matches, setMatches] = useState<PlayerMatch[]>([]);
   const [draft, setDraft] = useState<Record<number, PredictionChoice | null>>(
     {},
@@ -78,14 +77,6 @@ export function MatchPlayerWidget() {
   const [rowError, setRowError] = useState<string | null>(null);
 
   const canPredict = isAuthenticated && hasRole('player');
-
-  const weekCommencing = useMemo(() => {
-    if (matches.length === 0) {
-      return null;
-    }
-    const keys = matches.map((match) => utcDayKey(match.match_date)).sort();
-    return keys[0] ?? null;
-  }, [matches]);
 
   const predictedCount = useMemo(
     () =>
@@ -106,7 +97,7 @@ export function MatchPlayerWidget() {
       setError(null);
       setRowError(null);
       try {
-        const dayKeys = weekDayKeys();
+        const dayKeys = gameWeekDayKeys(selectedWeek);
         const dayResults = await Promise.all(
           dayKeys.map((dayKey) => listLiveMatches(toLegacyDateParam(dayKey))),
         );
@@ -167,12 +158,14 @@ export function MatchPlayerWidget() {
             ? err.message
             : 'Could not load selected matches.';
         setError(message);
+        setMatches([]);
+        setDraft({});
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [token, canPredict],
+    [token, canPredict, selectedWeek],
   );
 
   useEffect(() => {
@@ -223,7 +216,7 @@ export function MatchPlayerWidget() {
     [token, canPredict, draft],
   );
 
-  if (status === 'loading' || loading) {
+  if (status === 'loading') {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.textMuted} />
@@ -252,7 +245,15 @@ export function MatchPlayerWidget() {
             {`Predictions:   ${predictedCount} / ${matches.length || 6}`}
           </Text>
         </View>
-        <WeekCommencingBadge dayKey={weekCommencing} />
+        <GameWeekScrubber
+          weeks={weeks}
+          selectedWeek={selectedWeek}
+          onChange={(mondayKey) => {
+            setSelectedWeek(mondayKey);
+            setError(null);
+            setRowError(null);
+          }}
+        />
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {rowError ? <Text style={styles.error}>{rowError}</Text> : null}
 
@@ -273,10 +274,14 @@ export function MatchPlayerWidget() {
           </Text>
         ) : null}
 
-        {matches.length === 0 ? (
+        {loading ? (
+          <View style={styles.listLoading}>
+            <ActivityIndicator color={colors.textMuted} />
+          </View>
+        ) : matches.length === 0 ? (
           <Text style={styles.empty}>
-            No Super Six selections yet this week. Once a game master picks the
-            six, they show up here.
+            No Super Six selections for this game week. Scrub to another week,
+            or wait for a game master to pick the six.
           </Text>
         ) : (
           <View style={styles.card}>
@@ -350,6 +355,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginTop: 8,
+  },
+  listLoading: {
+    paddingVertical: 24,
+    alignItems: 'center',
   },
   card: {
     backgroundColor: colors.surface,
