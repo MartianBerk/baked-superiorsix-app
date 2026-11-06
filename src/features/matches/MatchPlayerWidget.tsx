@@ -104,6 +104,20 @@ export function MatchPlayerWidget() {
     [selectedWeek, matchesByWeek],
   );
 
+  /** Earliest kickoff day in the selected week (banner date — not Monday). */
+  const labelDayKey = useMemo(() => {
+    if (matches.length === 0) {
+      return null;
+    }
+    let earliest = matches[0];
+    for (const match of matches.slice(1)) {
+      if (match.match_date.localeCompare(earliest.match_date) < 0) {
+        earliest = match;
+      }
+    }
+    return utcDayKey(earliest.match_date);
+  }, [matches]);
+
   const predictedCount = useMemo(
     () =>
       matches.filter((match) => {
@@ -303,6 +317,7 @@ export function MatchPlayerWidget() {
         <GameWeekScrubber
           weeks={availableWeeks}
           selectedWeek={selectedWeek}
+          labelDayKey={labelDayKey}
           onChange={onSelectWeek}
         />
         {error ? <Text style={styles.error}>{error}</Text> : null}

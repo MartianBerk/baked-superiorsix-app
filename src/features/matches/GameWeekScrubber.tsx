@@ -10,16 +10,26 @@ type Props = {
   /** Monday UTC day keys that have selected/available matches. */
   weeks: string[];
   selectedWeek: string | null;
+  /**
+   * Banner date: earliest kickoff day (`YYYY-MM-DD`) among matches in the
+   * selected week — not the Monday key used for navigation.
+   */
+  labelDayKey: string | null;
   onChange: (mondayKey: string) => void;
 };
 
 /**
  * Left/right game-week scrubber (same chevron chrome as admin DateScrubber).
  * Only receives weeks that actually have matches; chevrons hide at the ends.
- * Centre label: G/W + commencing Monday — body text colour, not accent.
+ * Centre label: G/W + earliest kickoff date — body text colour, not accent.
  */
-export function GameWeekScrubber({ weeks, selectedWeek, onChange }: Props) {
-  if (!selectedWeek || weeks.length === 0) {
+export function GameWeekScrubber({
+  weeks,
+  selectedWeek,
+  labelDayKey,
+  onChange,
+}: Props) {
+  if (!selectedWeek || weeks.length === 0 || !labelDayKey) {
     return null;
   }
 
@@ -53,11 +63,11 @@ export function GameWeekScrubber({ weeks, selectedWeek, onChange }: Props) {
 
       <View
         style={styles.label}
-        accessibilityLabel={`Game week commencing ${formatScrubberDate(selectedWeek)}`}
+        accessibilityLabel={`Game week ${formatScrubberDate(labelDayKey)}`}
       >
         <Text style={styles.gw}>G/W</Text>
         <View style={styles.divider} />
-        <Text style={styles.date}>{formatScrubberDate(selectedWeek)}</Text>
+        <Text style={styles.date}>{formatScrubberDate(labelDayKey)}</Text>
       </View>
 
       <Pressable
