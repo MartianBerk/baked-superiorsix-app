@@ -27,16 +27,43 @@ export type AuthUser = {
 };
 
 /**
- * Selectable Superior Six invite permission chips.
- * `user-profile` is always granted server-side on invite/accept — not listed here.
+ * Selectable Superior Six invite / roster-edit permission chips.
+ * `user-profile` is always granted server-side — not listed here.
+ * Real baked-auth `admin` is never assignable in-app (bootstrap / direct auth only).
+ * `game-master` is labeled "Admin" in the UI (game ops), not the auth `admin` role.
  */
 export const INVITE_PERMISSION_ROLES = [
   'player',
   'worldcup',
   'euros',
+  'game-master',
 ] as const;
 
 export type InvitePermissionRole = (typeof INVITE_PERMISSION_ROLES)[number];
+
+/** UI labels for assignable chips; `game-master` → "Admin". */
+export const INVITE_PERMISSION_ROLE_LABELS: Record<InvitePermissionRole, string> =
+  {
+    player: 'Player',
+    worldcup: 'World Cup',
+    euros: 'Euros',
+    'game-master': 'Admin',
+  };
+
+/** Friendly label for any superiorsix role string (pending invites / roster meta). */
+export function formatPermissionRoleLabel(role: string): string {
+  const key = role.trim().toLowerCase();
+  if (key in INVITE_PERMISSION_ROLE_LABELS) {
+    return INVITE_PERMISSION_ROLE_LABELS[key as InvitePermissionRole];
+  }
+  if (key === 'user-profile') {
+    return 'Profile';
+  }
+  if (key === 'admin') {
+    return 'Auth admin';
+  }
+  return role;
+}
 
 /** Password login with required `audience` (e.g. superiorsix). Form field: email. */
 export async function loginWithPassword(

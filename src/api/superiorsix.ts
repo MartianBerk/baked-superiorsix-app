@@ -235,6 +235,73 @@ export async function invitePlayer(
   };
 }
 
+export type PlayerRolesResult = {
+  email: string;
+  roles: string[];
+};
+
+/**
+ * Read superiorsix membership roles for a rostered email
+ * (`GET /admin/getplayerroles`). Requires JWT role `admin`.
+ */
+export async function getPlayerRoles(
+  token: string,
+  email: string,
+): Promise<PlayerRolesResult> {
+  const encoded = encodeURIComponent(email.trim().toLowerCase());
+  let response: Response;
+  try {
+    response = await apiFetch(
+      'game',
+      `/admin/getplayerroles?email=${encoded}`,
+      { token },
+    );
+  } catch {
+    throw new ApiError(
+      0,
+      'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+    );
+  }
+  const body = await readApiJson<PlayerRolesResult>(response);
+  return {
+    email: body.email,
+    roles: Array.isArray(body.roles) ? body.roles : [],
+  };
+}
+
+/**
+ * Replace assignable membership roles for a rostered email
+ * (`POST /admin/updateroles`). Requires JWT role `admin`.
+ * Server preserves bootstrap `admin` and always-grants `user-profile`.
+ */
+export async function updatePlayerRoles(
+  token: string,
+  payload: { email: string; roles: string[] },
+): Promise<PlayerRolesResult> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/admin/updateroles', {
+      method: 'POST',
+      token,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: payload.email.trim().toLowerCase(),
+        roles: payload.roles,
+      }),
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+    );
+  }
+  const body = await readApiJson<PlayerRolesResult>(response);
+  return {
+    email: body.email,
+    roles: Array.isArray(body.roles) ? body.roles : [],
+  };
+}
+
 /**
  * List roster invites via baked-user (`GET /superiorsix/invites`).
  * Requires superiorsix JWT with admin or game-master. Includes invite.roles.
