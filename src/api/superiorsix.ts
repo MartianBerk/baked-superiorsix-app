@@ -325,6 +325,34 @@ export async function addMatch(
   return readApiJson<AdminMatch>(response);
 }
 
+/**
+ * `POST /admin/addmatches?matchDate=` — batch replace a day's Super Six
+ * selections (0–6). `matchDate` is legacy `dd-mm-yyyy`.
+ */
+export async function addMatches(
+  token: string,
+  matchDate: string,
+  selections: { id: number; game_number: number }[],
+): Promise<AdminMatch[]> {
+  let response: Response;
+  try {
+    response = await apiFetch(
+      'game',
+      `/admin/addmatches?matchDate=${encodeURIComponent(matchDate)}`,
+      {
+        method: 'POST',
+        token,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(selections),
+      },
+    );
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{ matches: AdminMatch[] }>(response);
+  return body.matches ?? [];
+}
+
 /** `GET /admin/dropmatch?id=` — clear Super Six selection on a fixture. */
 export async function dropMatch(
   token: string,

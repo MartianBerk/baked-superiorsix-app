@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -9,8 +10,7 @@ import {
 } from 'react-native';
 
 import {
-  addMatch,
-  dropMatch,
+  addMatches,
   listLeagues,
   listMatchesNew,
   type AdminMatch,
@@ -24,32 +24,47 @@ import { colors } from '@/theme';
 import { DateScrubber } from './DateScrubber';
 import { useFixturesTabMode } from './FixturesTabModeContext';
 import { KickoffGroup } from './KickoffGroup';
-import { utcDayKey } from './formatMatchDate';
+import { toLegacyDateParam, utcDayKey } from './formatMatchDate';
 import {
   distinctDayKeys,
   groupMatchesByKickoff,
-  nextGameNumber,
   selectedMatchIds,
 } from './matchGrouping';
 
 const GAME_MASTER_ROLE = 'game-master';
 const ADMIN_ROLE = 'admin';
 
+function savedIdsForDay(matches: AdminMatch[], dayKey: string): number[] {
+  const day = matches.filter((match) => utcDayKey(match.match_date) === dayKey);
+  return selectedMatchIds(day).filter((id): id is number => id != null);
+}
+
+function sameIdSet(a: number[], b: number[]): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  const left = [...a].sort((x, y) => x - y);
+  const right = [...b].sort((x, y) => x - y);
+  return left.every((id, index) => id === right[index]);
+}
+
 /**
  * Admin match-day selection body for the fixtures tab.
- * Date scrubber + kickoff groups with add/drop toggles.
+ * Local toggles + batch Submit; date scrubber + kickoff groups.
  */
 export function MatchAdminWidget() {
   const { status, isAuthenticated, token, hasRole } = useAuth();
-  const { setMode, setSelectedCount } = useFixturesTabMode();
+  const { setMode } = useFixturesTabMode();
 
   const [matches, setMatches] = useState<AdminMatch[]>([]);
   const [leagues, setLeagues] = useState<LeagueInfo[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  /** Ordered draft selection ids for the current day (game_number = index + 1). */
+  const [draftIds, setDraftIds] = useState<number[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [busyMatchId, setBusyMatchId] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canSelect =
@@ -65,26 +80,50 @@ export function MatchAdminWidget() {
 
   const dates = useMemo(() => distinctDayKeys(matches), [matches]);
 
+  const displayMatches = useMemo(() => {
+    if (!selectedDate) {
+      return matches;
+    }
+    const slotById = new Map(
+      draftIds.map((id, index) => [id, index + 1] as const),
+    );
+    return matches.map((match) => {
+      if (utcDayKey(match.match_date) !== selectedDate) {
+        return match;
+      }
+      const gameNumber = slotById.get(match.id);
+      if (gameNumber == null) {
+        return { ...match, use_match: false, game_number: null };
+      }
+      return { ...match, use_match: true, game_number: gameNumber };
+    });
+  }, [matches, selectedDate, draftIds]);
+
   const groups = useMemo(() => {
     if (!selectedDate) {
       return [];
     }
-    return groupMatchesByKickoff(matches, selectedDate, leaguesById);
-  }, [matches, selectedDate, leaguesById]);
+    return groupMatchesByKickoff(displayMatches, selectedDate, leaguesById);
+  }, [displayMatches, selectedDate, leaguesById]);
 
-  const dayMatches = useMemo(() => {
-    if (!selectedDate) {
-      return [];
-    }
-    return matches.filter((match) => utcDayKey(match.match_date) === selectedDate);
-  }, [matches, selectedDate]);
+  const selectedCount = draftIds.length;
+  const savedIds = useMemo(
+    () => (selectedDate ? savedIdsForDay(matches, selectedDate) : []),
+    [matches, selectedDate],
+  );
+  const dirty = !sameIdSet(draftIds, savedIds);
+  const canSubmit = dirty && !submitting && selectedCount <= 6;
 
-  const slots = useMemo(() => selectedMatchIds(dayMatches), [dayMatches]);
-  const selectedCount = slots.filter((id) => id != null).length;
-
-  useEffect(() => {
-    setSelectedCount(selectedCount);
-  }, [selectedCount, setSelectedCount]);
+  const syncDraftForDate = useCallback(
+    (dayKey: string | null, source: AdminMatch[]) => {
+      if (!dayKey) {
+        setDraftIds([]);
+        return;
+      }
+      setDraftIds(savedIdsForDay(source, dayKey));
+    },
+    [],
+  );
 
   const load = useCallback(
     async (mode: 'initial' | 'refresh' = 'initial') => {
@@ -106,21 +145,24 @@ export function MatchAdminWidget() {
         setMatches(nextMatches);
         const dayKeys = distinctDayKeys(nextMatches);
         setSelectedDate((prev) => {
-          if (prev && dayKeys.includes(prev)) {
-            return prev;
-          }
-          // Prefer the soonest day that still has fixtures.
-          return dayKeys[0] ?? null;
+          const next =
+            prev && dayKeys.includes(prev) ? prev : (dayKeys[0] ?? null);
+          syncDraftForDate(next, nextMatches);
+          return next;
         });
         setExpanded((prev) => {
-          // Expand the first kickoff group on first load only.
           if (Object.keys(prev).length > 0) {
             return prev;
           }
-          const firstGroups = dayKeys[0]
-            ? groupMatchesByKickoff(nextMatches, dayKeys[0], Object.fromEntries(
-                nextLeagues.map((league) => [league.id, league]),
-              ))
+          const firstDay = dayKeys[0];
+          const firstGroups = firstDay
+            ? groupMatchesByKickoff(
+                nextMatches,
+                firstDay,
+                Object.fromEntries(
+                  nextLeagues.map((league) => [league.id, league]),
+                ),
+              )
             : [];
           if (!firstGroups[0]) {
             return prev;
@@ -138,7 +180,7 @@ export function MatchAdminWidget() {
         setRefreshing(false);
       }
     },
-    [token],
+    [token, syncDraftForDate],
   );
 
   useEffect(() => {
@@ -156,46 +198,63 @@ export function MatchAdminWidget() {
     };
   }, [status, isAuthenticated, token, canSelect, load]);
 
-  const onToggleMatch = useCallback(
-    async (match: AdminMatch) => {
-      if (!token || busyMatchId != null) {
-        return;
+  const onToggleMatch = useCallback((match: AdminMatch) => {
+    setDraftIds((prev) => {
+      if (prev.includes(match.id)) {
+        queueMicrotask(() => setError(null));
+        return prev.filter((id) => id !== match.id);
       }
-      setBusyMatchId(match.id);
-      setError(null);
-      try {
-        if (match.use_match) {
-          const updated = await dropMatch(token, match.id);
-          setMatches((prev) =>
-            prev.map((row) => (row.id === updated.id ? updated : row)),
-          );
-        } else {
-          const dayKey = utcDayKey(match.match_date);
-          const daySlots = selectedMatchIds(
-            matches.filter((row) => utcDayKey(row.match_date) === dayKey),
-          );
-          const gameNumber = nextGameNumber(daySlots);
-          if (gameNumber == null) {
-            setError('Six matches already selected. Drop one first.');
-            return;
+      if (prev.length >= 6) {
+        queueMicrotask(() =>
+          setError('Six matches already selected. Drop one first.'),
+        );
+        return prev;
+      }
+      queueMicrotask(() => setError(null));
+      return [...prev, match.id];
+    });
+  }, []);
+
+  const onSubmit = useCallback(async () => {
+    if (!token || !selectedDate || !canSubmit) {
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const payload = draftIds.map((id, index) => ({
+        id,
+        game_number: index + 1,
+      }));
+      const updated = await addMatches(
+        token,
+        toLegacyDateParam(selectedDate),
+        payload,
+      );
+      const updatedById = new Map(updated.map((row) => [row.id, row]));
+      setMatches((prev) =>
+        prev.map((row) => {
+          if (utcDayKey(row.match_date) !== selectedDate) {
+            return row;
           }
-          const updated = await addMatch(token, match.id, gameNumber);
-          setMatches((prev) =>
-            prev.map((row) => (row.id === updated.id ? updated : row)),
-          );
-        }
-      } catch (err) {
-        const message =
-          err instanceof ApiError
-            ? err.message
-            : 'Could not update match selection.';
-        setError(message);
-      } finally {
-        setBusyMatchId(null);
-      }
-    },
-    [token, busyMatchId, matches],
-  );
+          const next = updatedById.get(row.id);
+          if (next) {
+            return next;
+          }
+          return { ...row, use_match: false, game_number: null };
+        }),
+      );
+      setDraftIds(updated.map((row) => row.id));
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : 'Could not submit match selections.';
+      setError(message);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [token, selectedDate, canSubmit, draftIds]);
 
   if (status === 'loading' || loading) {
     return (
@@ -249,16 +308,38 @@ export function MatchAdminWidget() {
       }
     >
       <View style={styles.wrap}>
-        <Text style={styles.kicker}>Match day</Text>
-        <Text style={styles.banner}>
-          {selectedCount} / 6 selections
-        </Text>
+        <View style={styles.headerStrip}>
+          <Text style={styles.headerLabel}>
+            Match Day {selectedCount} / 6 selections
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Submit match selections"
+            disabled={!canSubmit}
+            onPress={() => {
+              void onSubmit();
+            }}
+            style={({ pressed }) => [
+              styles.submit,
+              !canSubmit && styles.submitDisabled,
+              pressed && canSubmit && styles.submitPressed,
+            ]}
+          >
+            {submitting ? (
+              <ActivityIndicator size="small" color={colors.text} />
+            ) : (
+              <Text style={styles.submitLabel}>Submit</Text>
+            )}
+          </Pressable>
+        </View>
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <DateScrubber
           dates={dates}
           selectedDate={selectedDate}
           onChange={(dayKey) => {
             setSelectedDate(dayKey);
+            syncDraftForDate(dayKey, matches);
+            setError(null);
           }}
         />
         {groups.length === 0 ? (
@@ -278,11 +359,9 @@ export function MatchAdminWidget() {
                   [group.key]: !prev[group.key],
                 }));
               }}
-              busyMatchId={busyMatchId}
+              busyMatchId={null}
               selectionsFull={selectedCount >= 6}
-              onToggleMatch={(match) => {
-                void onToggleMatch(match);
-              }}
+              onToggleMatch={onToggleMatch}
             />
           ))
         )}
@@ -309,19 +388,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: '3%',
     paddingTop: 12,
   },
-  kicker: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  banner: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '700',
+  headerStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
     marginBottom: 12,
+  },
+  headerLabel: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  submit: {
+    minWidth: 88,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitPressed: {
+    backgroundColor: colors.accentBright,
+  },
+  submitDisabled: {
+    opacity: 0.4,
+  },
+  submitLabel: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
   },
   heading: {
     color: colors.text,

@@ -98,10 +98,14 @@ export function groupMatchesByKickoff(
 }
 
 export function formatGroupHeader(group: KickoffGroup): string {
-  const counts = group.leagueCounts
+  const total = group.matches.length;
+  const breakdown = group.leagueCounts
     .map(({ count, code }) => `${count} ${code}`)
-    .join(' / ');
-  return counts ? `${group.label}  (${counts})` : group.label;
+    .join(', ');
+  // e.g. `3pm (6 TOTAL / 3 PL, 3 ELC)`
+  return breakdown
+    ? `${group.label} (${total} TOTAL / ${breakdown})`
+    : `${group.label} (${total} TOTAL)`;
 }
 
 export function selectedMatchIds(matches: AdminMatch[]): (number | null)[] {

@@ -13,9 +13,6 @@ export type FixturesTabMode = 'normal' | 'admin';
 type FixturesTabModeContextValue = {
   mode: FixturesTabMode;
   setMode: (mode: FixturesTabMode) => void;
-  /** Selected Super Six count for the header `n / 6` strip while in admin mode. */
-  selectedCount: number;
-  setSelectedCount: (count: number) => void;
 };
 
 const FixturesTabModeContext = createContext<FixturesTabModeContextValue | null>(
@@ -28,20 +25,12 @@ const FixturesTabModeContext = createContext<FixturesTabModeContextValue | null>
  */
 export function FixturesTabModeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<FixturesTabMode>('normal');
-  const [selectedCount, setSelectedCountState] = useState(0);
 
   const setMode = useCallback((next: FixturesTabMode) => {
     setModeState(next);
   }, []);
 
-  const setSelectedCount = useCallback((count: number) => {
-    setSelectedCountState(Math.max(0, Math.min(6, count)));
-  }, []);
-
-  const value = useMemo(
-    () => ({ mode, setMode, selectedCount, setSelectedCount }),
-    [mode, setMode, selectedCount, setSelectedCount],
-  );
+  const value = useMemo(() => ({ mode, setMode }), [mode, setMode]);
 
   return (
     <FixturesTabModeContext.Provider value={value}>

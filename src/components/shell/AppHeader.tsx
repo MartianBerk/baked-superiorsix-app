@@ -3,7 +3,6 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SuperiorSixLogo } from '@/components/icons/SuperiorSixLogo';
-import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
 import { colors } from '@/theme';
 
 import { RoundStatusStrip } from './RoundStatusStrip';
@@ -20,20 +19,10 @@ type Props = {
   /**
    * Thin status strip under the logo row.
    * Omit to use SS-8 tab demos: Scores → live correct; Leaders → + rival all 6.
-   * Fixtures admin mode overrides with live `n / 6` selection count.
+   * Match-day admin `n / 6` lives in the fixtures widget header (not here).
    */
   roundStatus?: RoundStatus;
 };
-
-function isFixturesPath(pathname: string): boolean {
-  if (pathname.includes('/scores') || pathname.includes('/leaders')) {
-    return false;
-  }
-  if (pathname.includes('/profile')) {
-    return false;
-  }
-  return true;
-}
 
 /**
  * Top shell: round left, logo center, prize pot right,
@@ -46,12 +35,7 @@ export function AppHeader({
 }: Props) {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
-  const { mode: fixturesMode, selectedCount } = useFixturesTabMode();
-  const status =
-    roundStatus ??
-    (fixturesMode === 'admin' && isFixturesPath(pathname)
-      ? { phase: 'picking' as const, selectedCount }
-      : demoRoundStatusForPath(pathname));
+  const status = roundStatus ?? demoRoundStatusForPath(pathname);
 
   return (
     <View
