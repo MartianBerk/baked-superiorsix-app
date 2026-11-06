@@ -97,15 +97,28 @@ export function groupMatchesByKickoff(
   });
 }
 
+/** Accessible / plain-text form of the kickoff header parts. */
 export function formatGroupHeader(group: KickoffGroup): string {
-  const total = group.matches.length;
+  const { time, total, leagues } = groupHeaderParts(group);
+  return leagues ? `${time}    ${total}     ${leagues}` : `${time}    ${total}`;
+}
+
+/** Three visual parts: time, total count, league breakdown. */
+export function groupHeaderParts(group: KickoffGroup): {
+  time: string;
+  total: string;
+  leagues: string | null;
+} {
+  const total = String(group.matches.length);
   const breakdown = group.leagueCounts
     .map(({ count, code }) => `${count} ${code}`)
-    .join(', ');
-  // e.g. `3pm (6 TOTAL / 3 PL, 3 ELC)`
-  return breakdown
-    ? `${group.label} (${total} TOTAL / ${breakdown})`
-    : `${group.label} (${total} TOTAL)`;
+    .join(' / ');
+  // e.g. time `3pm`, total `5`, leagues `(3 PL / 3 ELC)`
+  return {
+    time: group.label,
+    total,
+    leagues: breakdown ? `(${breakdown})` : null,
+  };
 }
 
 /** Six game-number slots: index 0 → game_number 1, … index 5 → game_number 6. */

@@ -4,7 +4,11 @@ import { SvgXml } from 'react-native-svg';
 import type { AdminMatch } from '@/api/superiorsix';
 import { colors } from '@/theme';
 
-import { formatGroupHeader, type KickoffGroup as KickoffGroupModel } from './matchGrouping';
+import {
+  formatGroupHeader,
+  groupHeaderParts,
+  type KickoffGroup as KickoffGroupModel,
+} from './matchGrouping';
 import { MatchSelectRow } from './MatchSelectRow';
 
 const CHEVRON_DOWN = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
@@ -32,6 +36,7 @@ export function KickoffGroup({
     'CURRENT',
     colors.textMuted,
   );
+  const parts = groupHeaderParts(group);
 
   return (
     <View style={styles.card}>
@@ -42,7 +47,13 @@ export function KickoffGroup({
         onPress={onToggleExpand}
         style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
       >
-        <Text style={styles.headerText}>{formatGroupHeader(group)}</Text>
+        <View style={styles.headerParts}>
+          <Text style={styles.part}>{parts.time}</Text>
+          <Text style={styles.part}>{parts.total}</Text>
+          {parts.leagues ? (
+            <Text style={styles.part}>{parts.leagues}</Text>
+          ) : null}
+        </View>
         <SvgXml xml={chevron} width={18} height={18} />
       </Pressable>
       {expanded
@@ -88,8 +99,14 @@ const styles = StyleSheet.create({
   headerPressed: {
     backgroundColor: colors.menuActive,
   },
-  headerText: {
-    flex: 1,
+  /** Time / total / leagues clustered with modest gaps — not full-width spread. */
+  headerParts: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
+    gap: 18,
+  },
+  part: {
     color: colors.text,
     fontSize: 15,
     fontWeight: '700',
