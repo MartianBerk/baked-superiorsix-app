@@ -1,8 +1,13 @@
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SvgXml } from 'react-native-svg';
 
 import type { AdminMatch } from '@/api/superiorsix';
 import { SelectionToggleIcon } from '@/components/icons/SelectionToggleIcon';
 import { colors } from '@/theme';
+
+const CHEVRON_DOWN = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
+const CHEVRON_UP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>`;
 
 type Props = {
   match: AdminMatch;
@@ -11,111 +16,145 @@ type Props = {
   onToggle: (match: AdminMatch) => void;
 };
 
-/** Single fixture row with add/drop SVG toggle. */
+/**
+ * Fixture row: home above away (left); add/drop + expand/collapse
+ * vertically centered on the right.
+ */
 export function MatchSelectRow({ match, busy, disabled, onToggle }: Props) {
+  const [expanded, setExpanded] = useState(false);
   const selected = match.use_match;
   const postponed = match.status === 'POSTPONED';
+  const chevron = (expanded ? CHEVRON_UP : CHEVRON_DOWN).replaceAll(
+    'CURRENT',
+    colors.textMuted,
+  );
 
   return (
-    <View
-      style={[styles.row, selected && styles.rowSelected]}
-      accessibilityRole="summary"
-    >
-      <View style={styles.teams}>
-        <Text style={styles.team} numberOfLines={1}>
-          {match.home_team}
-        </Text>
-        <Text style={styles.vs}>v</Text>
-        <Text style={[styles.team, styles.away]} numberOfLines={1}>
-          {match.away_team}
-        </Text>
+    <View style={[styles.block, selected && styles.blockSelected]}>
+      <View style={styles.row}>
+        <View style={styles.teams}>
+          <Text style={styles.team} numberOfLines={1}>
+            {match.home_team}
+          </Text>
+          <Text style={styles.team} numberOfLines={1}>
+            {match.away_team}
+            {postponed ? ' (P)' : ''}
+          </Text>
+        </View>
+
+        <View style={styles.actions}>
+          {selected && match.game_number != null ? (
+            <Text style={styles.slot}>#{match.game_number}</Text>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              selected
+                ? `Drop ${match.home_team} vs ${match.away_team}`
+                : `Add ${match.home_team} vs ${match.away_team}`
+            }
+            disabled={busy || disabled}
+            onPress={() => onToggle(match)}
+            style={({ pressed }) => [
+              styles.actionHit,
+              pressed && styles.actionPressed,
+              (busy || disabled) && styles.actionDisabled,
+            ]}
+          >
+            {busy ? (
+              <ActivityIndicator size="small" color={colors.textMuted} />
+            ) : (
+              <SelectionToggleIcon selected={selected} size={22} />
+            )}
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded }}
+            accessibilityLabel={
+              expanded
+                ? `Collapse ${match.home_team} vs ${match.away_team}`
+                : `Expand ${match.home_team} vs ${match.away_team}`
+            }
+            onPress={() => setExpanded((prev) => !prev)}
+            style={({ pressed }) => [
+              styles.actionHit,
+              pressed && styles.actionPressed,
+            ]}
+          >
+            <SvgXml xml={chevron} width={18} height={18} />
+          </Pressable>
+        </View>
       </View>
-      {postponed ? <Text style={styles.postponed}>(P)</Text> : null}
-      {selected && match.game_number != null ? (
-        <Text style={styles.slot}>#{match.game_number}</Text>
+
+      {expanded ? (
+        <View style={styles.detail}>
+          <Text style={styles.detailText}>Status: {match.status}</Text>
+        </View>
       ) : null}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={
-          selected
-            ? `Drop ${match.home_team} vs ${match.away_team}`
-            : `Add ${match.home_team} vs ${match.away_team}`
-        }
-        disabled={busy || disabled}
-        onPress={() => onToggle(match)}
-        style={({ pressed }) => [
-          styles.toggle,
-          pressed && styles.togglePressed,
-          (busy || disabled) && styles.toggleDisabled,
-        ]}
-      >
-        {busy ? (
-          <ActivityIndicator size="small" color={colors.textMuted} />
-        ) : (
-          <SelectionToggleIcon selected={selected} />
-        )}
-      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  block: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  blockSelected: {
+    backgroundColor: colors.menuActive,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  rowSelected: {
-    backgroundColor: colors.menuActive,
   },
   teams: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
     minWidth: 0,
+    gap: 2,
+    justifyContent: 'center',
   },
   team: {
-    flex: 1,
     color: colors.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  away: {
-    textAlign: 'right',
-  },
-  vs: {
-    color: colors.textMuted,
     fontSize: 12,
     fontWeight: '600',
+    lineHeight: 16,
   },
-  postponed: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '700',
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
   },
   slot: {
     color: colors.accentBright,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
-    minWidth: 22,
+    marginRight: 2,
+    minWidth: 18,
     textAlign: 'right',
   },
-  toggle: {
-    width: 40,
-    height: 40,
+  actionHit: {
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 20,
+    borderRadius: 18,
   },
-  togglePressed: {
+  actionPressed: {
     backgroundColor: colors.surface,
   },
-  toggleDisabled: {
+  actionDisabled: {
     opacity: 0.45,
+  },
+  detail: {
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+  },
+  detailText: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '500',
   },
 });
