@@ -26,31 +26,33 @@ import { useFixturesTabMode } from './FixturesTabModeContext';
 import { KickoffGroup } from './KickoffGroup';
 import { toLegacyDateParam, utcDayKey } from './formatMatchDate';
 import {
+  addToLowestSlot,
   distinctDayKeys,
+  dropFromSlots,
+  emptySlots,
   groupMatchesByKickoff,
+  occupiedCount,
   selectedMatchIds,
+  selectionsFromSlots,
+  slotsEqual,
+  type SelectionSlots,
 } from './matchGrouping';
 
 const GAME_MASTER_ROLE = 'game-master';
 const ADMIN_ROLE = 'admin';
 
-function savedIdsForDay(matches: AdminMatch[], dayKey: string): number[] {
+function savedSlotsForDay(
+  matches: AdminMatch[],
+  dayKey: string,
+): SelectionSlots {
   const day = matches.filter((match) => utcDayKey(match.match_date) === dayKey);
-  return selectedMatchIds(day).filter((id): id is number => id != null);
-}
-
-function sameIdSet(a: number[], b: number[]): boolean {
-  if (a.length !== b.length) {
-    return false;
-  }
-  const left = [...a].sort((x, y) => x - y);
-  const right = [...b].sort((x, y) => x - y);
-  return left.every((id, index) => id === right[index]);
+  return selectedMatchIds(day);
 }
 
 /**
  * Admin match-day selection body for the fixtures tab.
- * Local toggles + batch Submit; date scrubber + kickoff groups.
+ * Stable game-number slots (drop frees that number; next add takes lowest
+ * free). Local draft + batch Submit preserves explicit slot numbers.
  */
 export function MatchAdminWidget() {
   const { status, isAuthenticated, token, hasRole } = useAuth();
@@ -59,8 +61,8 @@ export function MatchAdminWidget() {
   const [matches, setMatches] = useState<AdminMatch[]>([]);
   const [leagues, setLeagues] = useState<LeagueInfo[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  /** Ordered draft selection ids for the current day (game_number = index + 1). */
-  const [draftIds, setDraftIds] = useState<number[]>([]);
+  /** Slot index 0 → game_number 1 … index 5 → game_number 6. */
+  const [draftSlots, setDraftSlots] = useState<SelectionSlots>(emptySlots);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -84,9 +86,12 @@ export function MatchAdminWidget() {
     if (!selectedDate) {
       return matches;
     }
-    const slotById = new Map(
-      draftIds.map((id, index) => [id, index + 1] as const),
-    );
+    const slotById = new Map<number, number>();
+    draftSlots.forEach((id, index) => {
+      if (id != null) {
+        slotById.set(id, index + 1);
+      }
+    });
     return matches.map((match) => {
       if (utcDayKey(match.match_date) !== selectedDate) {
         return match;
@@ -97,7 +102,7 @@ export function MatchAdminWidget() {
       }
       return { ...match, use_match: true, game_number: gameNumber };
     });
-  }, [matches, selectedDate, draftIds]);
+  }, [matches, selectedDate, draftSlots]);
 
   const groups = useMemo(() => {
     if (!selectedDate) {
@@ -106,21 +111,21 @@ export function MatchAdminWidget() {
     return groupMatchesByKickoff(displayMatches, selectedDate, leaguesById);
   }, [displayMatches, selectedDate, leaguesById]);
 
-  const selectedCount = draftIds.length;
-  const savedIds = useMemo(
-    () => (selectedDate ? savedIdsForDay(matches, selectedDate) : []),
+  const selectedCount = occupiedCount(draftSlots);
+  const savedSlots = useMemo(
+    () => (selectedDate ? savedSlotsForDay(matches, selectedDate) : emptySlots()),
     [matches, selectedDate],
   );
-  const dirty = !sameIdSet(draftIds, savedIds);
-  const canSubmit = dirty && !submitting && selectedCount <= 6;
+  const dirty = !slotsEqual(draftSlots, savedSlots);
+  const canSubmit = dirty && !submitting;
 
   const syncDraftForDate = useCallback(
     (dayKey: string | null, source: AdminMatch[]) => {
       if (!dayKey) {
-        setDraftIds([]);
+        setDraftSlots(emptySlots());
         return;
       }
-      setDraftIds(savedIdsForDay(source, dayKey));
+      setDraftSlots(savedSlotsForDay(source, dayKey));
     },
     [],
   );
@@ -199,19 +204,20 @@ export function MatchAdminWidget() {
   }, [status, isAuthenticated, token, canSelect, load]);
 
   const onToggleMatch = useCallback((match: AdminMatch) => {
-    setDraftIds((prev) => {
+    setDraftSlots((prev) => {
       if (prev.includes(match.id)) {
         queueMicrotask(() => setError(null));
-        return prev.filter((id) => id !== match.id);
+        return dropFromSlots(prev, match.id);
       }
-      if (prev.length >= 6) {
+      const next = addToLowestSlot(prev, match.id);
+      if (next == null) {
         queueMicrotask(() =>
           setError('Six matches already selected. Drop one first.'),
         );
         return prev;
       }
       queueMicrotask(() => setError(null));
-      return [...prev, match.id];
+      return next;
     });
   }, []);
 
@@ -222,10 +228,7 @@ export function MatchAdminWidget() {
     setSubmitting(true);
     setError(null);
     try {
-      const payload = draftIds.map((id, index) => ({
-        id,
-        game_number: index + 1,
-      }));
+      const payload = selectionsFromSlots(draftSlots);
       const updated = await addMatches(
         token,
         toLegacyDateParam(selectedDate),
@@ -244,7 +247,7 @@ export function MatchAdminWidget() {
           return { ...row, use_match: false, game_number: null };
         }),
       );
-      setDraftIds(updated.map((row) => row.id));
+      setDraftSlots(selectedMatchIds(updated));
     } catch (err) {
       const message =
         err instanceof ApiError
@@ -254,7 +257,7 @@ export function MatchAdminWidget() {
     } finally {
       setSubmitting(false);
     }
-  }, [token, selectedDate, canSubmit, draftIds]);
+  }, [token, selectedDate, canSubmit, draftSlots]);
 
   if (status === 'loading' || loading) {
     return (

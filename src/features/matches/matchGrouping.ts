@@ -108,8 +108,16 @@ export function formatGroupHeader(group: KickoffGroup): string {
     : `${group.label} (${total} TOTAL)`;
 }
 
-export function selectedMatchIds(matches: AdminMatch[]): (number | null)[] {
-  const slots: (number | null)[] = [null, null, null, null, null, null];
+/** Six game-number slots: index 0 → game_number 1, … index 5 → game_number 6. */
+export type SelectionSlots = (number | null)[];
+
+export function emptySlots(): SelectionSlots {
+  return [null, null, null, null, null, null];
+}
+
+/** Build slots from saved `use_match` / `game_number` (does not renumber). */
+export function selectedMatchIds(matches: AdminMatch[]): SelectionSlots {
+  const slots = emptySlots();
   for (const match of matches) {
     if (match.use_match && match.game_number != null) {
       const index = match.game_number - 1;
@@ -121,7 +129,56 @@ export function selectedMatchIds(matches: AdminMatch[]): (number | null)[] {
   return slots;
 }
 
-export function nextGameNumber(slots: (number | null)[]): number | null {
+/** Lowest freed game number (1–6), or null when full. */
+export function nextGameNumber(slots: SelectionSlots): number | null {
   const index = slots.indexOf(null);
   return index === -1 ? null : index + 1;
+}
+
+export function slotsEqual(a: SelectionSlots, b: SelectionSlots): boolean {
+  return a.length === b.length && a.every((id, index) => id === b[index]);
+}
+
+export function occupiedCount(slots: SelectionSlots): number {
+  return slots.filter((id) => id != null).length;
+}
+
+/** Drop a match id from whichever slot it occupies (other slots unchanged). */
+export function dropFromSlots(
+  slots: SelectionSlots,
+  matchId: number,
+): SelectionSlots {
+  return slots.map((id) => (id === matchId ? null : id));
+}
+
+/**
+ * Place `matchId` in the lowest free slot. No-op if already selected or full.
+ * Returns null when full and not already present.
+ */
+export function addToLowestSlot(
+  slots: SelectionSlots,
+  matchId: number,
+): SelectionSlots | null {
+  if (slots.includes(matchId)) {
+    return slots;
+  }
+  const gameNumber = nextGameNumber(slots);
+  if (gameNumber == null) {
+    return null;
+  }
+  const next = [...slots] as SelectionSlots;
+  next[gameNumber - 1] = matchId;
+  return next;
+}
+
+export function selectionsFromSlots(
+  slots: SelectionSlots,
+): { id: number; game_number: number }[] {
+  const out: { id: number; game_number: number }[] = [];
+  slots.forEach((id, index) => {
+    if (id != null) {
+      out.push({ id, game_number: index + 1 });
+    }
+  });
+  return out;
 }
