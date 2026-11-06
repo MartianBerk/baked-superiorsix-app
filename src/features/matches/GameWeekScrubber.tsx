@@ -21,7 +21,7 @@ type Props = {
 /**
  * Left/right game-week scrubber (same chevron chrome as admin DateScrubber).
  * Only receives weeks that actually have matches; chevrons hide at the ends.
- * Centre label: G/W + earliest kickoff date — body text colour, not accent.
+ * Centre label: earliest kickoff date only — body text colour.
  */
 export function GameWeekScrubber({
   weeks,
@@ -61,14 +61,12 @@ export function GameWeekScrubber({
         )}
       </Pressable>
 
-      <View
-        style={styles.label}
+      <Text
+        style={styles.date}
         accessibilityLabel={`Game week ${formatScrubberDate(labelDayKey)}`}
       >
-        <Text style={styles.gw}>G/W</Text>
-        <View style={styles.divider} />
-        <Text style={styles.date}>{formatScrubberDate(labelDayKey)}</Text>
-      </View>
+        {formatScrubberDate(labelDayKey)}
+      </Text>
 
       <Pressable
         accessibilityRole="button"
@@ -96,27 +94,10 @@ export function GameWeekScrubber({
 }
 
 const styles = StyleSheet.create({
-  label: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flexShrink: 1,
-  },
-  gw: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-  },
-  divider: {
-    width: StyleSheet.hairlineWidth,
-    alignSelf: 'stretch',
-    backgroundColor: colors.border,
-  },
   date: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
-    letterSpacing: 0.2,
+    letterSpacing: 0.3,
   },
 });
