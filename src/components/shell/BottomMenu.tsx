@@ -9,6 +9,7 @@ import {
   type LongPressMenuOption,
 } from '@/components/shell/LongPressMenu';
 import { useUserTabMode } from '@/features/auth/UserTabModeContext';
+import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
 import { colors } from '@/theme';
 
 /** Tab order: fixtures → scores → leaders → user (rightmost). */
@@ -46,18 +47,23 @@ type TabBarProps = {
  * Main menu at the bottom — inset ~3% each side, rounded bar,
  * circular selected highlight around each icon.
  *
- * Long-press (~500ms) the user tab when signed in with `admin` offers only
- * the other mode (Admin while on player, Player while on admin). Mode swaps
- * the profile tab body in place — header + nav stay visible.
+ * Long-press (~500ms) the fixtures or user tab when signed in with `admin`
+ * offers only the other mode (Admin while on player, Player while on admin).
+ * Mode swaps the tab body in place — header + nav stay visible.
  */
 export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
   const insets = useSafeAreaInsets();
   const { isAuthenticated, hasRole } = useAuth();
-  const { mode, setMode } = useUserTabMode();
+  const { mode: profileMode, setMode: setProfileMode } = useUserTabMode();
+  const { mode: fixturesMode, setMode: setFixturesMode } = useFixturesTabMode();
   const canAdminMenu = isAuthenticated && hasRole(ADMIN_ROLE);
 
   const profileRoute = useMemo(
     () => state.routes.find((r) => r.name === 'profile'),
+    [state.routes],
+  );
+  const fixturesRoute = useMemo(
+    () => state.routes.find((r) => r.name === 'index'),
     [state.routes],
   );
 
@@ -65,15 +71,14 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
     if (!canAdminMenu || !profileRoute) {
       return null;
     }
-    // Only the other option — never both Player and Admin together.
-    if (mode === 'normal') {
+    if (profileMode === 'normal') {
       return [
         {
           id: 'admin',
           label: 'Admin',
           icon: <MenuIcon name="cog" size={18} color={colors.text} />,
           onSelect: () => {
-            setMode('admin');
+            setProfileMode('admin');
             navigateToTab(profileRoute.key);
           },
         },
@@ -85,12 +90,48 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
         label: 'Player',
         icon: <MenuIcon name="users" size={18} color={colors.text} />,
         onSelect: () => {
-          setMode('normal');
+          setProfileMode('normal');
           navigateToTab(profileRoute.key);
         },
       },
     ];
-  }, [canAdminMenu, profileRoute, mode, setMode, navigateToTab]);
+  }, [canAdminMenu, profileRoute, profileMode, setProfileMode, navigateToTab]);
+
+  const fixturesLongPressOptions = useMemo((): LongPressMenuOption[] | null => {
+    if (!canAdminMenu || !fixturesRoute) {
+      return null;
+    }
+    if (fixturesMode === 'normal') {
+      return [
+        {
+          id: 'admin',
+          label: 'Admin',
+          icon: <MenuIcon name="cog" size={18} color={colors.text} />,
+          onSelect: () => {
+            setFixturesMode('admin');
+            navigateToTab(fixturesRoute.key);
+          },
+        },
+      ];
+    }
+    return [
+      {
+        id: 'normal',
+        label: 'Player',
+        icon: <MenuIcon name="fixtures" size={18} color={colors.text} />,
+        onSelect: () => {
+          setFixturesMode('normal');
+          navigateToTab(fixturesRoute.key);
+        },
+      },
+    ];
+  }, [
+    canAdminMenu,
+    fixturesRoute,
+    fixturesMode,
+    setFixturesMode,
+    navigateToTab,
+  ]);
 
   return (
     <View
@@ -109,8 +150,16 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
           const focused = state.index === index;
           const { options } = descriptors[route.key];
           const label = options.title ?? route.name;
-          const longPressOptions =
-            route.name === 'profile' ? profileLongPressOptions : null;
+          let longPressOptions: LongPressMenuOption[] | null = null;
+          if (route.name === 'profile') {
+            longPressOptions = profileLongPressOptions;
+          } else if (route.name === 'index') {
+            longPressOptions = fixturesLongPressOptions;
+          }
+
+          const showAdminBadge =
+            (route.name === 'profile' && profileMode === 'admin') ||
+            (route.name === 'index' && fixturesMode === 'admin');
 
           return (
             <LongPressMenu
@@ -133,7 +182,7 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
                   name={iconName}
                   size={28}
                   active={focused}
-                  adminBadge={route.name === 'profile' && mode === 'admin'}
+                  adminBadge={showAdminBadge}
                 />
               </View>
             </LongPressMenu>

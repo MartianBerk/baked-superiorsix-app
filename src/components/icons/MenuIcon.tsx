@@ -49,7 +49,7 @@ export function MenuIcon({
   const xml = ICONS[name].replaceAll('CURRENT', stroke);
   const icon = <SvgXml xml={xml} width={size} height={size} />;
 
-  if (!adminBadge || name !== 'users') {
+  if (!adminBadge || (name !== 'users' && name !== 'fixtures')) {
     return icon;
   }
 

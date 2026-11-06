@@ -74,6 +74,30 @@ export type AcceptInvitePayload = {
   nickname?: string;
 };
 
+/** Admin fixture row from `/admin/listmatches` / `listmatchesnew`. */
+export type AdminMatch = {
+  id: number;
+  external_id: string;
+  league_id: number;
+  match_date: string;
+  match_minute: number | null;
+  status: string;
+  home_team: string;
+  away_team: string;
+  use_match: boolean;
+  home_score: number | null;
+  away_score: number | null;
+  game_number: number | null;
+  last_updated?: string | null;
+};
+
+export type LeagueInfo = {
+  id: number;
+  name: string;
+  code: string;
+  start_date: string;
+};
+
 /** `POST /user/acceptinvite` — no invitee bearer; BFF grants roles then returns JWT. */
 export type AcceptInviteResult = {
   player: PlayerProfile;
@@ -234,6 +258,87 @@ export async function updateProfileDetails(
     );
   }
   return readApiJson<PlayerProfile>(response);
+}
+
+function gameUnreachable(): ApiError {
+  return new ApiError(
+    0,
+    'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+  );
+}
+
+/** `GET /admin/listleagues` — league id → code map for kickoff headers. */
+export async function listLeagues(token: string): Promise<LeagueInfo[]> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/admin/listleagues', { token });
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{ leagues: LeagueInfo[] }>(response);
+  return body.leagues ?? [];
+}
+
+/**
+ * `GET /admin/listmatchesnew` — fixtures in the admin scrubber window
+ * (default today−14d … today+31d; optional fromDate/toDate as dd-mm-yyyy).
+ */
+export async function listMatchesNew(
+  token: string,
+  opts?: { fromDate?: string; toDate?: string },
+): Promise<AdminMatch[]> {
+  const params = new URLSearchParams();
+  if (opts?.fromDate) {
+    params.set('fromDate', opts.fromDate);
+  }
+  if (opts?.toDate) {
+    params.set('toDate', opts.toDate);
+  }
+  const query = params.toString() ? `?${params.toString()}` : '';
+  let response: Response;
+  try {
+    response = await apiFetch('game', `/admin/listmatchesnew${query}`, { token });
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{ matches: AdminMatch[] }>(response);
+  return body.matches ?? [];
+}
+
+/** `POST /admin/addmatch` — select a fixture as Super Six game N. */
+export async function addMatch(
+  token: string,
+  matchId: number,
+  gameNumber: number,
+): Promise<AdminMatch> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/admin/addmatch', {
+      method: 'POST',
+      token,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: matchId, game_number: gameNumber }),
+    });
+  } catch {
+    throw gameUnreachable();
+  }
+  return readApiJson<AdminMatch>(response);
+}
+
+/** `GET /admin/dropmatch?id=` — clear Super Six selection on a fixture. */
+export async function dropMatch(
+  token: string,
+  matchId: number,
+): Promise<AdminMatch> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', `/admin/dropmatch?id=${matchId}`, {
+      token,
+    });
+  } catch {
+    throw gameUnreachable();
+  }
+  return readApiJson<AdminMatch>(response);
 }
 
 /**
