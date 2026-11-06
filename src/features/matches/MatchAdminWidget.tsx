@@ -325,7 +325,7 @@ export function MatchAdminWidget() {
       <View style={styles.wrap}>
         <View style={styles.headerStrip}>
           <Text style={styles.headerLabel}>
-            {`Match Day:   ${selectedCount} / ${MAX_SLOTS} selections`}
+            {`Match Week:   ${selectedCount} / ${MAX_SLOTS} selections`}
           </Text>
           <Pressable
             accessibilityRole="button"
