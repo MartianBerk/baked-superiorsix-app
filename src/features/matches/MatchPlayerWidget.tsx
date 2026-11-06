@@ -12,8 +12,10 @@ import {
   addPrediction,
   fetchMatchDetail,
   getPrediction,
+  listGameSubrounds,
   listLiveMatches,
   type PredictionChoice,
+  type Subround,
 } from '@/api/superiorsix';
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
@@ -22,21 +24,18 @@ import { colors } from '@/theme';
 
 import {
   discoveryDayKeys,
-  pickGameWeek,
   toLegacyDateParam,
   utcDayKey,
-  utcMondayKey,
 } from './formatMatchDate';
-import { GameWeekScrubber } from './GameWeekScrubber';
 import {
   MatchPredictRow,
   type PlayerMatch,
 } from './MatchPredictRow';
+import { SubroundScrubber } from './SubroundScrubber';
 
 /**
- * FE week lock: all picks for a game week lock once
- * `now + 10m >= earliest kickoff` among that week's matches.
- * BE `/user/addprediction` remains per-match.
+ * FE subround lock: all picks lock once `now + 10m >= min_kickoff`
+ * (matches BE `/user/addprediction` cutoff for the match’s subround).
  */
 const CUTOFF_MS = 10 * 60 * 1000;
 
@@ -46,19 +45,6 @@ function isPastCutoff(matchDateIso: string, now: Date = new Date()): boolean {
     return false;
   }
   return now.getTime() + CUTOFF_MS >= kickoff;
-}
-
-function earliestKickoffIso(matches: PlayerMatch[]): string | null {
-  if (matches.length === 0) {
-    return null;
-  }
-  let earliest = matches[0].match_date;
-  for (const match of matches.slice(1)) {
-    if (match.match_date.localeCompare(earliest) < 0) {
-      earliest = match.match_date;
-    }
-  }
-  return earliest;
 }
 
 function sortPlayerMatches(matches: PlayerMatch[]): PlayerMatch[] {
@@ -72,37 +58,67 @@ function sortPlayerMatches(matches: PlayerMatch[]): PlayerMatch[] {
   });
 }
 
-function groupByGameWeek(
+function groupBySubround(
   matches: PlayerMatch[],
-): { weeks: string[]; byWeek: Record<string, PlayerMatch[]> } {
-  const byWeek: Record<string, PlayerMatch[]> = {};
+): Record<number, PlayerMatch[]> {
+  const byId: Record<number, PlayerMatch[]> = {};
   for (const match of matches) {
-    const week = utcMondayKey(match.match_date);
-    const bucket = byWeek[week] ?? [];
+    const subroundId = match.subround_id;
+    if (subroundId == null) {
+      continue;
+    }
+    const bucket = byId[subroundId] ?? [];
     bucket.push(match);
-    byWeek[week] = bucket;
+    byId[subroundId] = bucket;
   }
-  const weeks = Object.keys(byWeek).sort();
-  for (const week of weeks) {
-    byWeek[week] = sortPlayerMatches(byWeek[week]);
+  for (const key of Object.keys(byId)) {
+    byId[Number(key)] = sortPlayerMatches(byId[Number(key)]);
   }
-  return { weeks, byWeek };
+  return byId;
+}
+
+/** Prefer open-for-editing with matches; else latest active; else latest. */
+function pickPlayerSubround(
+  list: Subround[],
+  preferredId: number | null,
+): Subround | null {
+  const withMatches = list.filter((row) => row.match_count > 0);
+  if (withMatches.length === 0) {
+    return null;
+  }
+  if (preferredId != null) {
+    const preferred = withMatches.find((row) => row.id === preferredId);
+    if (preferred) {
+      return preferred;
+    }
+  }
+  const open = withMatches.find((row) => row.is_open_for_editing && !row.is_over);
+  if (open) {
+    return open;
+  }
+  const active = withMatches.filter((row) => !row.is_over);
+  if (active.length > 0) {
+    return active[active.length - 1];
+  }
+  return withMatches[withMatches.length - 1];
 }
 
 /**
- * Player fixtures tab: selected Super Six matches for available game weeks,
- * G/W scrubber (only weeks with matches), expandable detail, H/D/A picks.
+ * Player fixtures: navigate Super Six selections by subround, expandable
+ * detail, Home/Draw/Away with subround-wide cutoff.
  */
 export function MatchPlayerWidget() {
   const { status, isAuthenticated, token, hasRole } = useAuth();
 
-  const [availableWeeks, setAvailableWeeks] = useState<string[]>([]);
-  const [matchesByWeek, setMatchesByWeek] = useState<
-    Record<string, PlayerMatch[]>
+  const [subrounds, setSubrounds] = useState<Subround[]>([]);
+  const [matchesBySubround, setMatchesBySubround] = useState<
+    Record<number, PlayerMatch[]>
   >({});
-  const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
-  const selectedWeekRef = useRef<string | null>(null);
-  selectedWeekRef.current = selectedWeek;
+  const [selectedSubroundId, setSelectedSubroundId] = useState<number | null>(
+    null,
+  );
+  const selectedSubroundIdRef = useRef<number | null>(null);
+  selectedSubroundIdRef.current = selectedSubroundId;
 
   const [draft, setDraft] = useState<Record<number, PredictionChoice | null>>(
     {},
@@ -116,38 +132,38 @@ export function MatchPlayerWidget() {
 
   const canPredict = isAuthenticated && hasRole('player');
 
+  const selectedSubround = useMemo(
+    () => subrounds.find((row) => row.id === selectedSubroundId) ?? null,
+    [subrounds, selectedSubroundId],
+  );
+
   const matches = useMemo(
-    () => (selectedWeek ? (matchesByWeek[selectedWeek] ?? []) : []),
-    [selectedWeek, matchesByWeek],
+    () =>
+      selectedSubroundId != null
+        ? (matchesBySubround[selectedSubroundId] ?? [])
+        : [],
+    [selectedSubroundId, matchesBySubround],
   );
 
-  const earliestKickoff = useMemo(
-    () => earliestKickoffIso(matches),
-    [matches],
-  );
-
-  /** Earliest kickoff day in the selected week (banner date — not Monday). */
-  const labelDayKey = useMemo(
-    () => (earliestKickoff ? utcDayKey(earliestKickoff) : null),
-    [earliestKickoff],
-  );
-
-  /** Lock every Home/Draw/Away in this week once the earliest kickoff hits cutoff. */
-  const weekLocked = useMemo(
-    () => (earliestKickoff ? isPastCutoff(earliestKickoff) : false),
-    [earliestKickoff],
-  );
+  /** Lock every Home/Draw/Away once earliest kickoff in this subround hits cutoff. */
+  const subroundLocked = useMemo(() => {
+    const minKickoff = selectedSubround?.min_kickoff;
+    if (minKickoff) {
+      return isPastCutoff(minKickoff);
+    }
+    return false;
+  }, [selectedSubround]);
 
   const loadPredictions = useCallback(
-    async (weekMatches: PlayerMatch[]) => {
-      if (!token || !canPredict || weekMatches.length === 0) {
+    async (slateMatches: PlayerMatch[]) => {
+      if (!token || !canPredict || slateMatches.length === 0) {
         setDraft({});
         return;
       }
       setPredictionsLoading(true);
       try {
         const predictions = await Promise.all(
-          weekMatches.map(async (match) => {
+          slateMatches.map(async (match) => {
             try {
               const choice = await getPrediction(token, match.id);
               return [match.id, choice] as const;
@@ -178,10 +194,15 @@ export function MatchPlayerWidget() {
       setError(null);
       setRowError(null);
       try {
-        const dayKeys = discoveryDayKeys();
-        const dayResults = await Promise.all(
-          dayKeys.map((dayKey) => listLiveMatches(toLegacyDateParam(dayKey))),
-        );
+        const [listed, dayResults] = await Promise.all([
+          listGameSubrounds(),
+          Promise.all(
+            discoveryDayKeys().map((dayKey) =>
+              listLiveMatches(toLegacyDateParam(dayKey)),
+            ),
+          ),
+        ]);
+
         const byId = new Map<number, PlayerMatch>();
         for (const dayMatches of dayResults) {
           for (const match of dayMatches) {
@@ -190,7 +211,6 @@ export function MatchPlayerWidget() {
         }
         let all = [...byId.values()];
 
-        // Hydrate difficulty from matchdetail (livematches omits it).
         const details = await Promise.all(
           all.map(async (match) => {
             try {
@@ -213,22 +233,30 @@ export function MatchPlayerWidget() {
           difficulty: difficultyById.get(match.id) ?? null,
         }));
 
-        const { weeks, byWeek } = groupByGameWeek(all);
-        setAvailableWeeks(weeks);
-        setMatchesByWeek(byWeek);
+        const bySubround = groupBySubround(all);
+        // Player scrubber: only subrounds that have selections.
+        const navigable = listed
+          .filter((row) => row.match_count > 0)
+          .sort((a, b) => a.sequence - b.sequence);
 
-        const nextWeek = pickGameWeek(weeks, selectedWeekRef.current);
-        setSelectedWeek(nextWeek);
-        await loadPredictions(nextWeek ? (byWeek[nextWeek] ?? []) : []);
+        setSubrounds(navigable);
+        setMatchesBySubround(bySubround);
+
+        const next = pickPlayerSubround(
+          navigable,
+          selectedSubroundIdRef.current,
+        );
+        setSelectedSubroundId(next?.id ?? null);
+        await loadPredictions(next ? (bySubround[next.id] ?? []) : []);
       } catch (err) {
         const message =
           err instanceof ApiError
             ? err.message
             : 'Could not load selected matches.';
         setError(message);
-        setAvailableWeeks([]);
-        setMatchesByWeek({});
-        setSelectedWeek(null);
+        setSubrounds([]);
+        setMatchesBySubround({});
+        setSelectedSubroundId(null);
         setDraft({});
       } finally {
         setLoading(false);
@@ -253,14 +281,14 @@ export function MatchPlayerWidget() {
     };
   }, [status, loadCatalog]);
 
-  const onSelectWeek = useCallback(
-    (mondayKey: string) => {
-      setSelectedWeek(mondayKey);
+  const onSelectSubround = useCallback(
+    (next: Subround) => {
+      setSelectedSubroundId(next.id);
       setError(null);
       setRowError(null);
-      void loadPredictions(matchesByWeek[mondayKey] ?? []);
+      void loadPredictions(matchesBySubround[next.id] ?? []);
     },
-    [matchesByWeek, loadPredictions],
+    [matchesBySubround, loadPredictions],
   );
 
   const onPredict = useCallback(
@@ -271,10 +299,10 @@ export function MatchPlayerWidget() {
       if (draft[match.id] === choice) {
         return;
       }
-      if (weekLocked || match.status === 'POSTPONED') {
+      if (subroundLocked || match.status === 'POSTPONED') {
         setRowError(
-          weekLocked
-            ? 'Past cutoff for this game week\'s predictions.'
+          subroundLocked
+            ? 'Past cutoff for this subround\'s predictions.'
             : 'Past cutoff for prediction set.',
         );
         return;
@@ -297,7 +325,7 @@ export function MatchPlayerWidget() {
         setBusyId(null);
       }
     },
-    [token, canPredict, draft, weekLocked],
+    [token, canPredict, draft, subroundLocked],
   );
 
   if (status === 'loading' || loading) {
@@ -324,17 +352,16 @@ export function MatchPlayerWidget() {
       }
     >
       <View style={styles.wrap}>
-        <GameWeekScrubber
-          weeks={availableWeeks}
-          selectedWeek={selectedWeek}
-          labelDayKey={labelDayKey}
-          onChange={onSelectWeek}
+        <SubroundScrubber
+          subrounds={subrounds}
+          selectedId={selectedSubroundId}
+          onChange={onSelectSubround}
         />
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {rowError ? <Text style={styles.error}>{rowError}</Text> : null}
-        {weekLocked && matches.length > 0 ? (
+        {subroundLocked && matches.length > 0 ? (
           <Text style={styles.lede}>
-            Predictions locked — within 10 minutes of this week&apos;s first
+            Predictions locked — within 10 minutes of this slate&apos;s first
             kickoff.
           </Text>
         ) : null}
@@ -342,7 +369,7 @@ export function MatchPlayerWidget() {
         {!isAuthenticated ? (
           <View style={styles.loginBlock}>
             <Text style={styles.lede}>
-              Browse this week&apos;s Super Six, then sign in to lock in Home /
+              Browse this slate&apos;s Super Six, then sign in to lock in Home /
               Draw / Away.
             </Text>
             <LoginForm heading="Player sign in" />
@@ -373,7 +400,7 @@ export function MatchPlayerWidget() {
                 match={match}
                 prediction={draft[match.id] ?? null}
                 busy={busyId === match.id}
-                locked={weekLocked}
+                locked={subroundLocked}
                 canPredict={canPredict}
                 onPredict={(choice) => {
                   void onPredict(match, choice);

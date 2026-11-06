@@ -19,11 +19,15 @@ export {
   addPlayer,
   addPrediction,
   fetchMatchDetail,
+  getCurrentSubround,
   getPrediction,
   invitePlayer,
+  listAdminSubrounds,
+  listGameSubrounds,
   listInvites,
   listLiveMatches,
   listPlayers,
+  openSubround,
   smokeSuperSixBff,
   updateProfileDetails,
 } from './superiorsix';
@@ -37,6 +41,7 @@ export type {
   PendingInvite,
   PlayerProfile,
   PredictionChoice,
+  Subround,
   SuperSixSmokeResult,
   UpdateDetailsPayload,
 } from './superiorsix';

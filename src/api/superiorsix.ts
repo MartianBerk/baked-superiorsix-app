@@ -97,8 +97,24 @@ export type AdminMatch = {
   home_score: number | null;
   away_score: number | null;
   game_number: number | null;
+  /** SS-82 slate this selection belongs to (null when not selected). */
+  subround_id?: number | null;
   last_updated?: string | null;
   difficulty?: MatchDifficulty | null;
+};
+
+/** Prediction slate under a parent round (SS-82). */
+export type Subround = {
+  id: number;
+  round_id: number;
+  sequence: number;
+  created_at: string | null;
+  closed_at: string | null;
+  match_count: number;
+  min_kickoff: string | null;
+  max_kickoff: string | null;
+  is_over: boolean;
+  is_open_for_editing: boolean;
 };
 
 export type LeagueInfo = {
@@ -135,6 +151,8 @@ export type LiveMatch = {
   match_minute: number | null;
   game_number: number | null;
   match_date: string;
+  /** SS-82 slate id when selected for Super Six. */
+  subround_id?: number | null;
 };
 
 /** `POST /user/acceptinvite` — no invitee bearer; BFF grants roles then returns JWT. */
@@ -404,6 +422,91 @@ export async function addPrediction(
     );
   }
   return { matchId: body.match_id, prediction: value };
+}
+
+/**
+ * `GET /game/listsubrounds` — player-facing slates for the current (or given)
+ * parent round. Public.
+ */
+export async function listGameSubrounds(roundId?: number): Promise<Subround[]> {
+  const params = new URLSearchParams();
+  if (roundId != null) {
+    params.set('roundId', String(roundId));
+  }
+  const query = params.toString() ? `?${params.toString()}` : '';
+  let response: Response;
+  try {
+    response = await apiFetch('game', `/game/listsubrounds${query}`);
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{ subrounds: Subround[] }>(response);
+  return body.subrounds ?? [];
+}
+
+/**
+ * `GET /admin/listsubrounds` — game-master list for current (or given) round.
+ */
+export async function listAdminSubrounds(
+  token: string,
+  roundId?: number,
+): Promise<Subround[]> {
+  const params = new URLSearchParams();
+  if (roundId != null) {
+    params.set('roundId', String(roundId));
+  }
+  const query = params.toString() ? `?${params.toString()}` : '';
+  let response: Response;
+  try {
+    response = await apiFetch('game', `/admin/listsubrounds${query}`, {
+      token,
+    });
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{ subrounds: Subround[] }>(response);
+  return body.subrounds ?? [];
+}
+
+/**
+ * `GET /admin/currentsubround` — open-for-editing slate.
+ * Pass `create: true` to create the next sequence when none / latest is over.
+ */
+export async function getCurrentSubround(
+  token: string,
+  opts?: { create?: boolean },
+): Promise<Subround | null> {
+  const create = opts?.create === true;
+  const query = create ? '?create=true' : '';
+  let response: Response;
+  try {
+    response = await apiFetch('game', `/admin/currentsubround${query}`, {
+      token,
+    });
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{ current_subround: Subround | null }>(
+    response,
+  );
+  return body.current_subround ?? null;
+}
+
+/**
+ * `POST /admin/opensubround` — force-create the next slate even if the previous
+ * still has future kickoffs (Sat/Mon/Wed/Fri separate slates).
+ */
+export async function openSubround(token: string): Promise<Subround> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/admin/opensubround', {
+      method: 'POST',
+      token,
+    });
+  } catch {
+    throw gameUnreachable();
+  }
+  return readApiJson<Subround>(response);
 }
 
 /** `GET /admin/listleagues` — league id → code map for kickoff headers. */
