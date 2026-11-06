@@ -19,6 +19,7 @@ export {
   addPlayer,
   addPrediction,
   addRound,
+  endRound,
   fetchMatchDetail,
   getCurrentRound,
   getCurrentSubround,

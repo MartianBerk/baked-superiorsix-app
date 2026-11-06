@@ -11,7 +11,6 @@ import {
 
 import {
   addMatches,
-  addRound,
   getCurrentRound,
   getCurrentSubround,
   isNoRoundInProgressError,
@@ -133,8 +132,7 @@ export function MatchAdminWidget() {
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [openingSubround, setOpeningSubround] = useState(false);
-  const [startingRound, setStartingRound] = useState(false);
-  /** True until admin opens a parent Round (manual; temporary Start round CTA). */
+  /** True until admin opens a parent Round via leaders → Admin (SS-84). */
   const [needsRound, setNeedsRound] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -393,33 +391,6 @@ export function MatchAdminWidget() {
     matches,
   ]);
 
-  /** Temporary until SS-84 admin Round screen exists. */
-  const onStartRound = useCallback(async () => {
-    if (!token || startingRound) {
-      return;
-    }
-    setStartingRound(true);
-    setError(null);
-    try {
-      const round = await addRound(token, {
-        startDate: utcDayKey(new Date()),
-      });
-      // Round only — first subround is created on the first match Submit.
-      const pending = makePendingSubround(round.id, 1);
-      setNeedsRound(false);
-      setSubrounds([pending]);
-      applySubroundSelection(pending, matches);
-    } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : 'Could not start the first round.',
-      );
-    } finally {
-      setStartingRound(false);
-    }
-  }, [token, startingRound, applySubroundSelection, matches]);
-
   const onToggleMatch = useCallback(
     (match: AdminMatch) => {
       if (!canEdit) {
@@ -639,32 +610,11 @@ export function MatchAdminWidget() {
         </View>
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {needsRound ? (
-          <View style={styles.bootstrap}>
-            <Text style={styles.lede}>
-              No round in progress. Start a round to open the first selection
-              slate (temporary until the SS-84 Round admin screen). Fixtures
-              still load below for browsing.
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Start first round"
-              disabled={startingRound}
-              onPress={() => {
-                void onStartRound();
-              }}
-              style={({ pressed }) => [
-                styles.submit,
-                startingRound && styles.submitDisabled,
-                pressed && !startingRound && styles.submitPressed,
-              ]}
-            >
-              {startingRound ? (
-                <ActivityIndicator size="small" color={colors.text} />
-              ) : (
-                <Text style={styles.submitLabel}>Start round</Text>
-              )}
-            </Pressable>
-          </View>
+          <Text style={styles.lede}>
+            No round in progress. Long-press Leaders → Admin to start a parent
+            round, then return here to build the first selection slate. Fixtures
+            still load below for browsing.
+          </Text>
         ) : null}
         {!needsRound &&
         !canEdit &&
@@ -874,10 +824,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 12,
     fontWeight: '700',
-  },
-  bootstrap: {
-    marginBottom: 12,
-    gap: 10,
   },
   heading: {
     color: colors.text,
