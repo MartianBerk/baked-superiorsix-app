@@ -212,13 +212,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pipWin: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.resultWin,
   },
   pipDraw: {
     backgroundColor: colors.menuActive,
   },
   pipLose: {
-    backgroundColor: '#6B2A2A',
+    backgroundColor: colors.resultLose,
   },
   pipLabel: {
     color: colors.text,

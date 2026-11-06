@@ -7,6 +7,10 @@ import { SelectionToggleIcon } from '@/components/icons/SelectionToggleIcon';
 import { colors } from '@/theme';
 
 import { MatchDetailPanel } from './MatchDetailPanel';
+import {
+  difficultyColor,
+  difficultyLabel,
+} from './matchDifficulty';
 
 const CHEVRON_DOWN = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
 const CHEVRON_UP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>`;
@@ -31,9 +35,26 @@ export function MatchSelectRow({ match, busy, disabled, onToggle }: Props) {
     colors.textMuted,
   );
 
+  const difficulty = match.difficulty;
+  const band =
+    difficulty != null &&
+    Number.isFinite(difficulty.band) &&
+    difficulty.band >= 1 &&
+    difficulty.band <= 5
+      ? Math.trunc(difficulty.band)
+      : null;
+
   return (
     <View style={[styles.block, selected && styles.blockSelected]}>
       <View style={styles.row}>
+        {band != null ? (
+          <View
+            accessibilityLabel={`Difficulty ${difficultyLabel(band)}, band ${band}`}
+            style={[styles.difficulty, { backgroundColor: difficultyColor(band) }]}
+          >
+            <Text style={styles.difficultyText}>{band}</Text>
+          </View>
+        ) : null}
         <View style={styles.teams}>
           <Text style={styles.team} numberOfLines={1}>
             {match.home_team}
@@ -113,6 +134,19 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
+  },
+  difficulty: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  difficultyText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '800',
   },
   teams: {
     flex: 1,
