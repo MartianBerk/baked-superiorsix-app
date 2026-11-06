@@ -49,7 +49,6 @@ export function KickoffGroup({
       >
         <View style={styles.headerParts}>
           <Text style={styles.part}>{parts.time}</Text>
-          <Text style={styles.part}>{parts.total}</Text>
           {parts.leagues ? (
             <Text style={styles.part}>{parts.leagues}</Text>
           ) : null}
@@ -99,12 +98,12 @@ const styles = StyleSheet.create({
   headerPressed: {
     backgroundColor: colors.menuActive,
   },
-  /** Time / total / leagues clustered with modest gaps — not full-width spread. */
+  /** Time + leagues with a modest gap — not full-width spread. */
   headerParts: {
     flexDirection: 'row',
     alignItems: 'center',
     flexShrink: 1,
-    gap: 18,
+    gap: 10,
   },
   part: {
     color: colors.text,

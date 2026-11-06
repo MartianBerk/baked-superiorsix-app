@@ -99,24 +99,21 @@ export function groupMatchesByKickoff(
 
 /** Accessible / plain-text form of the kickoff header parts. */
 export function formatGroupHeader(group: KickoffGroup): string {
-  const { time, total, leagues } = groupHeaderParts(group);
-  return leagues ? `${time}    ${total}     ${leagues}` : `${time}    ${total}`;
+  const { time, leagues } = groupHeaderParts(group);
+  return leagues ? `${time}  ${leagues}` : time;
 }
 
-/** Three visual parts: time, total count, league breakdown. */
+/** Visual parts: time + league breakdown (no total count). */
 export function groupHeaderParts(group: KickoffGroup): {
   time: string;
-  total: string;
   leagues: string | null;
 } {
-  const total = String(group.matches.length);
   const breakdown = group.leagueCounts
     .map(({ count, code }) => `${count} ${code}`)
     .join(' / ');
-  // e.g. time `3pm`, total `5`, leagues `(3 PL / 3 ELC)`
+  // e.g. time `3pm`, leagues `(3 PL / 3 ELC)`
   return {
     time: group.label,
-    total,
     leagues: breakdown ? `(${breakdown})` : null,
   };
 }
