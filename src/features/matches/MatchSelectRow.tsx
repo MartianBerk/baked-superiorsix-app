@@ -148,17 +148,17 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
-  /** Five band pips (~75% of form W/L 14px badges). */
+  /** Five band pips (~7.5px: 25% smaller than prior 10px). */
   difficulty: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 1.5,
     flexShrink: 0,
   },
   difficultyPip: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 7.5,
+    height: 7.5,
+    borderRadius: 3.75,
   },
   difficultyPipEmpty: {
     backgroundColor: colors.border,
