@@ -6,6 +6,7 @@ import { SuperiorSixLogo } from '@/components/icons/SuperiorSixLogo';
 import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
 import { colors } from '@/theme';
 
+import { useRoundStatus } from './RoundStatusContext';
 import { RoundStatusStrip } from './RoundStatusStrip';
 import {
   demoRoundStatusForPath,
@@ -19,7 +20,8 @@ type Props = {
   prizeLabel?: string;
   /**
    * Thin status strip under the logo row.
-   * Omit to use SS-8 tab demos: Scores → live correct; Leaders → + rival all 6.
+   * Omit to use live player picking count on fixtures, else SS-8 tab demos
+   * (Scores → live correct; Leaders → + rival all 6).
    * Hidden entirely in admin match-day mode (count lives in the widget strip).
    */
   roundStatus?: RoundStatus;
@@ -47,9 +49,17 @@ export function AppHeader({
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const { mode: fixturesMode } = useFixturesTabMode();
+  const { playerPickingStatus } = useRoundStatus();
   const hideStatusStrip =
     fixturesMode === 'admin' && isFixturesPath(pathname);
-  const status = roundStatus ?? demoRoundStatusForPath(pathname);
+  const status =
+    roundStatus ??
+    (isFixturesPath(pathname) &&
+    fixturesMode === 'normal' &&
+    playerPickingStatus
+      ? playerPickingStatus
+      : null) ??
+    demoRoundStatusForPath(pathname);
 
   return (
     <View

@@ -20,6 +20,7 @@ import {
 } from '@/api/superiorsix';
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
+import { useRoundStatus } from '@/components/shell/RoundStatusContext';
 import { LoginForm } from '@/features/auth/LoginForm';
 import { colors } from '@/theme';
 
@@ -110,6 +111,7 @@ function pickPlayerSubround(
  */
 export function MatchPlayerWidget() {
   const { status, isAuthenticated, token, hasRole } = useAuth();
+  const { setPlayerPickingStatus } = useRoundStatus();
 
   const [subrounds, setSubrounds] = useState<Subround[]>([]);
   const [matchesBySubround, setMatchesBySubround] = useState<
@@ -154,6 +156,27 @@ export function MatchPlayerWidget() {
     }
     return false;
   }, [selectedSubround]);
+
+  /** Header “n / 6 Selections” — optimistic from local draft for this slate. */
+  const pickedCount = useMemo(() => {
+    let count = 0;
+    for (const match of matches) {
+      if (draft[match.id] != null) {
+        count += 1;
+      }
+    }
+    return count;
+  }, [matches, draft]);
+
+  useEffect(() => {
+    setPlayerPickingStatus({
+      phase: 'picking',
+      selectedCount: pickedCount,
+    });
+    return () => {
+      setPlayerPickingStatus(null);
+    };
+  }, [pickedCount, setPlayerPickingStatus]);
 
   const loadPredictions = useCallback(
     async (slateMatches: PlayerMatch[]) => {
