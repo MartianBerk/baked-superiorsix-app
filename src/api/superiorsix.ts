@@ -123,6 +123,8 @@ export type RoundInfo = {
   start_date: string;
   end_date: string | null;
   buy_in_pence: number;
+  /** Auth UUIDs; empty while open (SS-15). */
+  winner_ids?: string[];
 };
 
 /** True when BE has no open round (subround list/create need one first). */
@@ -475,6 +477,42 @@ export async function addRound(
         buy_in_pence: opts.buyInPence ?? 0,
       }),
     });
+  } catch {
+    throw gameUnreachable();
+  }
+  return readApiJson<RoundInfo>(response);
+}
+
+/**
+ * `POST /admin/endround?endDate=` — close the open parent round (SS-15).
+ * `endDate` is a UTC day key (`yyyy-mm-dd`); sent as legacy `dd-mm-yyyy`.
+ * Body `winner_ids` are roster `auth_id` UUIDs (min 1, unique).
+ */
+export async function endRound(
+  token: string,
+  opts: { endDate: string; winnerIds: string[] },
+): Promise<RoundInfo> {
+  const [y, m, d] = opts.endDate.split('-');
+  if (!y || !m || !d) {
+    throw new ApiError(0, 'endDate must be YYYY-MM-DD.');
+  }
+  if (opts.winnerIds.length === 0) {
+    throw new ApiError(0, 'Select at least one winner.');
+  }
+  const legacyEnd = `${d}-${m}-${y}`;
+  const params = new URLSearchParams({ endDate: legacyEnd });
+  let response: Response;
+  try {
+    response = await apiFetch(
+      'game',
+      `/admin/endround?${params.toString()}`,
+      {
+        method: 'POST',
+        token,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ winner_ids: opts.winnerIds }),
+      },
+    );
   } catch {
     throw gameUnreachable();
   }

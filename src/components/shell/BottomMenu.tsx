@@ -9,6 +9,7 @@ import {
   type LongPressMenuOption,
 } from '@/components/shell/LongPressMenu';
 import { useUserTabMode } from '@/features/auth/UserTabModeContext';
+import { useLeadersTabMode } from '@/features/leaders/LeadersTabModeContext';
 import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
 import { colors } from '@/theme';
 
@@ -47,7 +48,7 @@ type TabBarProps = {
  * Main menu at the bottom — inset ~3% each side, rounded bar,
  * circular selected highlight around each icon.
  *
- * Long-press (~500ms) the fixtures or user tab when signed in with `admin`
+ * Long-press (~500ms) fixtures, leaders, or user when signed in with `admin`
  * offers only the other mode (Admin while on player, Player while on admin).
  * Mode swaps the tab body in place — header + nav stay visible.
  */
@@ -56,6 +57,7 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
   const { isAuthenticated, hasRole } = useAuth();
   const { mode: profileMode, setMode: setProfileMode } = useUserTabMode();
   const { mode: fixturesMode, setMode: setFixturesMode } = useFixturesTabMode();
+  const { mode: leadersMode, setMode: setLeadersMode } = useLeadersTabMode();
   const canAdminMenu = isAuthenticated && hasRole(ADMIN_ROLE);
 
   const profileRoute = useMemo(
@@ -64,6 +66,10 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
   );
   const fixturesRoute = useMemo(
     () => state.routes.find((r) => r.name === 'index'),
+    [state.routes],
+  );
+  const leadersRoute = useMemo(
+    () => state.routes.find((r) => r.name === 'leaders'),
     [state.routes],
   );
 
@@ -133,6 +139,42 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
     navigateToTab,
   ]);
 
+  const leadersLongPressOptions = useMemo((): LongPressMenuOption[] | null => {
+    if (!canAdminMenu || !leadersRoute) {
+      return null;
+    }
+    if (leadersMode === 'normal') {
+      return [
+        {
+          id: 'admin',
+          label: 'Admin',
+          icon: <MenuIcon name="cog" size={18} color={colors.text} />,
+          onSelect: () => {
+            setLeadersMode('admin');
+            navigateToTab(leadersRoute.key);
+          },
+        },
+      ];
+    }
+    return [
+      {
+        id: 'normal',
+        label: 'Player',
+        icon: <MenuIcon name="leaders" size={18} color={colors.text} />,
+        onSelect: () => {
+          setLeadersMode('normal');
+          navigateToTab(leadersRoute.key);
+        },
+      },
+    ];
+  }, [
+    canAdminMenu,
+    leadersRoute,
+    leadersMode,
+    setLeadersMode,
+    navigateToTab,
+  ]);
+
   return (
     <View
       style={[
@@ -155,11 +197,14 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
             longPressOptions = profileLongPressOptions;
           } else if (route.name === 'index') {
             longPressOptions = fixturesLongPressOptions;
+          } else if (route.name === 'leaders') {
+            longPressOptions = leadersLongPressOptions;
           }
 
           const showAdminBadge =
             (route.name === 'profile' && profileMode === 'admin') ||
-            (route.name === 'index' && fixturesMode === 'admin');
+            (route.name === 'index' && fixturesMode === 'admin') ||
+            (route.name === 'leaders' && leadersMode === 'admin');
 
           return (
             <LongPressMenu

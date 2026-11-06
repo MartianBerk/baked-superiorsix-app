@@ -11,14 +11,12 @@ import {
 
 import {
   addMatches,
-  addRound,
   getCurrentRound,
   getCurrentSubround,
   isNoRoundInProgressError,
   listAdminSubrounds,
   listLeagues,
   listMatches,
-  openSubround,
   type AdminMatch,
   type LeagueInfo,
   type Subround,
@@ -132,9 +130,7 @@ export function MatchAdminWidget() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [openingSubround, setOpeningSubround] = useState(false);
-  const [startingRound, setStartingRound] = useState(false);
-  /** True until admin opens a parent Round (manual; temporary Start round CTA). */
+  /** True until admin opens a parent Round via leaders → Admin (SS-84). */
   const [needsRound, setNeedsRound] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -357,74 +353,13 @@ export function MatchAdminWidget() {
     [applySubroundSelection, matches],
   );
 
-  const onOpenSubround = useCallback(async () => {
-    // Force-next while a real open slate exists (e.g. Sat → Mon). Pending
-    // “current” is assumed locally and created on Submit instead.
-    if (
-      !token ||
-      openingSubround ||
-      needsRound ||
-      isPendingSubroundId(selectedSubroundId)
-    ) {
-      return;
-    }
-    setOpeningSubround(true);
-    setError(null);
-    try {
-      const created = await openSubround(token);
-      const nextList = await listAdminSubrounds(token);
-      setSubrounds(withPendingCurrent(nextList, created.round_id));
-      applySubroundSelection(created, matches);
-    } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : 'Could not open a new subround.',
-      );
-    } finally {
-      setOpeningSubround(false);
-    }
-  }, [
-    token,
-    openingSubround,
-    needsRound,
-    selectedSubroundId,
-    applySubroundSelection,
-    matches,
-  ]);
-
-  /** Temporary until SS-84 admin Round screen exists. */
-  const onStartRound = useCallback(async () => {
-    if (!token || startingRound) {
-      return;
-    }
-    setStartingRound(true);
-    setError(null);
-    try {
-      const round = await addRound(token, {
-        startDate: utcDayKey(new Date()),
-      });
-      // Round only — first subround is created on the first match Submit.
-      const pending = makePendingSubround(round.id, 1);
-      setNeedsRound(false);
-      setSubrounds([pending]);
-      applySubroundSelection(pending, matches);
-    } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : 'Could not start the first round.',
-      );
-    } finally {
-      setStartingRound(false);
-    }
-  }, [token, startingRound, applySubroundSelection, matches]);
-
   const onToggleMatch = useCallback(
     (match: AdminMatch) => {
       if (!canEdit) {
         queueMicrotask(() =>
-          setError('This subround is closed. Open a new slate to edit.'),
+          setError(
+            'This subround is closed. Scrub to the current slate to edit.',
+          ),
         );
         return;
       }
@@ -639,40 +574,19 @@ export function MatchAdminWidget() {
         </View>
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {needsRound ? (
-          <View style={styles.bootstrap}>
-            <Text style={styles.lede}>
-              No round in progress. Start a round to open the first selection
-              slate (temporary until the SS-84 Round admin screen). Fixtures
-              still load below for browsing.
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Start first round"
-              disabled={startingRound}
-              onPress={() => {
-                void onStartRound();
-              }}
-              style={({ pressed }) => [
-                styles.submit,
-                startingRound && styles.submitDisabled,
-                pressed && !startingRound && styles.submitPressed,
-              ]}
-            >
-              {startingRound ? (
-                <ActivityIndicator size="small" color={colors.text} />
-              ) : (
-                <Text style={styles.submitLabel}>Start round</Text>
-              )}
-            </Pressable>
-          </View>
+          <Text style={styles.lede}>
+            No round in progress. Long-press Leaders → Admin to start a parent
+            round, then return here to build the first selection slate. Fixtures
+            still load below for browsing.
+          </Text>
         ) : null}
         {!needsRound &&
         !canEdit &&
         selectedSubround &&
         !isPendingSubroundId(selectedSubroundId) ? (
           <Text style={styles.lede}>
-            Viewing a closed subround. Scrub to the current slate or open a new
-            one to edit selections.
+            Viewing a closed subround. Scrub to the current slate to edit
+            selections.
           </Text>
         ) : null}
         {!needsRound && isPendingSubroundId(selectedSubroundId) ? (
@@ -691,38 +605,6 @@ export function MatchAdminWidget() {
                 selectedId={selectedSubroundId}
                 onChange={onSelectSubround}
                 style={styles.scrubberFlush}
-                trailing={
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Open new subround"
-                    disabled={
-                      openingSubround ||
-                      isPendingSubroundId(selectedSubroundId)
-                    }
-                    onPress={() => {
-                      void onOpenSubround();
-                    }}
-                    style={({ pressed }) => [
-                      styles.newSlate,
-                      pressed &&
-                        !openingSubround &&
-                        !isPendingSubroundId(selectedSubroundId) &&
-                        styles.newSlatePressed,
-                      (openingSubround ||
-                        isPendingSubroundId(selectedSubroundId)) &&
-                        styles.submitDisabled,
-                    ]}
-                  >
-                    {openingSubround ? (
-                      <ActivityIndicator
-                        size="small"
-                        color={colors.textMuted}
-                      />
-                    ) : (
-                      <Text style={styles.newSlateLabel}>New slate</Text>
-                    )}
-                  </Pressable>
-                }
               />
             </View>
           ) : null}
@@ -854,30 +736,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 14,
     fontWeight: '700',
-  },
-  newSlate: {
-    alignSelf: 'stretch',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    backgroundColor: colors.menuBar,
-    minHeight: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  newSlatePressed: {
-    backgroundColor: colors.menuActive,
-  },
-  newSlateLabel: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  bootstrap: {
-    marginBottom: 12,
-    gap: 10,
   },
   heading: {
     color: colors.text,
