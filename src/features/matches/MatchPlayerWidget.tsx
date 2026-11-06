@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   RefreshControl,
@@ -21,8 +21,8 @@ import { LoginForm } from '@/features/auth/LoginForm';
 import { colors } from '@/theme';
 
 import {
-  gameWeekDayKeys,
-  gameWeekStartKeys,
+  discoveryDayKeys,
+  pickGameWeek,
   toLegacyDateParam,
   utcDayKey,
   utcMondayKey,
@@ -55,28 +55,54 @@ function sortPlayerMatches(matches: PlayerMatch[]): PlayerMatch[] {
   });
 }
 
+function groupByGameWeek(
+  matches: PlayerMatch[],
+): { weeks: string[]; byWeek: Record<string, PlayerMatch[]> } {
+  const byWeek: Record<string, PlayerMatch[]> = {};
+  for (const match of matches) {
+    const week = utcMondayKey(match.match_date);
+    const bucket = byWeek[week] ?? [];
+    bucket.push(match);
+    byWeek[week] = bucket;
+  }
+  const weeks = Object.keys(byWeek).sort();
+  for (const week of weeks) {
+    byWeek[week] = sortPlayerMatches(byWeek[week]);
+  }
+  return { weeks, byWeek };
+}
+
 /**
- * Player fixtures tab: selected Super Six matches for the game week, G/W
- * scrubber, expandable detail, Home/Draw/Away predictions.
+ * Player fixtures tab: selected Super Six matches for available game weeks,
+ * G/W scrubber (only weeks with matches), expandable detail, H/D/A picks.
  */
 export function MatchPlayerWidget() {
   const { status, isAuthenticated, token, hasRole } = useAuth();
 
-  const weeks = useMemo(() => gameWeekStartKeys(), []);
-  const [selectedWeek, setSelectedWeek] = useState<string>(() =>
-    utcMondayKey(),
-  );
-  const [matches, setMatches] = useState<PlayerMatch[]>([]);
+  const [availableWeeks, setAvailableWeeks] = useState<string[]>([]);
+  const [matchesByWeek, setMatchesByWeek] = useState<
+    Record<string, PlayerMatch[]>
+  >({});
+  const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
+  const selectedWeekRef = useRef<string | null>(null);
+  selectedWeekRef.current = selectedWeek;
+
   const [draft, setDraft] = useState<Record<number, PredictionChoice | null>>(
     {},
   );
   const [busyId, setBusyId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [predictionsLoading, setPredictionsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
 
   const canPredict = isAuthenticated && hasRole('player');
+
+  const matches = useMemo(
+    () => (selectedWeek ? (matchesByWeek[selectedWeek] ?? []) : []),
+    [selectedWeek, matchesByWeek],
+  );
 
   const predictedCount = useMemo(
     () =>
@@ -87,7 +113,37 @@ export function MatchPlayerWidget() {
     [matches, draft],
   );
 
-  const load = useCallback(
+  const loadPredictions = useCallback(
+    async (weekMatches: PlayerMatch[]) => {
+      if (!token || !canPredict || weekMatches.length === 0) {
+        setDraft({});
+        return;
+      }
+      setPredictionsLoading(true);
+      try {
+        const predictions = await Promise.all(
+          weekMatches.map(async (match) => {
+            try {
+              const choice = await getPrediction(token, match.id);
+              return [match.id, choice] as const;
+            } catch {
+              return [match.id, null] as const;
+            }
+          }),
+        );
+        const nextDraft: Record<number, PredictionChoice | null> = {};
+        for (const [id, choice] of predictions) {
+          nextDraft[id] = choice;
+        }
+        setDraft(nextDraft);
+      } finally {
+        setPredictionsLoading(false);
+      }
+    },
+    [token, canPredict],
+  );
+
+  const loadCatalog = useCallback(
     async (mode: 'initial' | 'refresh' = 'initial') => {
       if (mode === 'initial') {
         setLoading(true);
@@ -97,7 +153,7 @@ export function MatchPlayerWidget() {
       setError(null);
       setRowError(null);
       try {
-        const dayKeys = gameWeekDayKeys(selectedWeek);
+        const dayKeys = discoveryDayKeys();
         const dayResults = await Promise.all(
           dayKeys.map((dayKey) => listLiveMatches(toLegacyDateParam(dayKey))),
         );
@@ -107,11 +163,11 @@ export function MatchPlayerWidget() {
             byId.set(match.id, match);
           }
         }
-        let next = sortPlayerMatches([...byId.values()]);
+        let all = [...byId.values()];
 
         // Hydrate difficulty from matchdetail (livematches omits it).
         const details = await Promise.all(
-          next.map(async (match) => {
+          all.map(async (match) => {
             try {
               const detail = await fetchMatchDetail({
                 homeTeam: match.home_team,
@@ -127,45 +183,34 @@ export function MatchPlayerWidget() {
         const difficultyById = new Map(
           details.map((row) => [row.id, row.difficulty]),
         );
-        next = next.map((match) => ({
+        all = all.map((match) => ({
           ...match,
           difficulty: difficultyById.get(match.id) ?? null,
         }));
-        setMatches(next);
 
-        if (token && canPredict && next.length > 0) {
-          const predictions = await Promise.all(
-            next.map(async (match) => {
-              try {
-                const choice = await getPrediction(token, match.id);
-                return [match.id, choice] as const;
-              } catch {
-                return [match.id, null] as const;
-              }
-            }),
-          );
-          const nextDraft: Record<number, PredictionChoice | null> = {};
-          for (const [id, choice] of predictions) {
-            nextDraft[id] = choice;
-          }
-          setDraft(nextDraft);
-        } else {
-          setDraft({});
-        }
+        const { weeks, byWeek } = groupByGameWeek(all);
+        setAvailableWeeks(weeks);
+        setMatchesByWeek(byWeek);
+
+        const nextWeek = pickGameWeek(weeks, selectedWeekRef.current);
+        setSelectedWeek(nextWeek);
+        await loadPredictions(nextWeek ? (byWeek[nextWeek] ?? []) : []);
       } catch (err) {
         const message =
           err instanceof ApiError
             ? err.message
             : 'Could not load selected matches.';
         setError(message);
-        setMatches([]);
+        setAvailableWeeks([]);
+        setMatchesByWeek({});
+        setSelectedWeek(null);
         setDraft({});
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [token, canPredict, selectedWeek],
+    [loadPredictions],
   );
 
   useEffect(() => {
@@ -175,13 +220,23 @@ export function MatchPlayerWidget() {
     let cancelled = false;
     queueMicrotask(() => {
       if (!cancelled) {
-        void load('initial');
+        void loadCatalog('initial');
       }
     });
     return () => {
       cancelled = true;
     };
-  }, [status, load]);
+  }, [status, loadCatalog]);
+
+  const onSelectWeek = useCallback(
+    (mondayKey: string) => {
+      setSelectedWeek(mondayKey);
+      setError(null);
+      setRowError(null);
+      void loadPredictions(matchesByWeek[mondayKey] ?? []);
+    },
+    [matchesByWeek, loadPredictions],
+  );
 
   const onPredict = useCallback(
     async (match: PlayerMatch, choice: PredictionChoice) => {
@@ -216,7 +271,7 @@ export function MatchPlayerWidget() {
     [token, canPredict, draft],
   );
 
-  if (status === 'loading') {
+  if (status === 'loading' || loading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.textMuted} />
@@ -233,7 +288,7 @@ export function MatchPlayerWidget() {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={() => {
-            void load('refresh');
+            void loadCatalog('refresh');
           }}
           tintColor={colors.textMuted}
         />
@@ -246,13 +301,9 @@ export function MatchPlayerWidget() {
           </Text>
         </View>
         <GameWeekScrubber
-          weeks={weeks}
+          weeks={availableWeeks}
           selectedWeek={selectedWeek}
-          onChange={(mondayKey) => {
-            setSelectedWeek(mondayKey);
-            setError(null);
-            setRowError(null);
-          }}
+          onChange={onSelectWeek}
         />
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {rowError ? <Text style={styles.error}>{rowError}</Text> : null}
@@ -274,14 +325,14 @@ export function MatchPlayerWidget() {
           </Text>
         ) : null}
 
-        {loading ? (
+        {predictionsLoading && matches.length > 0 ? (
           <View style={styles.listLoading}>
             <ActivityIndicator color={colors.textMuted} />
           </View>
         ) : matches.length === 0 ? (
           <Text style={styles.empty}>
-            No Super Six selections for this game week. Scrub to another week,
-            or wait for a game master to pick the six.
+            No Super Six selections available yet. Once a game master picks the
+            six, they show up here.
           </Text>
         ) : (
           <View style={styles.card}>

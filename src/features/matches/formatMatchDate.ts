@@ -95,10 +95,11 @@ export function gameWeekDayKeys(mondayKey: string): string[] {
 }
 
 /**
- * Navigable Monday keys for the player G/W scrubber.
- * Defaults: 12 weeks back … 4 weeks forward (empty weeks still listed).
+ * Monday keys spanning a discovery window used to *find* weeks with
+ * Super Six selections. The G/W scrubber itself only lists weeks that
+ * actually returned matches — not this full grid.
  */
-export function gameWeekStartKeys(
+export function discoveryWeekStartKeys(
   now: Date = new Date(),
   pastWeeks = 12,
   futureWeeks = 4,
@@ -110,4 +111,50 @@ export function gameWeekStartKeys(
     keys.push(utcDayKey(new Date(Date.UTC(y, m - 1, d + offset * 7, 12))));
   }
   return keys;
+}
+
+/** Flat UTC day keys for the discovery window (Mon…Sun per week). */
+export function discoveryDayKeys(
+  now: Date = new Date(),
+  pastWeeks = 12,
+  futureWeeks = 4,
+): string[] {
+  return discoveryWeekStartKeys(now, pastWeeks, futureWeeks).flatMap(
+    gameWeekDayKeys,
+  );
+}
+
+/**
+ * Prefer `preferred` if still available, else the week containing `now`,
+ * else the chronologically nearest available Monday.
+ */
+export function pickGameWeek(
+  available: string[],
+  preferred: string | null,
+  now: Date = new Date(),
+): string | null {
+  if (available.length === 0) {
+    return null;
+  }
+  if (preferred && available.includes(preferred)) {
+    return preferred;
+  }
+  const current = utcMondayKey(now);
+  if (available.includes(current)) {
+    return current;
+  }
+  let best = available[0];
+  let bestDist = Math.abs(
+    Date.parse(`${best}T12:00:00Z`) - Date.parse(`${current}T12:00:00Z`),
+  );
+  for (const week of available.slice(1)) {
+    const dist = Math.abs(
+      Date.parse(`${week}T12:00:00Z`) - Date.parse(`${current}T12:00:00Z`),
+    );
+    if (dist < bestDist) {
+      best = week;
+      bestDist = dist;
+    }
+  }
+  return best;
 }

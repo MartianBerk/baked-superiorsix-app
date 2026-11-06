@@ -4,16 +4,18 @@ import { ChevronIcon } from '@/components/icons/ChevronIcon';
 import { colors } from '@/theme';
 
 import { formatScrubberDate } from './formatMatchDate';
+import { SCRUBBER_CHEVRON_SIZE, scrubberChrome } from './scrubberChrome';
 
 type Props = {
-  /** Monday UTC day keys available to scrub. */
+  /** Monday UTC day keys that have selected/available matches. */
   weeks: string[];
   selectedWeek: string | null;
   onChange: (mondayKey: string) => void;
 };
 
 /**
- * Left/right game-week scrubber (same chevron pattern as admin DateScrubber).
+ * Left/right game-week scrubber (same chevron chrome as admin DateScrubber).
+ * Only receives weeks that actually have matches; chevrons hide at the ends.
  * Centre label: G/W + commencing Monday — body text colour, not accent.
  */
 export function GameWeekScrubber({ weeks, selectedWeek, onChange }: Props) {
@@ -26,7 +28,7 @@ export function GameWeekScrubber({ weeks, selectedWeek, onChange }: Props) {
   const canRight = index >= 0 && index < weeks.length - 1;
 
   return (
-    <View style={styles.row} accessibilityRole="adjustable">
+    <View style={scrubberChrome.row} accessibilityRole="adjustable">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Previous game week"
@@ -37,15 +39,15 @@ export function GameWeekScrubber({ weeks, selectedWeek, onChange }: Props) {
           }
         }}
         style={({ pressed }) => [
-          styles.chevronHit,
-          !canLeft && styles.chevronDisabled,
-          pressed && canLeft && styles.pressed,
+          scrubberChrome.chevronHit,
+          !canLeft && scrubberChrome.chevronDisabled,
+          pressed && canLeft && scrubberChrome.pressed,
         ]}
       >
         {canLeft ? (
-          <ChevronIcon direction="left" />
+          <ChevronIcon direction="left" size={SCRUBBER_CHEVRON_SIZE} />
         ) : (
-          <View style={styles.chevronSpacer} />
+          <View style={scrubberChrome.chevronSpacer} />
         )}
       </Pressable>
 
@@ -68,15 +70,15 @@ export function GameWeekScrubber({ weeks, selectedWeek, onChange }: Props) {
           }
         }}
         style={({ pressed }) => [
-          styles.chevronHit,
-          !canRight && styles.chevronDisabled,
-          pressed && canRight && styles.pressed,
+          scrubberChrome.chevronHit,
+          !canRight && scrubberChrome.chevronDisabled,
+          pressed && canRight && scrubberChrome.pressed,
         ]}
       >
         {canRight ? (
-          <ChevronIcon direction="right" />
+          <ChevronIcon direction="right" size={SCRUBBER_CHEVRON_SIZE} />
         ) : (
-          <View style={styles.chevronSpacer} />
+          <View style={scrubberChrome.chevronSpacer} />
         )}
       </Pressable>
     </View>
@@ -84,35 +86,6 @@ export function GameWeekScrubber({ weeks, selectedWeek, onChange }: Props) {
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-    marginBottom: 8,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  chevronHit: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 22,
-  },
-  chevronDisabled: {
-    opacity: 0.35,
-  },
-  chevronSpacer: {
-    width: 22,
-    height: 22,
-  },
-  pressed: {
-    backgroundColor: colors.menuActive,
-  },
   label: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -121,7 +94,7 @@ const styles = StyleSheet.create({
   },
   gw: {
     color: colors.text,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
     letterSpacing: 1.2,
   },
@@ -132,7 +105,7 @@ const styles = StyleSheet.create({
   },
   date: {
     color: colors.text,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     letterSpacing: 0.2,
   },
