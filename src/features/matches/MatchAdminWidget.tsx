@@ -24,7 +24,11 @@ import { colors } from '@/theme';
 import { DateScrubber } from './DateScrubber';
 import { useFixturesTabMode } from './FixturesTabModeContext';
 import { KickoffGroup } from './KickoffGroup';
-import { toLegacyDateParam, utcDayKey } from './formatMatchDate';
+import {
+  adminScrubberRange,
+  toLegacyDateParam,
+  utcDayKey,
+} from './formatMatchDate';
 import {
   addToLowestSlot,
   distinctDayKeys,
@@ -126,9 +130,10 @@ export function MatchAdminWidget() {
       }
       setError(null);
       try {
+        const range = adminScrubberRange();
         const [nextLeagues, nextMatches] = await Promise.all([
           listLeagues(token),
-          listMatches(token),
+          listMatches(token, range),
         ]);
         setLeagues(nextLeagues);
         setMatches(nextMatches);

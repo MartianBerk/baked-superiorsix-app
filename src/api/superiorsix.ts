@@ -313,29 +313,22 @@ export async function listLeagues(token: string): Promise<LeagueInfo[]> {
 }
 
 /**
- * `GET /admin/listmatches` — fixtures for one day or an inclusive range.
- * - `matchDate` — single day (legacy)
- * - `fromDate` + `toDate` — inclusive range (`dd-mm-yyyy`); same day = one day
- * - omit dates — server default scrubber window (UTC today−14d … today+31d)
+ * `GET /admin/listmatches` — fixtures for an inclusive UTC range (`dd-mm-yyyy`).
+ * Both fromDate and toDate required; max 7 calendar days; same day = one day.
  */
 export async function listMatches(
   token: string,
-  opts?: { matchDate?: string; fromDate?: string; toDate?: string },
+  opts: { fromDate: string; toDate: string },
 ): Promise<AdminMatch[]> {
-  const params = new URLSearchParams();
-  if (opts?.matchDate) {
-    params.set('matchDate', opts.matchDate);
-  }
-  if (opts?.fromDate) {
-    params.set('fromDate', opts.fromDate);
-  }
-  if (opts?.toDate) {
-    params.set('toDate', opts.toDate);
-  }
-  const query = params.toString() ? `?${params.toString()}` : '';
+  const params = new URLSearchParams({
+    fromDate: opts.fromDate,
+    toDate: opts.toDate,
+  });
   let response: Response;
   try {
-    response = await apiFetch('game', `/admin/listmatches${query}`, { token });
+    response = await apiFetch('game', `/admin/listmatches?${params.toString()}`, {
+      token,
+    });
   } catch {
     throw gameUnreachable();
   }

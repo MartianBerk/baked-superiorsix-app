@@ -57,3 +57,20 @@ export function toLegacyDateParam(dayKey: string): string {
   const [y, m, d] = dayKey.split('-');
   return `${d}-${m}-${y}`;
 }
+
+/**
+ * Admin listmatches scrubber window: UTC today … today+6 (7 calendar days).
+ * Single fetch — DateScrubber is derived from the loaded payload; API caps at 7d.
+ */
+export function adminScrubberRange(now: Date = new Date()): {
+  fromDate: string;
+  toDate: string;
+} {
+  const fromKey = utcDayKey(now);
+  const [y, m, d] = fromKey.split('-').map(Number);
+  const end = new Date(Date.UTC(y, m - 1, d + 6, 12));
+  return {
+    fromDate: toLegacyDateParam(fromKey),
+    toDate: toLegacyDateParam(utcDayKey(end)),
+  };
+}
