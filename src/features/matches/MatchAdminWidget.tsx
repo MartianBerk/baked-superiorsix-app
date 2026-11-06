@@ -11,10 +11,7 @@ import {
 
 import {
   addMatches,
-  addRound,
-  getCurrentRound,
   getCurrentSubround,
-  isNoRoundInProgressError,
   listAdminSubrounds,
   listLeagues,
   listMatches,
@@ -95,8 +92,6 @@ export function MatchAdminWidget() {
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [openingSubround, setOpeningSubround] = useState(false);
-  const [startingRound, setStartingRound] = useState(false);
-  const [needsRound, setNeedsRound] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canSelect =
@@ -193,15 +188,33 @@ export function MatchAdminWidget() {
       setError(null);
       try {
         const range = adminScrubberRange();
-        // Fixtures do not require a round — load them even when subrounds 400.
-        const [nextLeagues, nextMatches, currentRound] = await Promise.all([
-          listLeagues(token),
-          listMatches(token, range),
-          getCurrentRound(token),
-        ]);
+        // BE #24 bootstraps Round+Subround on listsubrounds / currentsubround?create=true.
+        const [nextLeagues, nextMatches, nextSubrounds, editing] =
+          await Promise.all([
+            listLeagues(token),
+            listMatches(token, range),
+            listAdminSubrounds(token),
+            getCurrentSubround(token, { create: true }),
+          ]);
 
         setLeagues(nextLeagues);
         setMatches(nextMatches);
+        setSubrounds(nextSubrounds);
+
+        const preferId = selectedSubroundId;
+        const preferred =
+          (preferId != null
+            ? nextSubrounds.find((row) => row.id === preferId)
+            : null) ??
+          editing ??
+          nextSubrounds[nextSubrounds.length - 1] ??
+          null;
+        if (preferred) {
+          applySubroundSelection(preferred, nextMatches);
+        } else {
+          setSelectedSubroundId(null);
+          setDraftSlots(emptySlots());
+        }
 
         const dayKeys = distinctDayKeys(nextMatches);
         setSelectedDate((prev) =>
@@ -226,57 +239,6 @@ export function MatchAdminWidget() {
           }
           return { [firstGroups[0].key]: true };
         });
-
-        if (currentRound == null) {
-          setNeedsRound(true);
-          setSubrounds([]);
-          setSelectedSubroundId(null);
-          setDraftSlots(emptySlots());
-          return;
-        }
-
-        setNeedsRound(false);
-        let nextSubrounds: Subround[] = [];
-        let editing: Subround | null = null;
-        try {
-          const [listed, current] = await Promise.all([
-            listAdminSubrounds(token),
-            getCurrentSubround(token, { create: false }),
-          ]);
-          nextSubrounds = listed;
-          editing = current;
-          // When none / latest over → create open slate for editing.
-          if (editing == null || editing.is_over) {
-            editing = await getCurrentSubround(token, { create: true });
-            nextSubrounds = await listAdminSubrounds(token);
-          }
-        } catch (err) {
-          if (isNoRoundInProgressError(err)) {
-            setNeedsRound(true);
-            setSubrounds([]);
-            setSelectedSubroundId(null);
-            setDraftSlots(emptySlots());
-            return;
-          }
-          throw err;
-        }
-
-        setSubrounds(nextSubrounds);
-
-        const preferId = selectedSubroundId;
-        const preferred =
-          (preferId != null
-            ? nextSubrounds.find((row) => row.id === preferId)
-            : null) ??
-          editing ??
-          nextSubrounds[nextSubrounds.length - 1] ??
-          null;
-        if (preferred) {
-          applySubroundSelection(preferred, nextMatches);
-        } else {
-          setSelectedSubroundId(null);
-          setDraftSlots(emptySlots());
-        }
       } catch (err) {
         const message =
           err instanceof ApiError
@@ -336,32 +298,6 @@ export function MatchAdminWidget() {
       setOpeningSubround(false);
     }
   }, [token, openingSubround, applySubroundSelection, matches]);
-
-  const onStartRound = useCallback(async () => {
-    if (!token || startingRound) {
-      return;
-    }
-    setStartingRound(true);
-    setError(null);
-    try {
-      await addRound(token, { startDate: utcDayKey(new Date()) });
-      const editing = await getCurrentSubround(token, { create: true });
-      const nextList = await listAdminSubrounds(token);
-      setNeedsRound(false);
-      setSubrounds(nextList);
-      if (editing) {
-        applySubroundSelection(editing, matches);
-      }
-    } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : 'Could not start the first round.',
-      );
-    } finally {
-      setStartingRound(false);
-    }
-  }, [token, startingRound, applySubroundSelection, matches]);
 
   const onToggleMatch = useCallback(
     (match: AdminMatch) => {
@@ -569,66 +505,37 @@ export function MatchAdminWidget() {
           </Pressable>
         </View>
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        {needsRound ? (
-          <View style={styles.bootstrap}>
-            <Text style={styles.lede}>
-              No round in progress — fixtures still load below. Start a round
-              (then the first subround) before submitting selections.
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Start first round"
-              disabled={startingRound}
-              onPress={() => {
-                void onStartRound();
-              }}
-              style={({ pressed }) => [
-                styles.submit,
-                startingRound && styles.submitDisabled,
-                pressed && !startingRound && styles.submitPressed,
-              ]}
-            >
-              {startingRound ? (
-                <ActivityIndicator size="small" color={colors.text} />
-              ) : (
-                <Text style={styles.submitLabel}>Start round</Text>
-              )}
-            </Pressable>
-          </View>
-        ) : null}
-        {!needsRound && !canEdit && selectedSubround ? (
+        {!canEdit && selectedSubround ? (
           <Text style={styles.lede}>
             Viewing a closed subround. Open a new slate to edit selections.
           </Text>
         ) : null}
-        {!needsRound ? (
-          <SubroundScrubber
-            subrounds={subrounds}
-            selectedId={selectedSubroundId}
-            onChange={onSelectSubround}
-            trailing={
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Open new subround"
-                disabled={openingSubround}
-                onPress={() => {
-                  void onOpenSubround();
-                }}
-                style={({ pressed }) => [
-                  styles.newSlate,
-                  pressed && !openingSubround && styles.newSlatePressed,
-                  openingSubround && styles.submitDisabled,
-                ]}
-              >
-                {openingSubround ? (
-                  <ActivityIndicator size="small" color={colors.textMuted} />
-                ) : (
-                  <Text style={styles.newSlateLabel}>New slate</Text>
-                )}
-              </Pressable>
-            }
-          />
-        ) : null}
+        <SubroundScrubber
+          subrounds={subrounds}
+          selectedId={selectedSubroundId}
+          onChange={onSelectSubround}
+          trailing={
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open new subround"
+              disabled={openingSubround}
+              onPress={() => {
+                void onOpenSubround();
+              }}
+              style={({ pressed }) => [
+                styles.newSlate,
+                pressed && !openingSubround && styles.newSlatePressed,
+                openingSubround && styles.submitDisabled,
+              ]}
+            >
+              {openingSubround ? (
+                <ActivityIndicator size="small" color={colors.textMuted} />
+              ) : (
+                <Text style={styles.newSlateLabel}>New slate</Text>
+              )}
+            </Pressable>
+          }
+        />
         <DateScrubber
           dates={dates}
           selectedDate={selectedDate}
@@ -656,7 +563,7 @@ export function MatchAdminWidget() {
               }}
               busyMatchId={null}
               selectionsFull={selectedCount >= MAX_SLOTS}
-              readOnly={needsRound || !canEdit}
+              readOnly={!canEdit}
               onToggleMatch={onToggleMatch}
             />
           ))
@@ -737,10 +644,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 12,
     fontWeight: '700',
-  },
-  bootstrap: {
-    marginBottom: 12,
-    gap: 10,
   },
   heading: {
     color: colors.text,
