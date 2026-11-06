@@ -60,10 +60,7 @@ export function subroundLabel(
     : subroundSequenceLabel(subround);
 }
 
-/**
- * Left/right subround scrubber (shared chrome with date scrubber).
- * Highlights the open-for-editing slate.
- */
+/** Left/right subround scrubber (shared chrome with date scrubber). */
 export function SubroundScrubber({
   subrounds,
   selectedId,
@@ -89,11 +86,7 @@ export function SubroundScrubber({
   return (
     <View style={[styles.wrap, style]}>
       <View
-        style={[
-          scrubberChrome.row,
-          styles.rowTight,
-          selected.is_open_for_editing && styles.rowEditing,
-        ]}
+        style={[scrubberChrome.row, styles.rowTight]}
         accessibilityRole="adjustable"
       >
         <Pressable
@@ -119,10 +112,7 @@ export function SubroundScrubber({
         </Pressable>
 
         <Text
-          style={[
-            styles.label,
-            selected.is_open_for_editing && styles.labelEditing,
-          ]}
+          style={styles.label}
           accessibilityLabel={
             labelMode === 'kickoff'
               ? `Subround ${selected.sequence}, ${label}`
@@ -168,17 +158,11 @@ const styles = StyleSheet.create({
   rowTight: {
     marginBottom: 0,
   },
-  rowEditing: {
-    borderColor: colors.accentBright,
-  },
   label: {
     flexShrink: 1,
     color: colors.text,
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: 0.3,
-  },
-  labelEditing: {
-    color: colors.accentBright,
   },
 });
