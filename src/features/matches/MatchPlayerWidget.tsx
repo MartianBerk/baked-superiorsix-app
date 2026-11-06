@@ -118,15 +118,6 @@ export function MatchPlayerWidget() {
     return utcDayKey(earliest.match_date);
   }, [matches]);
 
-  const predictedCount = useMemo(
-    () =>
-      matches.filter((match) => {
-        const choice = draft[match.id];
-        return choice === 'home' || choice === 'draw' || choice === 'away';
-      }).length,
-    [matches, draft],
-  );
-
   const loadPredictions = useCallback(
     async (weekMatches: PlayerMatch[]) => {
       if (!token || !canPredict || weekMatches.length === 0) {
@@ -309,11 +300,6 @@ export function MatchPlayerWidget() {
       }
     >
       <View style={styles.wrap}>
-        <View style={styles.headerStrip}>
-          <Text style={styles.headerLabel}>
-            {`Predictions:   ${predictedCount} / ${matches.length || 6}`}
-          </Text>
-        </View>
         <GameWeekScrubber
           weeks={availableWeeks}
           selectedWeek={selectedWeek}
@@ -388,19 +374,6 @@ const styles = StyleSheet.create({
   wrap: {
     paddingHorizontal: '3%',
     paddingTop: 12,
-  },
-  headerStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    marginBottom: 12,
-  },
-  headerLabel: {
-    flex: 1,
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '700',
   },
   lede: {
     color: colors.textMuted,
