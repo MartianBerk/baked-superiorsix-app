@@ -527,7 +527,9 @@ export async function listAdminSubrounds(
 
 /**
  * `GET /admin/currentsubround` — open-for-editing slate.
- * Pass `create: true` to create the next sequence when none / latest is over.
+ * Prefer `create: false` on load; FE shows a pending slate and lets
+ * `addmatches` create the first/next subround on Submit. `create: true`
+ * remains available for explicit open (prefer `opensubround` for force-next).
  */
 export async function getCurrentSubround(
   token: string,

@@ -384,7 +384,8 @@ export function MatchPlayerWidget() {
           </Text>
         ) : null}
 
-        {!isAuthenticated ? (
+        {/* No round / no subrounds → blank matches (no empty-state copy). */}
+        {matches.length > 0 && !isAuthenticated ? (
           <View style={styles.loginBlock}>
             <Text style={styles.lede}>
               Browse this slate&apos;s Super Six, then sign in to lock in Home /
@@ -394,7 +395,7 @@ export function MatchPlayerWidget() {
           </View>
         ) : null}
 
-        {isAuthenticated && !canPredict ? (
+        {matches.length > 0 && isAuthenticated && !canPredict ? (
           <Text style={styles.lede}>
             Predictions need the superiorsix player role and an accepted roster
             invite.
@@ -405,13 +406,7 @@ export function MatchPlayerWidget() {
           <View style={styles.listLoading}>
             <ActivityIndicator color={colors.textMuted} />
           </View>
-        ) : matches.length === 0 ? (
-          <Text style={styles.empty}>
-            {subrounds.length === 0
-              ? 'No round or selections yet. A game master needs to start a round and pick the six.'
-              : 'No Super Six selections available yet. Once a game master picks the six, they show up here.'}
-          </Text>
-        ) : (
+        ) : matches.length > 0 ? (
           <View style={styles.card}>
             {matches.map((match) => (
               <MatchPredictRow
@@ -427,7 +422,7 @@ export function MatchPlayerWidget() {
               />
             ))}
           </View>
-        )}
+        ) : null}
       </View>
     </ScrollView>
   );
@@ -464,12 +459,6 @@ const styles = StyleSheet.create({
     color: '#E8A0A0',
     fontSize: 13,
     marginBottom: 10,
-  },
-  empty: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 8,
   },
   listLoading: {
     paddingVertical: 24,
