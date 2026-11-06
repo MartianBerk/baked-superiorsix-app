@@ -74,7 +74,7 @@ export type AcceptInvitePayload = {
   nickname?: string;
 };
 
-/** Admin fixture row from `/admin/listmatches` / `listmatchesnew`. */
+/** Admin fixture row from `/admin/listmatches`. */
 export type AdminMatch = {
   id: number;
   external_id: string;
@@ -313,14 +313,19 @@ export async function listLeagues(token: string): Promise<LeagueInfo[]> {
 }
 
 /**
- * `GET /admin/listmatchesnew` — fixtures in the admin scrubber window
- * (default today−14d … today+31d; optional fromDate/toDate as dd-mm-yyyy).
+ * `GET /admin/listmatches` — fixtures for one day or an inclusive range.
+ * - `matchDate` — single day (legacy)
+ * - `fromDate` + `toDate` — inclusive range (`dd-mm-yyyy`); same day = one day
+ * - omit dates — server default scrubber window (UTC today−14d … today+31d)
  */
-export async function listMatchesNew(
+export async function listMatches(
   token: string,
-  opts?: { fromDate?: string; toDate?: string },
+  opts?: { matchDate?: string; fromDate?: string; toDate?: string },
 ): Promise<AdminMatch[]> {
   const params = new URLSearchParams();
+  if (opts?.matchDate) {
+    params.set('matchDate', opts.matchDate);
+  }
   if (opts?.fromDate) {
     params.set('fromDate', opts.fromDate);
   }
@@ -330,7 +335,7 @@ export async function listMatchesNew(
   const query = params.toString() ? `?${params.toString()}` : '';
   let response: Response;
   try {
-    response = await apiFetch('game', `/admin/listmatchesnew${query}`, { token });
+    response = await apiFetch('game', `/admin/listmatches${query}`, { token });
   } catch {
     throw gameUnreachable();
   }

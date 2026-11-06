@@ -12,7 +12,7 @@ import {
 import {
   addMatches,
   listLeagues,
-  listMatchesNew,
+  listMatches,
   type AdminMatch,
   type LeagueInfo,
 } from '@/api/superiorsix';
@@ -128,7 +128,7 @@ export function MatchAdminWidget() {
       try {
         const [nextLeagues, nextMatches] = await Promise.all([
           listLeagues(token),
-          listMatchesNew(token),
+          listMatches(token),
         ]);
         setLeagues(nextLeagues);
         setMatches(nextMatches);
