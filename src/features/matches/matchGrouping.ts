@@ -99,22 +99,27 @@ export function groupMatchesByKickoff(
 
 /** Accessible / plain-text form of the kickoff header parts. */
 export function formatGroupHeader(group: KickoffGroup): string {
-  const { time, leagues } = groupHeaderParts(group);
-  return leagues ? `${time}  ${leagues}` : time;
+  const { time, leagues, selected } = groupHeaderParts(group);
+  return [time, leagues, selected].filter(Boolean).join('  ');
 }
 
-/** Visual parts: time + league breakdown (no total count). */
+/**
+ * Visual parts: time + league breakdown + selected-vs-available for the group.
+ * e.g. `3pm` · `(3 PL / 3 ELC)` · `2 / 6`
+ */
 export function groupHeaderParts(group: KickoffGroup): {
   time: string;
   leagues: string | null;
+  selected: string;
 } {
   const breakdown = group.leagueCounts
     .map(({ count, code }) => `${count} ${code}`)
     .join(' / ');
-  // e.g. time `3pm`, leagues `(3 PL / 3 ELC)`
+  const selectedCount = group.matches.filter((match) => match.use_match).length;
   return {
     time: group.label,
     leagues: breakdown ? `(${breakdown})` : null,
+    selected: `${selectedCount} / ${group.matches.length}`,
   };
 }
 

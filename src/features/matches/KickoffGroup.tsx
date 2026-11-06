@@ -52,6 +52,7 @@ export function KickoffGroup({
           {parts.leagues ? (
             <Text style={styles.part}>{parts.leagues}</Text>
           ) : null}
+          <Text style={styles.part}>{parts.selected}</Text>
         </View>
         <SvgXml xml={chevron} width={18} height={18} />
       </Pressable>
