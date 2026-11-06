@@ -47,14 +47,19 @@ export function KickoffGroup({
         onPress={onToggleExpand}
         style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
       >
-        <View style={styles.headerParts}>
+        <View style={styles.headerLeft}>
           <Text style={styles.part}>{parts.time}</Text>
           {parts.leagues ? (
             <Text style={styles.part}>{parts.leagues}</Text>
           ) : null}
-          <Text style={styles.part}>{parts.selected}</Text>
         </View>
-        <SvgXml xml={chevron} width={18} height={18} />
+        {/* Count sits left of expand chevron — roughly over the add/drop column. */}
+        <View style={styles.headerRight}>
+          <Text style={styles.selectedCount}>{parts.selected}</Text>
+          <View style={styles.chevronSlot}>
+            <SvgXml xml={chevron} width={18} height={18} />
+          </View>
+        </View>
       </Pressable>
       {expanded
         ? group.matches.map((match) => {
@@ -92,19 +97,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 10,
-    paddingHorizontal: 14,
+    // Match MatchSelectRow horizontal inset so the right cluster lines up.
+    paddingHorizontal: 12,
     paddingVertical: 12,
     backgroundColor: colors.menuBar,
   },
   headerPressed: {
     backgroundColor: colors.menuActive,
   },
-  /** Time + leagues with a modest gap — not full-width spread. */
-  headerParts: {
+  /** Time + leagues on the left. */
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flexShrink: 1,
     gap: 10,
+    minWidth: 0,
+  },
+  /**
+   * Selected count + expand chevron — mirrors MatchSelectRow `actions`
+   * (toggle 36 + gap 14 + chevron 36).
+   */
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    flexShrink: 0,
+  },
+  selectedCount: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+    minWidth: 36,
+    textAlign: 'right',
+  },
+  chevronSlot: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   part: {
     color: colors.text,
