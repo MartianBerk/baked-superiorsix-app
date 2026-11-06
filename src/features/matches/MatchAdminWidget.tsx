@@ -681,49 +681,71 @@ export function MatchAdminWidget() {
             first submit.
           </Text>
         ) : null}
-        {!needsRound ? (
-          <SubroundScrubber
-            subrounds={subrounds}
-            selectedId={selectedSubroundId}
-            onChange={onSelectSubround}
-            trailing={
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Open new subround"
-                disabled={
-                  openingSubround || isPendingSubroundId(selectedSubroundId)
+        <View style={styles.scrubberRow}>
+          {!needsRound &&
+          subrounds.length > 0 &&
+          selectedSubroundId != null ? (
+            <View style={styles.subroundCol}>
+              <SubroundScrubber
+                subrounds={subrounds}
+                selectedId={selectedSubroundId}
+                onChange={onSelectSubround}
+                style={styles.scrubberFlush}
+                trailing={
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Open new subround"
+                    disabled={
+                      openingSubround ||
+                      isPendingSubroundId(selectedSubroundId)
+                    }
+                    onPress={() => {
+                      void onOpenSubround();
+                    }}
+                    style={({ pressed }) => [
+                      styles.newSlate,
+                      pressed &&
+                        !openingSubround &&
+                        !isPendingSubroundId(selectedSubroundId) &&
+                        styles.newSlatePressed,
+                      (openingSubround ||
+                        isPendingSubroundId(selectedSubroundId)) &&
+                        styles.submitDisabled,
+                    ]}
+                  >
+                    {openingSubround ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={colors.textMuted}
+                      />
+                    ) : (
+                      <Text style={styles.newSlateLabel}>New slate</Text>
+                    )}
+                  </Pressable>
                 }
-                onPress={() => {
-                  void onOpenSubround();
-                }}
-                style={({ pressed }) => [
-                  styles.newSlate,
-                  pressed &&
-                    !openingSubround &&
-                    !isPendingSubroundId(selectedSubroundId) &&
-                    styles.newSlatePressed,
-                  (openingSubround ||
-                    isPendingSubroundId(selectedSubroundId)) &&
-                    styles.submitDisabled,
-                ]}
-              >
-                {openingSubround ? (
-                  <ActivityIndicator size="small" color={colors.textMuted} />
-                ) : (
-                  <Text style={styles.newSlateLabel}>New slate</Text>
-                )}
-              </Pressable>
+              />
+            </View>
+          ) : null}
+          <View
+            style={
+              !needsRound &&
+              subrounds.length > 0 &&
+              selectedSubroundId != null
+                ? styles.dateCol
+                : styles.dateColFull
             }
-          />
-        ) : null}
-        <DateScrubber
-          dates={dates}
-          selectedDate={selectedDate}
-          onChange={(dayKey) => {
-            setSelectedDate(dayKey);
-            setError(null);
-          }}
-        />
+          >
+            <DateScrubber
+              dates={dates}
+              selectedDate={selectedDate}
+              onChange={(dayKey) => {
+                setSelectedDate(dayKey);
+                setError(null);
+              }}
+              style={styles.scrubberFlush}
+            />
+          </View>
+        </View>
         {groups.length === 0 ? (
           needsRound ? null : (
             <Text style={styles.empty}>
@@ -780,6 +802,33 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 12,
   },
+  scrubberRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 6,
+  },
+  /** ~33% — subround scrubber. */
+  subroundCol: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+    minWidth: 0,
+  },
+  /** ~66% — date scrubber. */
+  dateCol: {
+    flexGrow: 2,
+    flexShrink: 1,
+    flexBasis: 0,
+    minWidth: 0,
+  },
+  dateColFull: {
+    flex: 1,
+    minWidth: 0,
+  },
+  scrubberFlush: {
+    marginBottom: 0,
+  },
   headerLabel: {
     flex: 1,
     color: colors.text,
@@ -807,15 +856,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   newSlate: {
-    alignSelf: 'flex-end',
-    paddingHorizontal: 12,
+    alignSelf: 'stretch',
+    paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     backgroundColor: colors.menuBar,
     minHeight: 28,
-    minWidth: 88,
     alignItems: 'center',
     justifyContent: 'center',
   },

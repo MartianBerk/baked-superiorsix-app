@@ -1,11 +1,17 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 import type { Subround } from '@/api/superiorsix';
 import { ChevronIcon } from '@/components/icons/ChevronIcon';
 import { colors } from '@/theme';
 
-import { formatScrubberDate, utcDayKey } from './formatMatchDate';
 import { SCRUBBER_CHEVRON_SIZE, scrubberChrome } from './scrubberChrome';
 
 type Props = {
@@ -14,14 +20,13 @@ type Props = {
   onChange: (subround: Subround) => void;
   /** Optional trailing control (e.g. admin “New slate”). */
   trailing?: ReactNode;
+  /** Outer wrap style (e.g. clear margin when nested in a side-by-side row). */
+  style?: StyleProp<ViewStyle>;
 };
 
-/** Centre label: earliest kickoff day, or “Slate N” when empty. */
+/** Centre label: sequence as `# n`. */
 export function subroundLabel(subround: Subround): string {
-  if (subround.min_kickoff) {
-    return formatScrubberDate(utcDayKey(subround.min_kickoff));
-  }
-  return `Slate ${subround.sequence}`;
+  return `# ${subround.sequence}`;
 }
 
 /**
@@ -33,6 +38,7 @@ export function SubroundScrubber({
   selectedId,
   onChange,
   trailing,
+  style,
 }: Props) {
   if (subrounds.length === 0 || selectedId == null) {
     return null;
@@ -49,7 +55,7 @@ export function SubroundScrubber({
   const label = subroundLabel(selected);
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, style]}>
       <View
         style={[
           scrubberChrome.row,
@@ -85,7 +91,8 @@ export function SubroundScrubber({
             styles.label,
             selected.is_open_for_editing && styles.labelEditing,
           ]}
-          accessibilityLabel={`Subround ${selected.sequence}, ${label}`}
+          accessibilityLabel={`Subround ${selected.sequence}`}
+          numberOfLines={1}
         >
           {label}
         </Text>
@@ -129,6 +136,7 @@ const styles = StyleSheet.create({
     borderColor: colors.accentBright,
   },
   label: {
+    flexShrink: 1,
     color: colors.text,
     fontSize: 15,
     fontWeight: '700',

@@ -1,4 +1,11 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 import { ChevronIcon } from '@/components/icons/ChevronIcon';
 import { colors } from '@/theme';
@@ -10,10 +17,17 @@ type Props = {
   dates: string[];
   selectedDate: string | null;
   onChange: (dayKey: string) => void;
+  /** Outer row style (e.g. clear margin when nested in a side-by-side row). */
+  style?: StyleProp<ViewStyle>;
 };
 
 /** Left/right date scrubber through available match days. */
-export function DateScrubber({ dates, selectedDate, onChange }: Props) {
+export function DateScrubber({
+  dates,
+  selectedDate,
+  onChange,
+  style,
+}: Props) {
   if (!selectedDate || dates.length === 0) {
     return null;
   }
@@ -23,7 +37,10 @@ export function DateScrubber({ dates, selectedDate, onChange }: Props) {
   const canRight = index >= 0 && index < dates.length - 1;
 
   return (
-    <View style={scrubberChrome.row} accessibilityRole="adjustable">
+    <View
+      style={[scrubberChrome.row, style]}
+      accessibilityRole="adjustable"
+    >
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Previous match date"
