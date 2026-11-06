@@ -15,6 +15,8 @@ type Props = {
   homeTeam: string;
   awayTeam: string;
   matchDateIso: string;
+  /** Optional footer (e.g. player Home/Draw/Away picker). */
+  children?: ReactNode;
 };
 
 function ResultPips({ results }: { results: TeamResultCode[] | undefined }) {
@@ -69,6 +71,7 @@ export function MatchDetailPanel({
   homeTeam,
   awayTeam,
   matchDateIso,
+  children,
 }: Props) {
   const [detail, setDetail] = useState<MatchDetailPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -117,6 +120,7 @@ export function MatchDetailPanel({
     return (
       <View style={styles.wrap}>
         <ActivityIndicator size="small" color={colors.textMuted} />
+        {children}
       </View>
     );
   }
@@ -127,6 +131,7 @@ export function MatchDetailPanel({
         <Text style={styles.stub}>
           {error ?? 'Match detail unavailable.'}
         </Text>
+        {children}
       </View>
     );
   }
@@ -151,6 +156,7 @@ export function MatchDetailPanel({
         home={<ResultPips results={detail.head_to_head[homeTeam]} />}
         away={<ResultPips results={detail.head_to_head[awayTeam]} />}
       />
+      {children}
     </View>
   );
 }

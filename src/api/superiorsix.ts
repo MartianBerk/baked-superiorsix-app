@@ -118,6 +118,25 @@ export type MatchDetailPayload = {
   difficulty?: MatchDifficulty | null;
 };
 
+/** Player outcome choice for `/user/addprediction` (`home` | `draw` | `away`). */
+export type PredictionChoice = 'home' | 'draw' | 'away';
+
+/**
+ * Selected Super Six fixture from `GET /game/livematches` (public).
+ * No difficulty — hydrate from `/game/matchdetail` when needed.
+ */
+export type LiveMatch = {
+  id: number;
+  home_team: string;
+  away_team: string;
+  home_score: number | null;
+  away_score: number | null;
+  status: string;
+  match_minute: number | null;
+  game_number: number | null;
+  match_date: string;
+};
+
 /** `POST /user/acceptinvite` — no invitee bearer; BFF grants roles then returns JWT. */
 export type AcceptInviteResult = {
   player: PlayerProfile;
@@ -309,6 +328,82 @@ export async function fetchMatchDetail(opts: {
   }
   const body = await readApiJson<{ match_detail: MatchDetailPayload }>(response);
   return body.match_detail;
+}
+
+/**
+ * `GET /game/livematches?matchDate=` — Super Six selections (`use_match`) for one
+ * UTC calendar day. Public. `matchDate` is legacy `dd-mm-yyyy`.
+ */
+export async function listLiveMatches(matchDate: string): Promise<LiveMatch[]> {
+  const params = new URLSearchParams({ matchDate });
+  let response: Response;
+  try {
+    response = await apiFetch('game', `/game/livematches?${params.toString()}`);
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{ matches: LiveMatch[] }>(response);
+  return body.matches ?? [];
+}
+
+/**
+ * `GET /user/getprediction?gameId=` — active prediction for the current round.
+ * `gameId` is the match id (legacy name). Requires JWT `player` + roster.
+ */
+export async function getPrediction(
+  token: string,
+  matchId: number,
+): Promise<PredictionChoice | null> {
+  let response: Response;
+  try {
+    response = await apiFetch(
+      'game',
+      `/user/getprediction?gameId=${encodeURIComponent(String(matchId))}`,
+      { token },
+    );
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{ prediction: string | null }>(response);
+  const value = body.prediction;
+  if (value === 'home' || value === 'draw' || value === 'away') {
+    return value;
+  }
+  return null;
+}
+
+/**
+ * `POST /user/addprediction` — submit or update Home/Draw/Away before the
+ * 10-minute kickoff cutoff. Requires JWT `player` + roster + open round.
+ */
+export async function addPrediction(
+  token: string,
+  matchId: number,
+  prediction: PredictionChoice,
+): Promise<{ matchId: number; prediction: PredictionChoice }> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/user/addprediction', {
+      method: 'POST',
+      token,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ game_id: matchId, prediction }),
+    });
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{
+    match_id: number;
+    prediction: string;
+  }>(response);
+  const value = body.prediction;
+  if (value !== 'home' && value !== 'draw' && value !== 'away') {
+    throw new ApiError(
+      response.status,
+      'Unexpected prediction value from server.',
+    );
+  }
+  return { matchId: body.match_id, prediction: value };
 }
 
 /** `GET /admin/listleagues` — league id → code map for kickoff headers. */

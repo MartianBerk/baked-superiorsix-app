@@ -17,8 +17,12 @@ export type {
 export {
   acceptInvite,
   addPlayer,
+  addPrediction,
+  fetchMatchDetail,
+  getPrediction,
   invitePlayer,
   listInvites,
+  listLiveMatches,
   listPlayers,
   smokeSuperSixBff,
   updateProfileDetails,
@@ -29,8 +33,10 @@ export type {
   AddPlayerPayload,
   InvitePlayerPayload,
   InvitePlayerResult,
+  LiveMatch,
   PendingInvite,
   PlayerProfile,
+  PredictionChoice,
   SuperSixSmokeResult,
   UpdateDetailsPayload,
 } from './superiorsix';
