@@ -374,6 +374,7 @@ export function MatchPlayerWidget() {
           subrounds={subrounds}
           selectedId={selectedSubroundId}
           onChange={onSelectSubround}
+          labelMode="kickoff"
         />
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {rowError ? <Text style={styles.error}>{rowError}</Text> : null}
