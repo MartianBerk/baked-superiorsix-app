@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 
-/** Player fixtures stub vs admin match-day selection widget. */
+/** Player predictions vs admin match-day selection widget. */
 export type FixturesTabMode = 'normal' | 'admin';
 
 type FixturesTabModeContextValue = {
@@ -21,7 +21,7 @@ const FixturesTabModeContext = createContext<FixturesTabModeContextValue | null>
 
 /**
  * Local shell state for the fixtures tab: keep header + bottom nav and swap
- * only the widget body (player stub ↔ admin match selector).
+ * only the widget body (player predictions ↔ admin match selector).
  */
 export function FixturesTabModeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<FixturesTabMode>('normal');

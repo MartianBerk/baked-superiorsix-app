@@ -20,6 +20,8 @@ type Props = {
   onToggleExpand: () => void;
   busyMatchId: number | null;
   selectionsFull: boolean;
+  /** Closed / historical subround — disable add/drop. */
+  readOnly?: boolean;
   onToggleMatch: (match: AdminMatch) => void;
 };
 
@@ -30,6 +32,7 @@ export function KickoffGroup({
   onToggleExpand,
   busyMatchId,
   selectionsFull,
+  readOnly = false,
   onToggleMatch,
 }: Props) {
   const chevron = (expanded ? CHEVRON_UP : CHEVRON_DOWN).replaceAll(
@@ -65,9 +68,10 @@ export function KickoffGroup({
         ? group.matches.map((match) => {
             const selected = match.use_match;
             const disabled =
-              match.status === 'POSTPONED'
+              readOnly ||
+              (match.status === 'POSTPONED'
                 ? !selected
-                : !selected && selectionsFull;
+                : !selected && selectionsFull);
             return (
               <MatchSelectRow
                 key={match.id}

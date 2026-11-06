@@ -11,10 +11,17 @@ import {
 
 import {
   addMatches,
+  addRound,
+  getCurrentRound,
+  getCurrentSubround,
+  isNoRoundInProgressError,
+  listAdminSubrounds,
   listLeagues,
   listMatches,
+  openSubround,
   type AdminMatch,
   type LeagueInfo,
+  type Subround,
 } from '@/api/superiorsix';
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
@@ -41,19 +48,72 @@ import {
   slotsEqual,
   type SelectionSlots,
 } from './matchGrouping';
+import { SubroundScrubber } from './SubroundScrubber';
 
 const GAME_MASTER_ROLE = 'game-master';
 const ADMIN_ROLE = 'admin';
 /** Soft capacity — game_number slots stay 1..6; full six is not required. */
 const MAX_SLOTS = 6;
+/**
+ * Client-only id for the open “current” slate before BE creates it on Submit.
+ * First / next subround is created by `addmatches`, not `currentsubround?create`.
+ */
+const PENDING_SUBROUND_ID = -1;
 
 function matchById(matches: AdminMatch[]): Map<number, AdminMatch> {
   return new Map(matches.map((match) => [match.id, match]));
 }
 
+function isPendingSubroundId(id: number | null): boolean {
+  return id === PENDING_SUBROUND_ID;
+}
+
+function makePendingSubround(roundId: number, sequence: number): Subround {
+  return {
+    id: PENDING_SUBROUND_ID,
+    round_id: roundId,
+    sequence,
+    created_at: null,
+    closed_at: null,
+    match_count: 0,
+    min_kickoff: null,
+    max_kickoff: null,
+    is_over: false,
+    is_open_for_editing: true,
+  };
+}
+
+/** Append a virtual current slate when round has no open-for-editing subround. */
+function withPendingCurrent(
+  listed: Subround[],
+  roundId: number,
+): Subround[] {
+  const open = listed.find((row) => row.is_open_for_editing && !row.is_over);
+  if (open) {
+    return listed;
+  }
+  const nextSequence =
+    listed.reduce((max, row) => Math.max(max, row.sequence), 0) + 1;
+  return [...listed, makePendingSubround(roundId, nextSequence)];
+}
+
+function slotsForSubround(
+  matches: AdminMatch[],
+  subroundId: number | null,
+): SelectionSlots {
+  if (subroundId == null || isPendingSubroundId(subroundId)) {
+    return emptySlots();
+  }
+  return selectedMatchIds(
+    matches.filter(
+      (match) => match.use_match && match.subround_id === subroundId,
+    ),
+  );
+}
+
 /**
- * Admin match selection: global slots 1–6 across days (sparse OK).
- * Date scrubber only filters the list; draft + banner are cross-day.
+ * Admin match selection: slots 1–6 per subround (sparse OK).
+ * Subround scrubber above date scrubber; submit attaches via BE open slate.
  */
 export function MatchAdminWidget() {
   const { status, isAuthenticated, token, hasRole } = useAuth();
@@ -61,6 +121,10 @@ export function MatchAdminWidget() {
 
   const [matches, setMatches] = useState<AdminMatch[]>([]);
   const [leagues, setLeagues] = useState<LeagueInfo[]>([]);
+  const [subrounds, setSubrounds] = useState<Subround[]>([]);
+  const [selectedSubroundId, setSelectedSubroundId] = useState<number | null>(
+    null,
+  );
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   /** Slot index 0 → game_number 1 … index 5 → game_number 6 (any kickoff day). */
   const [draftSlots, setDraftSlots] = useState<SelectionSlots>(emptySlots);
@@ -68,10 +132,22 @@ export function MatchAdminWidget() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [openingSubround, setOpeningSubround] = useState(false);
+  const [startingRound, setStartingRound] = useState(false);
+  /** True until admin opens a parent Round (manual; temporary Start round CTA). */
+  const [needsRound, setNeedsRound] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canSelect =
     isAuthenticated && (hasRole(GAME_MASTER_ROLE) || hasRole(ADMIN_ROLE));
+
+  const selectedSubround = useMemo(
+    () => subrounds.find((row) => row.id === selectedSubroundId) ?? null,
+    [subrounds, selectedSubroundId],
+  );
+
+  const canEdit =
+    selectedSubround != null && selectedSubround.is_open_for_editing;
 
   const leaguesById = useMemo(() => {
     const map: Record<number, LeagueInfo> = {};
@@ -98,13 +174,27 @@ export function MatchAdminWidget() {
       if (utcDayKey(match.match_date) !== selectedDate) {
         return match;
       }
+      // Other subrounds' selections stay selected on the server but must not
+      // look selected while editing / viewing this slate.
+      if (
+        match.subround_id != null &&
+        selectedSubroundId != null &&
+        match.subround_id !== selectedSubroundId
+      ) {
+        return { ...match, use_match: false, game_number: null };
+      }
       const gameNumber = slotById.get(match.id);
       if (gameNumber == null) {
         return { ...match, use_match: false, game_number: null };
       }
-      return { ...match, use_match: true, game_number: gameNumber };
+      return {
+        ...match,
+        use_match: true,
+        game_number: gameNumber,
+        subround_id: selectedSubroundId,
+      };
     });
-  }, [matches, selectedDate, draftSlots]);
+  }, [matches, selectedDate, draftSlots, selectedSubroundId]);
 
   const groups = useMemo(() => {
     if (!selectedDate) {
@@ -114,9 +204,20 @@ export function MatchAdminWidget() {
   }, [displayMatches, selectedDate, leaguesById]);
 
   const selectedCount = occupiedCount(draftSlots);
-  const savedSlots = useMemo(() => selectedMatchIds(matches), [matches]);
-  const dirty = !slotsEqual(draftSlots, savedSlots);
+  const savedSlots = useMemo(
+    () => slotsForSubround(matches, selectedSubroundId),
+    [matches, selectedSubroundId],
+  );
+  const dirty = canEdit && !slotsEqual(draftSlots, savedSlots);
   const canSubmit = dirty && !submitting;
+
+  const applySubroundSelection = useCallback(
+    (next: Subround, allMatches: AdminMatch[]) => {
+      setSelectedSubroundId(next.id);
+      setDraftSlots(slotsForSubround(allMatches, next.id));
+    },
+    [],
+  );
 
   const load = useCallback(
     async (mode: 'initial' | 'refresh' = 'initial') => {
@@ -131,13 +232,17 @@ export function MatchAdminWidget() {
       setError(null);
       try {
         const range = adminScrubberRange();
-        const [nextLeagues, nextMatches] = await Promise.all([
+        // Fixtures are round-agnostic. Parent Round is manual — do not call
+        // listsubrounds until a round exists (avoids BE Round auto-create).
+        const [nextLeagues, nextMatches, currentRound] = await Promise.all([
           listLeagues(token),
           listMatches(token, range),
+          getCurrentRound(token),
         ]);
+
         setLeagues(nextLeagues);
         setMatches(nextMatches);
-        setDraftSlots(selectedMatchIds(nextMatches));
+
         const dayKeys = distinctDayKeys(nextMatches);
         setSelectedDate((prev) =>
           prev && dayKeys.includes(prev) ? prev : (dayKeys[0] ?? null),
@@ -161,6 +266,59 @@ export function MatchAdminWidget() {
           }
           return { [firstGroups[0].key]: true };
         });
+
+        if (currentRound == null) {
+          setNeedsRound(true);
+          setSubrounds([]);
+          setSelectedSubroundId(null);
+          setDraftSlots(emptySlots());
+          return;
+        }
+
+        setNeedsRound(false);
+        let listed: Subround[] = [];
+        let editing: Subround | null = null;
+        try {
+          // Never create=true here — first/next subround is created on Submit.
+          const [listedRows, current] = await Promise.all([
+            listAdminSubrounds(token),
+            getCurrentSubround(token, { create: false }),
+          ]);
+          listed = listedRows;
+          editing =
+            current != null && !current.is_over
+              ? current
+              : (listed.find(
+                  (row) => row.is_open_for_editing && !row.is_over,
+                ) ?? null);
+        } catch (err) {
+          if (isNoRoundInProgressError(err)) {
+            setNeedsRound(true);
+            setSubrounds([]);
+            setSelectedSubroundId(null);
+            setDraftSlots(emptySlots());
+            return;
+          }
+          throw err;
+        }
+
+        const nextSubrounds = withPendingCurrent(listed, currentRound.id);
+        setSubrounds(nextSubrounds);
+
+        const preferId = selectedSubroundId;
+        const preferred =
+          (preferId != null
+            ? nextSubrounds.find((row) => row.id === preferId)
+            : null) ??
+          editing ??
+          nextSubrounds[nextSubrounds.length - 1] ??
+          null;
+        if (preferred) {
+          applySubroundSelection(preferred, nextMatches);
+        } else {
+          setSelectedSubroundId(null);
+          setDraftSlots(emptySlots());
+        }
       } catch (err) {
         const message =
           err instanceof ApiError
@@ -172,7 +330,7 @@ export function MatchAdminWidget() {
         setRefreshing(false);
       }
     },
-    [token],
+    [token, selectedSubroundId, applySubroundSelection],
   );
 
   useEffect(() => {
@@ -188,34 +346,118 @@ export function MatchAdminWidget() {
     return () => {
       cancelled = true;
     };
-  }, [status, isAuthenticated, token, canSelect, load]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot on auth; refresh via pull
+  }, [status, isAuthenticated, token, canSelect]);
 
-  const onToggleMatch = useCallback((match: AdminMatch) => {
-    setDraftSlots((prev) => {
-      if (prev.includes(match.id)) {
-        queueMicrotask(() => setError(null));
-        return dropFromSlots(prev, match.id);
-      }
-      const next = addToLowestSlot(prev, match.id);
-      if (next == null) {
+  const onSelectSubround = useCallback(
+    (next: Subround) => {
+      applySubroundSelection(next, matches);
+      setError(null);
+    },
+    [applySubroundSelection, matches],
+  );
+
+  const onOpenSubround = useCallback(async () => {
+    // Force-next while a real open slate exists (e.g. Sat → Mon). Pending
+    // “current” is assumed locally and created on Submit instead.
+    if (
+      !token ||
+      openingSubround ||
+      needsRound ||
+      isPendingSubroundId(selectedSubroundId)
+    ) {
+      return;
+    }
+    setOpeningSubround(true);
+    setError(null);
+    try {
+      const created = await openSubround(token);
+      const nextList = await listAdminSubrounds(token);
+      setSubrounds(withPendingCurrent(nextList, created.round_id));
+      applySubroundSelection(created, matches);
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : 'Could not open a new subround.',
+      );
+    } finally {
+      setOpeningSubround(false);
+    }
+  }, [
+    token,
+    openingSubround,
+    needsRound,
+    selectedSubroundId,
+    applySubroundSelection,
+    matches,
+  ]);
+
+  /** Temporary until SS-84 admin Round screen exists. */
+  const onStartRound = useCallback(async () => {
+    if (!token || startingRound) {
+      return;
+    }
+    setStartingRound(true);
+    setError(null);
+    try {
+      const round = await addRound(token, {
+        startDate: utcDayKey(new Date()),
+      });
+      // Round only — first subround is created on the first match Submit.
+      const pending = makePendingSubround(round.id, 1);
+      setNeedsRound(false);
+      setSubrounds([pending]);
+      applySubroundSelection(pending, matches);
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : 'Could not start the first round.',
+      );
+    } finally {
+      setStartingRound(false);
+    }
+  }, [token, startingRound, applySubroundSelection, matches]);
+
+  const onToggleMatch = useCallback(
+    (match: AdminMatch) => {
+      if (!canEdit) {
         queueMicrotask(() =>
-          setError('All 6 selection slots are full. Drop one first.'),
+          setError('This subround is closed. Open a new slate to edit.'),
         );
-        return prev;
+        return;
       }
-      queueMicrotask(() => setError(null));
-      return next;
-    });
-  }, []);
+      setDraftSlots((prev) => {
+        if (prev.includes(match.id)) {
+          queueMicrotask(() => setError(null));
+          return dropFromSlots(prev, match.id);
+        }
+        const next = addToLowestSlot(prev, match.id);
+        if (next == null) {
+          queueMicrotask(() =>
+            setError('All 6 selection slots are full. Drop one first.'),
+          );
+          return prev;
+        }
+        queueMicrotask(() => setError(null));
+        return next;
+      });
+    },
+    [canEdit],
+  );
 
   const onSubmit = useCallback(async () => {
-    if (!token || !canSubmit) {
+    if (!token || !canSubmit || !canEdit) {
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      const draftByDay = new Map<string, { id: number; game_number: number }[]>();
+      const draftByDay = new Map<
+        string,
+        { id: number; game_number: number }[]
+      >();
       for (const item of selectionsFromSlots(draftSlots)) {
         const match = byId.get(item.id);
         if (!match) {
@@ -229,7 +471,10 @@ export function MatchAdminWidget() {
 
       const savedByDay = new Map<string, number[]>();
       for (const match of matches) {
-        if (!match.use_match) {
+        if (
+          !match.use_match ||
+          match.subround_id !== selectedSubroundId
+        ) {
           continue;
         }
         const dayKey = utcDayKey(match.match_date);
@@ -260,11 +505,41 @@ export function MatchAdminWidget() {
           if (next) {
             return next;
           }
-          return { ...row, use_match: false, game_number: null };
+          // Cleared from this day's open slate.
+          if (row.subround_id === selectedSubroundId) {
+            return {
+              ...row,
+              use_match: false,
+              game_number: null,
+              subround_id: null,
+            };
+          }
+          return row;
         });
       }
       setMatches(nextMatches);
-      setDraftSlots(selectedMatchIds(nextMatches));
+      const refreshed = await listAdminSubrounds(token);
+      const roundId =
+        refreshed[0]?.round_id ??
+        selectedSubround?.round_id ??
+        null;
+      const nextList =
+        roundId != null ? withPendingCurrent(refreshed, roundId) : refreshed;
+      setSubrounds(nextList);
+      // After Submit, BE may have just created the pending slate — prefer the
+      // real open-for-editing row over the client sentinel.
+      const still =
+        (!isPendingSubroundId(selectedSubroundId)
+          ? nextList.find((row) => row.id === selectedSubroundId)
+          : null) ??
+        nextList.find((row) => row.is_open_for_editing && !row.is_over) ??
+        nextList[nextList.length - 1] ??
+        null;
+      if (still) {
+        applySubroundSelection(still, nextMatches);
+      } else {
+        setDraftSlots(slotsForSubround(nextMatches, selectedSubroundId));
+      }
     } catch (err) {
       const message =
         err instanceof ApiError
@@ -274,7 +549,17 @@ export function MatchAdminWidget() {
     } finally {
       setSubmitting(false);
     }
-  }, [token, canSubmit, draftSlots, byId, matches]);
+  }, [
+    token,
+    canSubmit,
+    canEdit,
+    draftSlots,
+    byId,
+    matches,
+    selectedSubroundId,
+    selectedSubround,
+    applySubroundSelection,
+  ]);
 
   if (status === 'loading' || loading) {
     return (
@@ -353,19 +638,121 @@ export function MatchAdminWidget() {
           </Pressable>
         </View>
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        <DateScrubber
-          dates={dates}
-          selectedDate={selectedDate}
-          onChange={(dayKey) => {
-            setSelectedDate(dayKey);
-            setError(null);
-          }}
-        />
-        {groups.length === 0 ? (
-          <Text style={styles.empty}>
-            No fixtures in the selection window. Ingest PL/ELC/EL1 matches via
-            local-dev, then pull to refresh.
+        {needsRound ? (
+          <View style={styles.bootstrap}>
+            <Text style={styles.lede}>
+              No round in progress. Start a round to open the first selection
+              slate (temporary until the SS-84 Round admin screen). Fixtures
+              still load below for browsing.
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Start first round"
+              disabled={startingRound}
+              onPress={() => {
+                void onStartRound();
+              }}
+              style={({ pressed }) => [
+                styles.submit,
+                startingRound && styles.submitDisabled,
+                pressed && !startingRound && styles.submitPressed,
+              ]}
+            >
+              {startingRound ? (
+                <ActivityIndicator size="small" color={colors.text} />
+              ) : (
+                <Text style={styles.submitLabel}>Start round</Text>
+              )}
+            </Pressable>
+          </View>
+        ) : null}
+        {!needsRound &&
+        !canEdit &&
+        selectedSubround &&
+        !isPendingSubroundId(selectedSubroundId) ? (
+          <Text style={styles.lede}>
+            Viewing a closed subround. Scrub to the current slate or open a new
+            one to edit selections.
           </Text>
+        ) : null}
+        {!needsRound && isPendingSubroundId(selectedSubroundId) ? (
+          <Text style={styles.lede}>
+            Current slate — pick matches and Submit. The subround is created on
+            first submit.
+          </Text>
+        ) : null}
+        <View style={styles.scrubberRow}>
+          {!needsRound &&
+          subrounds.length > 0 &&
+          selectedSubroundId != null ? (
+            <View style={styles.subroundCol}>
+              <SubroundScrubber
+                subrounds={subrounds}
+                selectedId={selectedSubroundId}
+                onChange={onSelectSubround}
+                style={styles.scrubberFlush}
+                trailing={
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Open new subround"
+                    disabled={
+                      openingSubround ||
+                      isPendingSubroundId(selectedSubroundId)
+                    }
+                    onPress={() => {
+                      void onOpenSubround();
+                    }}
+                    style={({ pressed }) => [
+                      styles.newSlate,
+                      pressed &&
+                        !openingSubround &&
+                        !isPendingSubroundId(selectedSubroundId) &&
+                        styles.newSlatePressed,
+                      (openingSubround ||
+                        isPendingSubroundId(selectedSubroundId)) &&
+                        styles.submitDisabled,
+                    ]}
+                  >
+                    {openingSubround ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={colors.textMuted}
+                      />
+                    ) : (
+                      <Text style={styles.newSlateLabel}>New slate</Text>
+                    )}
+                  </Pressable>
+                }
+              />
+            </View>
+          ) : null}
+          <View
+            style={
+              !needsRound &&
+              subrounds.length > 0 &&
+              selectedSubroundId != null
+                ? styles.dateCol
+                : styles.dateColFull
+            }
+          >
+            <DateScrubber
+              dates={dates}
+              selectedDate={selectedDate}
+              onChange={(dayKey) => {
+                setSelectedDate(dayKey);
+                setError(null);
+              }}
+              style={styles.scrubberFlush}
+            />
+          </View>
+        </View>
+        {groups.length === 0 ? (
+          needsRound ? null : (
+            <Text style={styles.empty}>
+              No fixtures in the selection window. Ingest PL/ELC/EL1 matches via
+              local-dev, then pull to refresh.
+            </Text>
+          )
         ) : (
           groups.map((group) => (
             <KickoffGroup
@@ -380,6 +767,7 @@ export function MatchAdminWidget() {
               }}
               busyMatchId={null}
               selectionsFull={selectedCount >= MAX_SLOTS}
+              readOnly={needsRound || !canEdit}
               onToggleMatch={onToggleMatch}
             />
           ))
@@ -414,6 +802,33 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 12,
   },
+  scrubberRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 6,
+  },
+  /** ~33% — subround scrubber. */
+  subroundCol: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+    minWidth: 0,
+  },
+  /** ~66% — date scrubber. */
+  dateCol: {
+    flexGrow: 2,
+    flexShrink: 1,
+    flexBasis: 0,
+    minWidth: 0,
+  },
+  dateColFull: {
+    flex: 1,
+    minWidth: 0,
+  },
+  scrubberFlush: {
+    marginBottom: 0,
+  },
   headerLabel: {
     flex: 1,
     color: colors.text,
@@ -439,6 +854,30 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 14,
     fontWeight: '700',
+  },
+  newSlate: {
+    alignSelf: 'stretch',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    backgroundColor: colors.menuBar,
+    minHeight: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  newSlatePressed: {
+    backgroundColor: colors.menuActive,
+  },
+  newSlateLabel: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  bootstrap: {
+    marginBottom: 12,
+    gap: 10,
   },
   heading: {
     color: colors.text,

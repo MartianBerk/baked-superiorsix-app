@@ -1,18 +1,33 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 import { ChevronIcon } from '@/components/icons/ChevronIcon';
 import { colors } from '@/theme';
 
 import { formatScrubberDate } from './formatMatchDate';
+import { SCRUBBER_CHEVRON_SIZE, scrubberChrome } from './scrubberChrome';
 
 type Props = {
   dates: string[];
   selectedDate: string | null;
   onChange: (dayKey: string) => void;
+  /** Outer row style (e.g. clear margin when nested in a side-by-side row). */
+  style?: StyleProp<ViewStyle>;
 };
 
 /** Left/right date scrubber through available match days. */
-export function DateScrubber({ dates, selectedDate, onChange }: Props) {
+export function DateScrubber({
+  dates,
+  selectedDate,
+  onChange,
+  style,
+}: Props) {
   if (!selectedDate || dates.length === 0) {
     return null;
   }
@@ -22,7 +37,10 @@ export function DateScrubber({ dates, selectedDate, onChange }: Props) {
   const canRight = index >= 0 && index < dates.length - 1;
 
   return (
-    <View style={styles.row} accessibilityRole="adjustable">
+    <View
+      style={[scrubberChrome.row, style]}
+      accessibilityRole="adjustable"
+    >
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Previous match date"
@@ -33,15 +51,15 @@ export function DateScrubber({ dates, selectedDate, onChange }: Props) {
           }
         }}
         style={({ pressed }) => [
-          styles.chevronHit,
-          !canLeft && styles.chevronDisabled,
-          pressed && canLeft && styles.pressed,
+          scrubberChrome.chevronHit,
+          !canLeft && scrubberChrome.chevronDisabled,
+          pressed && canLeft && scrubberChrome.pressed,
         ]}
       >
         {canLeft ? (
-          <ChevronIcon direction="left" />
+          <ChevronIcon direction="left" size={SCRUBBER_CHEVRON_SIZE} />
         ) : (
-          <View style={styles.chevronSpacer} />
+          <View style={scrubberChrome.chevronSpacer} />
         )}
       </Pressable>
 
@@ -57,15 +75,15 @@ export function DateScrubber({ dates, selectedDate, onChange }: Props) {
           }
         }}
         style={({ pressed }) => [
-          styles.chevronHit,
-          !canRight && styles.chevronDisabled,
-          pressed && canRight && styles.pressed,
+          scrubberChrome.chevronHit,
+          !canRight && scrubberChrome.chevronDisabled,
+          pressed && canRight && scrubberChrome.pressed,
         ]}
       >
         {canRight ? (
-          <ChevronIcon direction="right" />
+          <ChevronIcon direction="right" size={SCRUBBER_CHEVRON_SIZE} />
         ) : (
-          <View style={styles.chevronSpacer} />
+          <View style={scrubberChrome.chevronSpacer} />
         )}
       </Pressable>
     </View>
@@ -73,38 +91,9 @@ export function DateScrubber({ dates, selectedDate, onChange }: Props) {
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-    marginBottom: 8,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  chevronHit: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 22,
-  },
-  chevronDisabled: {
-    opacity: 0.35,
-  },
-  chevronSpacer: {
-    width: 22,
-    height: 22,
-  },
-  pressed: {
-    backgroundColor: colors.menuActive,
-  },
   dateLabel: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     letterSpacing: 0.3,
   },

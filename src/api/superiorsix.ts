@@ -97,9 +97,45 @@ export type AdminMatch = {
   home_score: number | null;
   away_score: number | null;
   game_number: number | null;
+  /** SS-82 slate this selection belongs to (null when not selected). */
+  subround_id?: number | null;
   last_updated?: string | null;
   difficulty?: MatchDifficulty | null;
 };
+
+/** Prediction slate under a parent round (SS-82). */
+export type Subround = {
+  id: number;
+  round_id: number;
+  sequence: number;
+  created_at: string | null;
+  closed_at: string | null;
+  match_count: number;
+  min_kickoff: string | null;
+  max_kickoff: string | null;
+  is_over: boolean;
+  is_open_for_editing: boolean;
+};
+
+/** Parent game round (`GET /admin/currentround`, `POST /admin/addround`). */
+export type RoundInfo = {
+  id: number;
+  start_date: string;
+  end_date: string | null;
+  buy_in_pence: number;
+};
+
+/** True when BE has no open round (subround list/create need one first). */
+export function isNoRoundInProgressError(err: unknown): boolean {
+  if (!(err instanceof ApiError)) {
+    return false;
+  }
+  const detail = err.message.toLowerCase();
+  return (
+    detail.includes('no round in progress') ||
+    (err.status === 400 && detail.includes('round'))
+  );
+}
 
 export type LeagueInfo = {
   id: number;
@@ -116,6 +152,27 @@ export type MatchDetailPayload = {
   team_performance: Record<string, TeamResultCode[]>;
   head_to_head: Record<string, TeamResultCode[]>;
   difficulty?: MatchDifficulty | null;
+};
+
+/** Player outcome choice for `/user/addprediction` (`home` | `draw` | `away`). */
+export type PredictionChoice = 'home' | 'draw' | 'away';
+
+/**
+ * Selected Super Six fixture from `GET /game/livematches` (public).
+ * No difficulty — hydrate from `/game/matchdetail` when needed.
+ */
+export type LiveMatch = {
+  id: number;
+  home_team: string;
+  away_team: string;
+  home_score: number | null;
+  away_score: number | null;
+  status: string;
+  match_minute: number | null;
+  game_number: number | null;
+  match_date: string;
+  /** SS-82 slate id when selected for Super Six. */
+  subround_id?: number | null;
 };
 
 /** `POST /user/acceptinvite` — no invitee bearer; BFF grants roles then returns JWT. */
@@ -309,6 +366,206 @@ export async function fetchMatchDetail(opts: {
   }
   const body = await readApiJson<{ match_detail: MatchDetailPayload }>(response);
   return body.match_detail;
+}
+
+/**
+ * `GET /game/livematches?matchDate=` — Super Six selections (`use_match`) for one
+ * UTC calendar day. Public. `matchDate` is legacy `dd-mm-yyyy`.
+ */
+export async function listLiveMatches(matchDate: string): Promise<LiveMatch[]> {
+  const params = new URLSearchParams({ matchDate });
+  let response: Response;
+  try {
+    response = await apiFetch('game', `/game/livematches?${params.toString()}`);
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{ matches: LiveMatch[] }>(response);
+  return body.matches ?? [];
+}
+
+/**
+ * `GET /user/getprediction?gameId=` — active prediction for the current round.
+ * `gameId` is the match id (legacy name). Requires JWT `player` + roster.
+ */
+export async function getPrediction(
+  token: string,
+  matchId: number,
+): Promise<PredictionChoice | null> {
+  let response: Response;
+  try {
+    response = await apiFetch(
+      'game',
+      `/user/getprediction?gameId=${encodeURIComponent(String(matchId))}`,
+      { token },
+    );
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{ prediction: string | null }>(response);
+  const value = body.prediction;
+  if (value === 'home' || value === 'draw' || value === 'away') {
+    return value;
+  }
+  return null;
+}
+
+/**
+ * `POST /user/addprediction` — submit or update Home/Draw/Away before the
+ * 10-minute kickoff cutoff. Requires JWT `player` + roster + open round.
+ */
+export async function addPrediction(
+  token: string,
+  matchId: number,
+  prediction: PredictionChoice,
+): Promise<{ matchId: number; prediction: PredictionChoice }> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/user/addprediction', {
+      method: 'POST',
+      token,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ game_id: matchId, prediction }),
+    });
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{
+    match_id: number;
+    prediction: string;
+  }>(response);
+  const value = body.prediction;
+  if (value !== 'home' && value !== 'draw' && value !== 'away') {
+    throw new ApiError(
+      response.status,
+      'Unexpected prediction value from server.',
+    );
+  }
+  return { matchId: body.match_id, prediction: value };
+}
+
+/** `GET /admin/currentround` — open parent round or null. */
+export async function getCurrentRound(token: string): Promise<RoundInfo | null> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/admin/currentround', { token });
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{ current_round: RoundInfo | null }>(response);
+  return body.current_round ?? null;
+}
+
+/**
+ * `POST /admin/addround` — open the first (or next) parent round.
+ * Fails with 400 if a round is already in progress.
+ */
+export async function addRound(
+  token: string,
+  opts: { startDate: string; buyInPence?: number },
+): Promise<RoundInfo> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/admin/addround', {
+      method: 'POST',
+      token,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        start_date: opts.startDate,
+        buy_in_pence: opts.buyInPence ?? 0,
+      }),
+    });
+  } catch {
+    throw gameUnreachable();
+  }
+  return readApiJson<RoundInfo>(response);
+}
+
+/**
+ * `GET /game/listsubrounds` — player-facing slates for the current (or given)
+ * parent round. Public. 400 ``No round in progress.`` when none open.
+ */
+export async function listGameSubrounds(roundId?: number): Promise<Subround[]> {
+  const params = new URLSearchParams();
+  if (roundId != null) {
+    params.set('roundId', String(roundId));
+  }
+  const query = params.toString() ? `?${params.toString()}` : '';
+  let response: Response;
+  try {
+    response = await apiFetch('game', `/game/listsubrounds${query}`);
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{ subrounds: Subround[] }>(response);
+  return body.subrounds ?? [];
+}
+
+/**
+ * `GET /admin/listsubrounds` — game-master list for current (or given) round.
+ */
+export async function listAdminSubrounds(
+  token: string,
+  roundId?: number,
+): Promise<Subround[]> {
+  const params = new URLSearchParams();
+  if (roundId != null) {
+    params.set('roundId', String(roundId));
+  }
+  const query = params.toString() ? `?${params.toString()}` : '';
+  let response: Response;
+  try {
+    response = await apiFetch('game', `/admin/listsubrounds${query}`, {
+      token,
+    });
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{ subrounds: Subround[] }>(response);
+  return body.subrounds ?? [];
+}
+
+/**
+ * `GET /admin/currentsubround` — open-for-editing slate.
+ * Prefer `create: false` on load; FE shows a pending slate and lets
+ * `addmatches` create the first/next subround on Submit. `create: true`
+ * remains available for explicit open (prefer `opensubround` for force-next).
+ */
+export async function getCurrentSubround(
+  token: string,
+  opts?: { create?: boolean },
+): Promise<Subround | null> {
+  const create = opts?.create === true;
+  const query = create ? '?create=true' : '';
+  let response: Response;
+  try {
+    response = await apiFetch('game', `/admin/currentsubround${query}`, {
+      token,
+    });
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{ current_subround: Subround | null }>(
+    response,
+  );
+  return body.current_subround ?? null;
+}
+
+/**
+ * `POST /admin/opensubround` — force-create the next slate even if the previous
+ * still has future kickoffs (Sat/Mon/Wed/Fri separate slates).
+ */
+export async function openSubround(token: string): Promise<Subround> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/admin/opensubround', {
+      method: 'POST',
+      token,
+    });
+  } catch {
+    throw gameUnreachable();
+  }
+  return readApiJson<Subround>(response);
 }
 
 /** `GET /admin/listleagues` — league id → code map for kickoff headers. */
