@@ -98,6 +98,22 @@ export function hasKickedOff(
   return now.getTime() >= kickoff;
 }
 
+/** True once the fixture has started (kickoff time / in-play / finished). */
+export function matchHasStarted(
+  matchDateIso: string | null | undefined,
+  status: string | null | undefined,
+  now: Date = new Date(),
+): boolean {
+  if (isPostponedStatus(status)) {
+    return false;
+  }
+  return (
+    hasKickedOff(matchDateIso, now) ||
+    isPlayingStatus(status) ||
+    isFinishedStatus(status)
+  );
+}
+
 /**
  * Aligned score text for match headers.
  * Non-started → `- : -`; kicked off with null scores → `0 : 0`; else `h : a`.
@@ -110,12 +126,7 @@ export function formatAlignedScore(
     return '- : -';
   }
 
-  const kickedOff =
-    hasKickedOff(input.matchDateIso, now) ||
-    isPlayingStatus(input.status) ||
-    isFinishedStatus(input.status);
-
-  if (!kickedOff) {
+  if (!matchHasStarted(input.matchDateIso, input.status, now)) {
     return '- : -';
   }
 
@@ -123,6 +134,22 @@ export function formatAlignedScore(
     return '0 : 0';
   }
   return `${input.homeScore} : ${input.awayScore}`;
+}
+
+/** `23'`-style label once started and API/mock provided a minute; else null. */
+export function formatMatchMinute(
+  matchMinute: number | null | undefined,
+  matchDateIso: string | null | undefined,
+  status: string | null | undefined,
+  now: Date = new Date(),
+): string | null {
+  if (!matchHasStarted(matchDateIso, status, now)) {
+    return null;
+  }
+  if (matchMinute == null || !Number.isFinite(matchMinute)) {
+    return null;
+  }
+  return `${Math.trunc(matchMinute)}'`;
 }
 
 /** Flash the date only while at least one match has an in-play status. */

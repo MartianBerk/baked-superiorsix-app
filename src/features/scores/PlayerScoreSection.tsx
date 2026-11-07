@@ -26,6 +26,8 @@ type Props = {
   slateDifficulty: MatchDifficulty | null;
   expanded: boolean;
   onToggleExpand: () => void;
+  /** Wall clock for live score / badge timing (Matches shared clock). */
+  now?: Date;
 };
 
 /**
@@ -40,6 +42,7 @@ export function PlayerScoreSection({
   slateDifficulty,
   expanded,
   onToggleExpand,
+  now,
 }: Props) {
   const chevron = (expanded ? CHEVRON_UP : CHEVRON_DOWN).replaceAll(
     'CURRENT',
@@ -75,6 +78,7 @@ export function PlayerScoreSection({
               key={match.id}
               match={match}
               prediction={predictions[match.id] ?? null}
+              now={now}
             />
           ))
         : null}

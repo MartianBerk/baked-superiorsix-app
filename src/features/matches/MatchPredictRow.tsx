@@ -14,7 +14,10 @@ import type {
   PredictionChoice,
 } from '@/api/superiorsix';
 import { PickOutcomeBadge } from '@/features/scores/PickOutcomeBadge';
-import { formatAlignedScore } from '@/features/scores/liveScoreDisplay';
+import {
+  formatAlignedScore,
+  formatMatchMinute,
+} from '@/features/scores/liveScoreDisplay';
 import {
   isPickCurrentlyCorrect,
   PICK_BADGE_LABEL,
@@ -39,7 +42,7 @@ export function teamColumnWidthForMatches(matches: LiveMatch[]): number {
       match.away_team.length + awayExtra,
     );
   }
-  // Clamp so short slates still leave room for pick badge / score / #N.
+  // Clamp so short slates still leave room for pick badge / score / minute.
   return Math.min(160, Math.max(72, Math.ceil(maxChars * 7.2)));
 }
 
@@ -61,10 +64,9 @@ type Props = {
 };
 
 /**
- * Player fixture row: home/away stack, difficulty pips, expand for detail /
- * PredictionPicker. Trailing meta is pick badge (if any) + score + #N (+ chevron
- * when unlocked). Pick badge sits left of the score/game # cluster; grey until
- * scores start, green accent when the pick matches. Logged out / no pick → none.
+ * Player fixture row: #N leftmost, then difficulty pips, home/away stack,
+ * expand for detail / PredictionPicker. Trailing meta is pick badge (if any)
+ * + score + match minute once started (+ chevron when unlocked).
  */
 export function MatchPredictRow({
   match,
@@ -87,7 +89,8 @@ export function MatchPredictRow({
   const showPick = canPredict && prediction != null;
   const pickCorrect =
     showPick && isPickCurrentlyCorrect(prediction, match, now);
-  const pickLabel = showPick && prediction != null ? PICK_BADGE_LABEL[prediction] : null;
+  const pickLabel =
+    showPick && prediction != null ? PICK_BADGE_LABEL[prediction] : null;
 
   const scoreLine = locked
     ? formatAlignedScore(
@@ -101,9 +104,21 @@ export function MatchPredictRow({
       )
     : null;
 
+  const minuteLabel = formatMatchMinute(
+    match.match_minute,
+    match.match_date,
+    match.status,
+    now,
+  );
+
   return (
     <View style={[styles.block, prediction != null && styles.blockPicked]}>
       <View style={styles.row}>
+        {match.game_number != null ? (
+          <Text style={styles.gameNumber}>#{match.game_number}</Text>
+        ) : (
+          <View style={styles.gameNumberSpacer} />
+        )}
         <DifficultyPips difficulty={match.difficulty} />
         <View style={[styles.teams, { width: teamColumnWidth }]}>
           <Text style={styles.team} numberOfLines={1}>
@@ -144,8 +159,13 @@ export function MatchPredictRow({
               {scoreLine}
             </Text>
           ) : null}
-          {match.game_number != null ? (
-            <Text style={styles.slot}>#{match.game_number}</Text>
+          {minuteLabel ? (
+            <Text
+              style={styles.minute}
+              accessibilityLabel={`Minute ${minuteLabel}`}
+            >
+              {minuteLabel}
+            </Text>
           ) : null}
           {!locked ? (
             <Pressable
@@ -205,6 +225,18 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
+  gameNumber: {
+    color: colors.accentBright,
+    fontSize: 11,
+    fontWeight: '700',
+    minWidth: 22,
+    textAlign: 'left',
+    flexShrink: 0,
+  },
+  gameNumberSpacer: {
+    width: 22,
+    flexShrink: 0,
+  },
   teams: {
     flexShrink: 0,
     gap: 2,
@@ -231,13 +263,13 @@ const styles = StyleSheet.create({
     gap: 14,
     minWidth: 0,
   },
-  slot: {
+  minute: {
     color: colors.accentBright,
     fontSize: 11,
     fontWeight: '700',
-    marginRight: 2,
-    minWidth: 18,
+    minWidth: 28,
     textAlign: 'right',
+    fontVariant: ['tabular-nums'],
   },
   score: {
     color: colors.text,
