@@ -2,16 +2,19 @@ import { usePathname } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAuth } from '@/auth';
 import { SuperiorSixLogo } from '@/components/icons/SuperiorSixLogo';
+import { useUserTabMode } from '@/features/auth/UserTabModeContext';
 import { useLeadersTabMode } from '@/features/leaders/LeadersTabModeContext';
 import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
 import { useScoresTabMode } from '@/features/scores/ScoresTabModeContext';
 import { colors } from '@/theme';
 
+import { formatPotBannerLine } from './potBanner';
 import { useRoundStatus } from './RoundStatusContext';
 import { RoundStatusStrip } from './RoundStatusStrip';
 import {
-  demoRoundStatusForPath,
+  PLACEHOLDER_ROUND_STATUS,
   type RoundStatus,
 } from './roundStatus';
 
@@ -22,9 +25,8 @@ type Props = {
   prizeLabel?: string;
   /**
    * Thin status strip under the logo row.
-   * Omit to use live player picking count on fixtures, else SS-8 tab demos
-   * (Scores → live correct; Leaders → + rival all 6).
-   * Hidden in fixtures / scores / leaders admin modes.
+   * Omit to use live player picking / correct count on every player tab.
+   * Hidden in fixtures / scores / leaders / profile admin modes.
    */
   roundStatus?: RoundStatus;
 };
@@ -47,33 +49,50 @@ function isLeadersPath(pathname: string): boolean {
   return pathname.includes('/leaders');
 }
 
+function isProfilePath(pathname: string): boolean {
+  return pathname.includes('/profile');
+}
+
 /**
  * Top shell: round left, logo center, prize pot right,
- * plus thin round-status strip at the bottom of the header card.
+ * optional 6/6 pot banner, plus thin round-status strip.
+ * Player strip + pot banner show on all four non-admin tabs when logged in.
  */
 export function AppHeader({
-  roundLabel = 'N',
-  prizeLabel = '£X',
+  roundLabel,
+  prizeLabel,
   roundStatus,
 }: Props) {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
+  const { isAuthenticated } = useAuth();
   const { mode: fixturesMode } = useFixturesTabMode();
   const { mode: scoresMode } = useScoresTabMode();
   const { mode: leadersMode } = useLeadersTabMode();
-  const { playerPickingStatus } = useRoundStatus();
+  const { mode: profileMode } = useUserTabMode();
+  const { playerPickingStatus, gamedayHeader } = useRoundStatus();
+  const resolvedRound = roundLabel ?? gamedayHeader.roundLabel;
+  const resolvedPrize = prizeLabel ?? gamedayHeader.prizeLabel;
+  // Player-only chrome; hide when logged out or any dual-mode tab is admin.
   const hideStatusStrip =
+    !isAuthenticated ||
     (fixturesMode === 'admin' && isFixturesPath(pathname)) ||
     (scoresMode === 'admin' && isScoresPath(pathname)) ||
-    (leadersMode === 'admin' && isLeadersPath(pathname));
-  const status =
+    (leadersMode === 'admin' && isLeadersPath(pathname)) ||
+    (profileMode === 'admin' && isProfilePath(pathname));
+
+  const status: RoundStatus | null =
     roundStatus ??
-    (isFixturesPath(pathname) &&
-    fixturesMode === 'normal' &&
-    playerPickingStatus
-      ? playerPickingStatus
-      : null) ??
-    demoRoundStatusForPath(pathname);
+    (isAuthenticated && !hideStatusStrip
+      ? (playerPickingStatus ?? PLACEHOLDER_ROUND_STATUS)
+      : null);
+
+  const potHolders = status?.perfectSix;
+  const potLine = formatPotBannerLine(potHolders ?? []);
+  const viewerHasPot = (potHolders ?? []).some((h) => h.isViewer);
+  const showPotBanner =
+    isAuthenticated && !hideStatusStrip && potLine != null;
+
   return (
     <View
       style={[
@@ -85,20 +104,41 @@ export function AppHeader({
         <View style={styles.bar}>
           <View style={styles.side}>
             <Text style={styles.label}>Round</Text>
-            <Text style={styles.value}>{roundLabel}</Text>
+            <Text style={styles.value}>{resolvedRound}</Text>
           </View>
 
           <View style={styles.logoWrap} pointerEvents="none">
-            <SuperiorSixLogo width={72} height={72} />
+            <SuperiorSixLogo width={54} height={54} />
           </View>
 
           <View style={[styles.side, styles.sideRight]}>
             <Text style={styles.label}>Prize pot</Text>
-            <Text style={styles.value}>{prizeLabel}</Text>
+            <Text style={styles.value}>{resolvedPrize}</Text>
           </View>
         </View>
 
-        {hideStatusStrip ? null : <RoundStatusStrip status={status} />}
+        {showPotBanner && potLine ? (
+          <View
+            style={styles.potBanner}
+            accessibilityRole="summary"
+            accessibilityLabel={potLine}
+          >
+            <Text
+              style={[
+                styles.potBannerText,
+                viewerHasPot
+                  ? styles.potBannerTextViewer
+                  : styles.potBannerTextOthers,
+              ]}
+            >
+              {potLine}
+            </Text>
+          </View>
+        ) : null}
+
+        {hideStatusStrip || status == null ? null : (
+          <RoundStatusStrip status={status} />
+        )}
       </View>
     </View>
   );
@@ -107,7 +147,8 @@ export function AppHeader({
 const styles = StyleSheet.create({
   outer: {
     paddingHorizontal: '3%',
-    paddingBottom: 8,
+    // Match wrap/scrubber vertical rhythm on Matches + Scores (12).
+    paddingBottom: 12,
     backgroundColor: colors.background,
   },
   card: {
@@ -124,6 +165,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  potBanner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  potBannerText: {
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    textAlign: 'center',
+  },
+  /** Same green as RoundStatusStrip “6 / 6 correct”. */
+  potBannerTextViewer: {
+    color: colors.accentBright,
+  },
+  /** Other players only on 6/6. */
+  potBannerTextOthers: {
+    color: colors.amber,
   },
   side: {
     flex: 1,

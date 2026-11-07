@@ -952,6 +952,449 @@ export async function dropMatch(
   return readApiJson<AdminMatch>(response);
 }
 
+function asFiniteNumber(value: unknown): number | null {
+  if (value == null || value === '') {
+    return null;
+  }
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeSubround(raw: unknown): Subround | null {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+  const row = raw as Record<string, unknown>;
+  const id = asFiniteNumber(row.id);
+  const roundId = asFiniteNumber(row.round_id);
+  const sequence = asFiniteNumber(row.sequence);
+  if (id == null || roundId == null || sequence == null) {
+    return null;
+  }
+  return {
+    id,
+    round_id: roundId,
+    sequence,
+    created_at: typeof row.created_at === 'string' ? row.created_at : null,
+    closed_at: typeof row.closed_at === 'string' ? row.closed_at : null,
+    match_count: asFiniteNumber(row.match_count) ?? 0,
+    min_kickoff: typeof row.min_kickoff === 'string' ? row.min_kickoff : null,
+    max_kickoff: typeof row.max_kickoff === 'string' ? row.max_kickoff : null,
+    is_over: row.is_over === true,
+    is_open_for_editing: row.is_open_for_editing === true,
+  };
+}
+
+/**
+ * SS-16 `GET /game/meta` — shell header + slate navigation.
+ * Pot is precomputed: buy_in_pence × n_players × round_number.
+ */
+export type GameMeta = {
+  /** Latest subround/slate sequence (header Round N). */
+  round_number: number;
+  /** Precomputed pot in pence (14×£2 → £28 / £56 / £84…). */
+  prize_pot_pence: number;
+  buy_in_pence: number;
+  /** Full active roster size. */
+  n_players: number;
+  round: RoundInfo | null;
+  subround: Subround | null;
+  subrounds: Subround[];
+  /** ISO match-day kickoffs for navigation. */
+  match_days: string[];
+};
+
+function normalizeRoundInfo(raw: unknown): RoundInfo | null {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+  const row = raw as Record<string, unknown>;
+  const id = asFiniteNumber(row.id);
+  const buyIn = asFiniteNumber(row.buy_in_pence);
+  if (id == null || typeof row.start_date !== 'string' || buyIn == null) {
+    return null;
+  }
+  const winners = Array.isArray(row.winner_ids)
+    ? row.winner_ids.map((v) => String(v))
+    : [];
+  return {
+    id,
+    start_date: row.start_date,
+    end_date: typeof row.end_date === 'string' ? row.end_date : null,
+    buy_in_pence: buyIn,
+    winner_ids: winners,
+  };
+}
+
+function normalizeGameMeta(raw: Record<string, unknown>): GameMeta {
+  const subroundsRaw = Array.isArray(raw.subrounds) ? raw.subrounds : [];
+  const subrounds: Subround[] = [];
+  for (const row of subroundsRaw) {
+    const normalized = normalizeSubround(row);
+    if (normalized) {
+      subrounds.push(normalized);
+    }
+  }
+  const matchDaysRaw = Array.isArray(raw.match_days) ? raw.match_days : [];
+  const match_days = matchDaysRaw
+    .filter((v): v is string => typeof v === 'string')
+    .map((v) => v);
+
+  return {
+    round_number: asFiniteNumber(raw.round_number) ?? 0,
+    prize_pot_pence: asFiniteNumber(raw.prize_pot_pence) ?? 0,
+    buy_in_pence: asFiniteNumber(raw.buy_in_pence) ?? 0,
+    n_players: asFiniteNumber(raw.n_players) ?? 0,
+    round: normalizeRoundInfo(raw.round),
+    subround: normalizeSubround(raw.subround),
+    subrounds,
+    match_days,
+  };
+}
+
+/**
+ * `GET /game/meta` — public header Round N + prize pot + slate list (SS-16).
+ */
+export async function getGameMeta(): Promise<GameMeta> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/game/meta');
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<Record<string, unknown>>(response);
+  if (
+    !body ||
+    typeof body !== 'object' ||
+    ('noop' in body && body.noop === true) ||
+    !body.meta ||
+    typeof body.meta !== 'object'
+  ) {
+    return {
+      round_number: 0,
+      prize_pot_pence: 0,
+      buy_in_pence: 0,
+      n_players: 0,
+      round: null,
+      subround: null,
+      subrounds: [],
+      match_days: [],
+    };
+  }
+  return normalizeGameMeta(body.meta as Record<string, unknown>);
+}
+
+/**
+ * Public `GET /game/currentround` payload (SS-16 PublicCurrentRoundPayload).
+ */
+export type GameCurrentRound = {
+  round_id: number;
+  start_date: string;
+  /** Latest subround sequence (same as meta.round_number). */
+  round_number: number;
+  buy_in_pence: number;
+  /** Full roster count. */
+  players: number;
+  /** Alias of prize_pot_pence (legacy jackpot field). */
+  jackpot: number;
+  prize_pot_pence: number;
+  subround_id: number | null;
+  current_match_date: string | null;
+  /** Match count on the current slate. */
+  matches: number;
+};
+
+function normalizeGameCurrentRound(
+  raw: Record<string, unknown>,
+): GameCurrentRound | null {
+  const roundId = asFiniteNumber(raw.round_id ?? raw.id);
+  if (roundId == null || typeof raw.start_date !== 'string') {
+    return null;
+  }
+  const roundNumber = asFiniteNumber(raw.round_number) ?? 0;
+  const buyIn = asFiniteNumber(raw.buy_in_pence) ?? 0;
+  const players = asFiniteNumber(raw.players ?? raw.n_players) ?? 0;
+  const pot =
+    asFiniteNumber(raw.prize_pot_pence) ??
+    asFiniteNumber(raw.jackpot) ??
+    0;
+  return {
+    round_id: roundId,
+    start_date: raw.start_date,
+    round_number: roundNumber,
+    buy_in_pence: buyIn,
+    players,
+    jackpot: asFiniteNumber(raw.jackpot) ?? pot,
+    prize_pot_pence: pot,
+    subround_id: asFiniteNumber(raw.subround_id),
+    current_match_date:
+      typeof raw.current_match_date === 'string'
+        ? raw.current_match_date
+        : null,
+    matches: asFiniteNumber(raw.matches) ?? 0,
+  };
+}
+
+/**
+ * `GET /game/currentround` — public pot / round summary (SS-16).
+ * Returns `null` when no open round.
+ */
+export async function getGameCurrentRound(): Promise<GameCurrentRound | null> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/game/currentround');
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<Record<string, unknown>>(response);
+  if (
+    !body ||
+    typeof body !== 'object' ||
+    ('noop' in body && body.noop === true)
+  ) {
+    return null;
+  }
+  const raw = body.current_round;
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+  return normalizeGameCurrentRound(raw as Record<string, unknown>);
+}
+
+/** One match row inside a livescores player payload (SS-16). */
+export type LiveScoreMatch = {
+  match_id: number;
+  home_team: string;
+  away_team: string;
+  /** Null when the player has not predicted this fixture. */
+  prediction: PredictionChoice | null;
+  correct: boolean;
+  status: string;
+  home_score: number | null;
+  away_score: number | null;
+  match_date: string | null;
+  game_number: number | null;
+  match_minute: number | null;
+};
+
+/** Player scoreboard row from `GET /game/livescores` (SS-16). */
+export type LiveScorePlayer = {
+  auth_id: string;
+  id: string;
+  name: string;
+  first_name?: string;
+  last_name?: string;
+  nickname?: string | null;
+  score: number;
+  matches: LiveScoreMatch[];
+};
+
+/** Slate fixture row from livescores `matches[]` (MatchResponse subset). */
+export type LiveScoreFixture = {
+  id: number;
+  home_team: string;
+  away_team: string;
+  home_score: number | null;
+  away_score: number | null;
+  status: string;
+  match_date: string;
+  match_minute: number | null;
+  game_number: number | null;
+  subround_id: number | null;
+};
+
+/** Full `GET /game/livescores` board (SS-16). */
+export type LiveScoresBoard = {
+  scores: LiveScorePlayer[];
+  subround: Subround | null;
+  matches: LiveScoreFixture[];
+  match_count: number;
+  /** True while any fixture is IN PLAY / HALF TIME. */
+  live: boolean;
+  min_kickoff: string | null;
+  max_kickoff: string | null;
+  /** Next future kickoff — FE can sleep until then instead of polling. */
+  next_kickoff: string | null;
+};
+
+function normalizeLiveScoreMatch(
+  raw: Record<string, unknown>,
+): LiveScoreMatch | null {
+  const home = typeof raw.home_team === 'string' ? raw.home_team : null;
+  const away = typeof raw.away_team === 'string' ? raw.away_team : null;
+  const matchId = asFiniteNumber(raw.match_id ?? raw.id);
+  if (!home || !away || matchId == null) {
+    return null;
+  }
+  const choice =
+    raw.prediction == null || raw.prediction === ''
+      ? null
+      : asPredictionChoice(raw.prediction);
+  return {
+    match_id: matchId,
+    home_team: home,
+    away_team: away,
+    prediction: choice,
+    correct: raw.correct === true,
+    status: typeof raw.status === 'string' ? raw.status : '',
+    home_score: asFiniteNumber(raw.home_score),
+    away_score: asFiniteNumber(raw.away_score),
+    match_date: typeof raw.match_date === 'string' ? raw.match_date : null,
+    game_number: asFiniteNumber(raw.game_number),
+    match_minute: asFiniteNumber(raw.match_minute),
+  };
+}
+
+function normalizeLiveScorePlayer(
+  raw: Record<string, unknown>,
+): LiveScorePlayer | null {
+  const authRaw = raw.auth_id ?? raw.id;
+  if (authRaw == null || authRaw === '') {
+    return null;
+  }
+  const name =
+    typeof raw.name === 'string' && raw.name.trim()
+      ? raw.name.trim()
+      : String(authRaw);
+  const matchesRaw = Array.isArray(raw.matches) ? raw.matches : [];
+  const matches: LiveScoreMatch[] = [];
+  for (const row of matchesRaw) {
+    if (!row || typeof row !== 'object') {
+      continue;
+    }
+    const normalized = normalizeLiveScoreMatch(row as Record<string, unknown>);
+    if (normalized) {
+      matches.push(normalized);
+    }
+  }
+  const score =
+    asFiniteNumber(raw.score) ??
+    matches.reduce((sum, m) => sum + (m.correct ? 1 : 0), 0);
+  return {
+    auth_id: String(authRaw),
+    id: String(raw.id ?? authRaw),
+    name,
+    ...(typeof raw.first_name === 'string' ? { first_name: raw.first_name } : {}),
+    ...(typeof raw.last_name === 'string' ? { last_name: raw.last_name } : {}),
+    ...(raw.nickname === null || typeof raw.nickname === 'string'
+      ? { nickname: raw.nickname as string | null }
+      : {}),
+    score,
+    matches,
+  };
+}
+
+function normalizeLiveScoreFixture(
+  raw: Record<string, unknown>,
+): LiveScoreFixture | null {
+  const id = asFiniteNumber(raw.id);
+  if (
+    id == null ||
+    typeof raw.home_team !== 'string' ||
+    typeof raw.away_team !== 'string' ||
+    typeof raw.match_date !== 'string'
+  ) {
+    return null;
+  }
+  return {
+    id,
+    home_team: raw.home_team,
+    away_team: raw.away_team,
+    home_score: asFiniteNumber(raw.home_score),
+    away_score: asFiniteNumber(raw.away_score),
+    status: typeof raw.status === 'string' ? raw.status : '',
+    match_date: raw.match_date,
+    match_minute: asFiniteNumber(raw.match_minute),
+    game_number: asFiniteNumber(raw.game_number),
+    subround_id: asFiniteNumber(raw.subround_id),
+  };
+}
+
+function normalizeLiveScoresBoard(
+  body: Record<string, unknown>,
+): LiveScoresBoard {
+  const scores: LiveScorePlayer[] = [];
+  const scoresRaw = Array.isArray(body.scores) ? body.scores : [];
+  for (const row of scoresRaw) {
+    if (!row || typeof row !== 'object') {
+      continue;
+    }
+    const normalized = normalizeLiveScorePlayer(
+      row as Record<string, unknown>,
+    );
+    if (normalized) {
+      scores.push(normalized);
+    }
+  }
+  const matches: LiveScoreFixture[] = [];
+  const matchesRaw = Array.isArray(body.matches) ? body.matches : [];
+  for (const row of matchesRaw) {
+    if (!row || typeof row !== 'object') {
+      continue;
+    }
+    const normalized = normalizeLiveScoreFixture(
+      row as Record<string, unknown>,
+    );
+    if (normalized) {
+      matches.push(normalized);
+    }
+  }
+  return {
+    scores,
+    subround: normalizeSubround(body.subround),
+    matches,
+    match_count: asFiniteNumber(body.match_count) ?? matches.length,
+    live: body.live === true,
+    min_kickoff: typeof body.min_kickoff === 'string' ? body.min_kickoff : null,
+    max_kickoff: typeof body.max_kickoff === 'string' ? body.max_kickoff : null,
+    next_kickoff:
+      typeof body.next_kickoff === 'string' ? body.next_kickoff : null,
+  };
+}
+
+/**
+ * `GET /game/livescores` — aggregate Super Six scoreboard (SS-16).
+ * Prefer `subroundId` (one batch call for the slate). Optional `matchDate`
+ * (`dd-mm-yyyy`) for legacy day filter. Omit both for latest open slate.
+ */
+export async function getLiveScores(opts?: {
+  matchDate?: string;
+  subroundId?: number;
+}): Promise<LiveScoresBoard> {
+  const params = new URLSearchParams();
+  if (opts?.matchDate) {
+    params.set('matchDate', opts.matchDate);
+  }
+  if (opts?.subroundId != null) {
+    params.set('subroundId', String(opts.subroundId));
+  }
+  const query = params.toString() ? `?${params.toString()}` : '';
+  let response: Response;
+  try {
+    response = await apiFetch('game', `/game/livescores${query}`);
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<Record<string, unknown>>(response);
+  if (
+    !body ||
+    typeof body !== 'object' ||
+    ('noop' in body && body.noop === true)
+  ) {
+    return {
+      scores: [],
+      subround: null,
+      matches: [],
+      match_count: 0,
+      live: false,
+      min_kickoff: null,
+      max_kickoff: null,
+      next_kickoff: null,
+    };
+  }
+  return normalizeLiveScoresBoard(body);
+}
+
 /**
  * Smoke the superiorsix BFF after login: health + one Bearer-protected route.
  *

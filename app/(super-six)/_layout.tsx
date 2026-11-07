@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { AppHeader } from '@/components/shell/AppHeader';
 import { BottomMenu } from '@/components/shell/BottomMenu';
 import { DualModeAuthReset } from '@/components/shell/DualModeAuthReset';
+import { GamedayHeaderSync } from '@/components/shell/GamedayHeaderSync';
 import { RoundStatusProvider } from '@/components/shell/RoundStatusContext';
 import { UserTabModeProvider } from '@/features/auth/UserTabModeContext';
 import { LeadersTabModeProvider } from '@/features/leaders/LeadersTabModeContext';
@@ -24,6 +25,7 @@ export default function SuperSixLayout() {
           <LeadersTabModeProvider>
             <RoundStatusProvider>
               <DualModeAuthReset />
+              <GamedayHeaderSync />
               <View style={styles.shell}>
                 <AppHeader />
                 <Tabs

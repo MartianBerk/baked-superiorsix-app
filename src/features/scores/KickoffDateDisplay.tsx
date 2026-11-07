@@ -1,6 +1,7 @@
+import { useEffect, useMemo } from 'react';
 import {
+  Animated,
   StyleSheet,
-  Text,
   View,
   type StyleProp,
   type ViewStyle,
@@ -18,29 +19,71 @@ import { scrubberChrome } from '@/features/matches/scrubberChrome';
 type Props = {
   /** ISO kickoff (usually subround `min_kickoff`). */
   kickoffIso: string | null | undefined;
+  /** Flash red while Super Six matches are in play (not between fixtures). */
+  live?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
-/** Display-only earliest-kickoff banner (`Sat 07 Nov 3pm`) — not navigable. */
-export function KickoffDateDisplay({ kickoffIso, style }: Props) {
+const LIVE_RED = '#910909';
+const LIVE_RED_DIM = '#5a0707';
+
+/**
+ * Display-only earliest-kickoff banner (`Sat 07 Nov 3pm`) — not navigable.
+ * When `live`, pulses red like legacy Scores date picker.
+ */
+export function KickoffDateDisplay({ kickoffIso, live = false, style }: Props) {
+  const pulse = useMemo(() => new Animated.Value(0), []);
+
+  useEffect(() => {
+    if (!live) {
+      pulse.stopAnimation();
+      pulse.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 2500,
+          useNativeDriver: false,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 2500,
+          useNativeDriver: false,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+    };
+  }, [live, pulse]);
+
   if (!kickoffIso) {
     return null;
   }
   const label = `${formatScrubberDate(utcDayKey(kickoffIso))} ${formatKickoffLabel(kickoffIso)}`;
+  const color = live
+    ? pulse.interpolate({
+        inputRange: [0, 1],
+        outputRange: [LIVE_RED, LIVE_RED_DIM],
+      })
+    : colors.text;
 
   return (
     <View
       style={[scrubberChrome.row, style]}
       accessibilityRole="text"
-      accessibilityLabel={`Earliest kickoff ${label}`}
+      accessibilityLabel={`Earliest kickoff ${label}${live ? ', live' : ''}`}
     >
       {/* Spacers match DateScrubber chevron slots so the label centres with the slate scrubber. */}
       <View style={scrubberChrome.chevronHit}>
         <View style={scrubberChrome.chevronSpacer} />
       </View>
-      <Text style={styles.label} numberOfLines={1}>
+      <Animated.Text style={[styles.label, { color }]} numberOfLines={1}>
         {label}
-      </Text>
+      </Animated.Text>
       <View style={scrubberChrome.chevronHit}>
         <View style={scrubberChrome.chevronSpacer} />
       </View>
@@ -51,7 +94,6 @@ export function KickoffDateDisplay({ kickoffIso, style }: Props) {
 const styles = StyleSheet.create({
   label: {
     flexShrink: 1,
-    color: colors.text,
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: 0.3,

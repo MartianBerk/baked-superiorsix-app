@@ -11,17 +11,22 @@ import {
 import {
   addPrediction,
   fetchMatchDetail,
+  getLiveScores,
   getPrediction,
   isNoRoundInProgressError,
   listGameSubrounds,
   listLiveMatches,
+  type LiveScoreFixture,
+  type LiveScoresBoard,
   type PredictionChoice,
   type Subround,
 } from '@/api/superiorsix';
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
+import type { PerfectSixHolder } from '@/components/shell/potBanner';
 import { useRoundStatus } from '@/components/shell/RoundStatusContext';
-import { LoginForm } from '@/features/auth/LoginForm';
+import { KickoffDateDisplay } from '@/features/scores/KickoffDateDisplay';
+import { LIVE_POLL_MS } from '@/features/scores/liveScoreDisplay';
 import { colors } from '@/theme';
 
 import {
@@ -31,6 +36,7 @@ import {
 } from './formatMatchDate';
 import {
   MatchPredictRow,
+  teamColumnWidthForMatches,
   type PlayerMatch,
 } from './MatchPredictRow';
 import { SubroundScrubber } from './SubroundScrubber';
@@ -105,12 +111,78 @@ function pickPlayerSubround(
   return withMatches[withMatches.length - 1];
 }
 
+function fixtureToPlayerMatch(
+  fixture: LiveScoreFixture,
+  difficulty?: PlayerMatch['difficulty'],
+): PlayerMatch {
+  return {
+    id: fixture.id,
+    home_team: fixture.home_team,
+    away_team: fixture.away_team,
+    home_score: fixture.home_score,
+    away_score: fixture.away_score,
+    status: fixture.status,
+    match_minute: fixture.match_minute,
+    game_number: fixture.game_number,
+    match_date: fixture.match_date,
+    subround_id: fixture.subround_id,
+    difficulty: difficulty ?? null,
+  };
+}
+
+function mergeBoardFixtures(
+  existing: PlayerMatch[],
+  boardMatches: LiveScoreFixture[],
+): PlayerMatch[] {
+  if (boardMatches.length === 0) {
+    return existing;
+  }
+  const difficultyById = new Map(
+    existing.map((m) => [m.id, m.difficulty] as const),
+  );
+  return sortPlayerMatches(
+    boardMatches.map((fixture) =>
+      fixtureToPlayerMatch(fixture, difficultyById.get(fixture.id) ?? null),
+    ),
+  );
+}
+
+function displayNameFromLiveScore(row: {
+  name: string;
+  nickname?: string | null;
+  first_name?: string;
+}): string {
+  if (typeof row.nickname === 'string' && row.nickname.trim()) {
+    return row.nickname.trim();
+  }
+  if (typeof row.first_name === 'string' && row.first_name.trim()) {
+    return row.first_name.trim();
+  }
+  if (row.name.trim()) {
+    return row.name.trim();
+  }
+  return 'Player';
+}
+
+function perfectSixFromBoard(
+  board: LiveScoresBoard,
+  viewerAuthId: string | null | undefined,
+): PerfectSixHolder[] {
+  return board.scores
+    .filter((row) => row.score >= 6)
+    .map((row) => ({
+      displayName: displayNameFromLiveScore(row),
+      isViewer: viewerAuthId != null && row.auth_id === viewerAuthId,
+    }));
+}
+
 /**
- * Player fixtures: navigate Super Six selections by subround, expandable
- * detail, Home/Draw/Away with subround-wide cutoff.
+ * Player fixtures: Super Six slate with Home/Draw/Away, plus gameday live
+ * behaviour (10m lock, collapse expands, score lines, 2m livescores poll,
+ * red date flash while in-play).
  */
 export function MatchPlayerWidget() {
-  const { status, isAuthenticated, token, hasRole } = useAuth();
+  const { status, isAuthenticated, token, hasRole, session } = useAuth();
   const { setPlayerPickingStatus } = useRoundStatus();
 
   const [subrounds, setSubrounds] = useState<Subround[]>([]);
@@ -121,7 +193,6 @@ export function MatchPlayerWidget() {
     null,
   );
   const selectedSubroundIdRef = useRef<number | null>(null);
-  selectedSubroundIdRef.current = selectedSubroundId;
 
   const [draft, setDraft] = useState<Record<number, PredictionChoice | null>>(
     {},
@@ -132,6 +203,12 @@ export function MatchPlayerWidget() {
   const [predictionsLoading, setPredictionsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
+  /** Wall clock for lock / score-line / badge timing. */
+  const [now, setNow] = useState(() => new Date());
+  const [boardLive, setBoardLive] = useState(false);
+  const [nextKickoff, setNextKickoff] = useState<string | null>(null);
+  const [viewerCorrect, setViewerCorrect] = useState<number | null>(null);
+  const [perfectSix, setPerfectSix] = useState<PerfectSixHolder[]>([]);
 
   const canPredict = isAuthenticated && hasRole('player');
 
@@ -148,14 +225,20 @@ export function MatchPlayerWidget() {
     [selectedSubroundId, matchesBySubround],
   );
 
+  /** Shared team-name column so H/D/A badges line up across rows. */
+  const teamColumnWidth = useMemo(
+    () => teamColumnWidthForMatches(matches),
+    [matches],
+  );
+
   /** Lock every Home/Draw/Away once earliest kickoff in this subround hits cutoff. */
   const subroundLocked = useMemo(() => {
     const minKickoff = selectedSubround?.min_kickoff;
     if (minKickoff) {
-      return isPastCutoff(minKickoff);
+      return isPastCutoff(minKickoff, now);
     }
     return false;
-  }, [selectedSubround]);
+  }, [selectedSubround, now]);
 
   /** Header “n / 6 Selections” — optimistic from local draft for this slate. */
   const pickedCount = useMemo(() => {
@@ -169,14 +252,78 @@ export function MatchPlayerWidget() {
   }, [matches, draft]);
 
   useEffect(() => {
-    setPlayerPickingStatus({
-      phase: 'picking',
-      selectedCount: pickedCount,
-    });
-    return () => {
+    // Header n/6 + pot banner: signed-in only. Persist across tabs (do not
+    // clear on unmount) so Scores / Leaders / Profile keep the same strip.
+    if (!isAuthenticated) {
       setPlayerPickingStatus(null);
-    };
-  }, [pickedCount, setPlayerPickingStatus]);
+      return;
+    }
+    if (subroundLocked || boardLive) {
+      setPlayerPickingStatus({
+        phase: boardLive ? 'live' : 'finished',
+        correctCount: viewerCorrect ?? 0,
+        perfectSix,
+      });
+    } else {
+      setPlayerPickingStatus({
+        phase: 'picking',
+        selectedCount: pickedCount,
+        perfectSix,
+      });
+    }
+  }, [
+    isAuthenticated,
+    subroundLocked,
+    boardLive,
+    viewerCorrect,
+    pickedCount,
+    perfectSix,
+    setPlayerPickingStatus,
+  ]);
+
+  const applyLiveBoard = useCallback(
+    (board: LiveScoresBoard) => {
+      setBoardLive(board.live);
+      setNextKickoff(board.next_kickoff);
+      const authId = session?.userId;
+      setPerfectSix(perfectSixFromBoard(board, authId));
+      if (authId) {
+        const mine = board.scores.find((row) => row.auth_id === authId);
+        setViewerCorrect(mine != null ? mine.score : null);
+      } else {
+        setViewerCorrect(null);
+      }
+      const targetId =
+        board.subround?.id ?? selectedSubroundIdRef.current ?? null;
+      if (targetId == null) {
+        return;
+      }
+      setMatchesBySubround((prev) => ({
+        ...prev,
+        [targetId]: mergeBoardFixtures(prev[targetId] ?? [], board.matches),
+      }));
+    },
+    [session?.userId],
+  );
+
+  const loadLiveBoard = useCallback(
+    async (subroundId: number | null) => {
+      if (subroundId == null) {
+        setBoardLive(false);
+        setNextKickoff(null);
+        setViewerCorrect(null);
+        setPerfectSix([]);
+        return;
+      }
+      try {
+        const board = await getLiveScores({ subroundId });
+        applyLiveBoard(board);
+      } catch {
+        // Livematches still drive the slate; live chrome is best-effort.
+      }
+    },
+    [applyLiveBoard],
+  );
 
   const loadPredictions = useCallback(
     async (slateMatches: PlayerMatch[]) => {
@@ -218,7 +365,6 @@ export function MatchPlayerWidget() {
       setError(null);
       setRowError(null);
       try {
-        // Subround list 400s with no open round — don't block livematches.
         let listed: Subround[] = [];
         let noRound = false;
         try {
@@ -268,7 +414,6 @@ export function MatchPlayerWidget() {
         }));
 
         const bySubround = groupBySubround(all);
-        // Player scrubber: only subrounds that have selections.
         const navigable = listed
           .filter((row) => row.match_count > 0)
           .sort((a, b) => a.sequence - b.sequence);
@@ -279,6 +424,8 @@ export function MatchPlayerWidget() {
         if (noRound) {
           setSelectedSubroundId(null);
           setDraft({});
+          setBoardLive(false);
+          setNextKickoff(null);
           setError(null);
           return;
         }
@@ -289,6 +436,7 @@ export function MatchPlayerWidget() {
         );
         setSelectedSubroundId(next?.id ?? null);
         await loadPredictions(next ? (bySubround[next.id] ?? []) : []);
+        await loadLiveBoard(next?.id ?? null);
       } catch (err) {
         const message =
           err instanceof ApiError
@@ -304,8 +452,12 @@ export function MatchPlayerWidget() {
         setRefreshing(false);
       }
     },
-    [loadPredictions],
+    [loadPredictions, loadLiveBoard],
   );
+
+  useEffect(() => {
+    selectedSubroundIdRef.current = selectedSubroundId;
+  }, [selectedSubroundId]);
 
   useEffect(() => {
     if (status === 'loading') {
@@ -322,14 +474,64 @@ export function MatchPlayerWidget() {
     };
   }, [status, loadCatalog]);
 
+  useEffect(() => {
+    if (!subroundLocked) {
+      return;
+    }
+    const id = setInterval(() => setNow(new Date()), 15_000);
+    return () => clearInterval(id);
+  }, [subroundLocked]);
+
+  // Live poll: every 2 min while board.live; else wake at next_kickoff.
+  useEffect(() => {
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let wakeTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const clearAll = () => {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+      if (wakeTimer) {
+        clearTimeout(wakeTimer);
+        wakeTimer = null;
+      }
+    };
+
+    const subroundId = selectedSubroundId;
+    if (subroundId == null) {
+      clearAll();
+      return;
+    }
+
+    if (boardLive) {
+      pollTimer = setInterval(() => {
+        void loadLiveBoard(subroundId);
+      }, LIVE_POLL_MS);
+      return () => clearAll();
+    }
+
+    if (nextKickoff) {
+      const wait = new Date(nextKickoff).getTime() - Date.now();
+      if (Number.isFinite(wait) && wait > 0 && wait < 24 * 60 * 60 * 1000) {
+        wakeTimer = setTimeout(() => {
+          void loadLiveBoard(subroundId);
+        }, wait + 250);
+      }
+    }
+
+    return () => clearAll();
+  }, [selectedSubroundId, boardLive, nextKickoff, loadLiveBoard]);
+
   const onSelectSubround = useCallback(
     (next: Subround) => {
       setSelectedSubroundId(next.id);
       setError(null);
       setRowError(null);
       void loadPredictions(matchesBySubround[next.id] ?? []);
+      void loadLiveBoard(next.id);
     },
-    [matchesBySubround, loadPredictions],
+    [matchesBySubround, loadPredictions, loadLiveBoard],
   );
 
   const onPredict = useCallback(
@@ -377,6 +579,9 @@ export function MatchPlayerWidget() {
     );
   }
 
+  const showSubroundScrubber =
+    subrounds.length > 0 && selectedSubroundId != null;
+
   return (
     <ScrollView
       style={styles.scrollView}
@@ -393,31 +598,33 @@ export function MatchPlayerWidget() {
       }
     >
       <View style={styles.wrap}>
-        <SubroundScrubber
-          subrounds={subrounds}
-          selectedId={selectedSubroundId}
-          onChange={onSelectSubround}
-          labelMode="kickoff"
-        />
+        <View style={styles.scrubberRow}>
+          {showSubroundScrubber ? (
+            <View style={styles.subroundCol}>
+              <SubroundScrubber
+                subrounds={subrounds}
+                selectedId={selectedSubroundId}
+                onChange={onSelectSubround}
+                labelMode="sequence"
+                style={styles.scrubberFlush}
+              />
+            </View>
+          ) : null}
+          <View
+            style={showSubroundScrubber ? styles.dateCol : styles.dateColFull}
+          >
+            <KickoffDateDisplay
+              kickoffIso={
+                selectedSubround?.min_kickoff ?? matches[0]?.match_date
+              }
+              live={boardLive}
+              style={styles.scrubberFlush}
+            />
+          </View>
+        </View>
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {rowError ? <Text style={styles.error}>{rowError}</Text> : null}
-        {subroundLocked && matches.length > 0 ? (
-          <Text style={styles.lede}>
-            Predictions locked — within 10 minutes of this slate&apos;s first
-            kickoff.
-          </Text>
-        ) : null}
-
-        {/* No round / no subrounds → blank matches (no empty-state copy). */}
-        {matches.length > 0 && !isAuthenticated ? (
-          <View style={styles.loginBlock}>
-            <Text style={styles.lede}>
-              Browse this slate&apos;s Super Six, then sign in to lock in Home /
-              Draw / Away.
-            </Text>
-            <LoginForm heading="Player sign in" />
-          </View>
-        ) : null}
 
         {matches.length > 0 && isAuthenticated && !canPredict ? (
           <Text style={styles.lede}>
@@ -440,6 +647,8 @@ export function MatchPlayerWidget() {
                 busy={busyId === match.id}
                 locked={subroundLocked}
                 canPredict={canPredict}
+                teamColumnWidth={teamColumnWidth}
+                now={now}
                 onPredict={(choice) => {
                   void onPredict(match, choice);
                 }}
@@ -468,16 +677,40 @@ const styles = StyleSheet.create({
   },
   wrap: {
     paddingHorizontal: '3%',
-    paddingTop: 12,
+    // Header already owns the top gap (AppHeader paddingBottom 12).
+    paddingTop: 0,
+  },
+  scrubberRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    // Same 12px rhythm as header → scrubber.
+    marginBottom: 12,
+  },
+  subroundCol: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+    minWidth: 0,
+  },
+  dateCol: {
+    flexGrow: 2,
+    flexShrink: 1,
+    flexBasis: 0,
+    minWidth: 0,
+  },
+  dateColFull: {
+    flex: 1,
+    minWidth: 0,
+  },
+  scrubberFlush: {
+    marginBottom: 0,
   },
   lede: {
     color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 12,
-  },
-  loginBlock: {
-    marginBottom: 16,
   },
   error: {
     color: '#E8A0A0',
