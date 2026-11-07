@@ -21,9 +21,9 @@ export type RoundStatus = {
   /** Correct results for the logged-in player while live/finished. */
   correctCount?: number;
   /**
-   * Aggregate slate difficulty for header pips.
-   * Player: set only once the logged-in player has predicted every match.
-   * Admin Matches: mean of currently selected fixture difficulties.
+   * Aggregate difficulty of the current slate’s selected matches (header pips).
+   * Player: mean of the loaded subround fixtures.
+   * Admin Matches: mean of the draft selection (updates live as picks change).
    * Omit to leave the previous value; pass `null` to clear.
    */
   slateDifficulty?: MatchDifficulty | null;

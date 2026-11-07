@@ -30,7 +30,6 @@ import {
   toLegacyDateParam,
   utcDayKey,
 } from '@/features/matches/formatMatchDate';
-import { aggregateSelectionDifficulty } from '@/features/matches/matchDifficulty';
 import { SubroundScrubber } from '@/features/matches/SubroundScrubber';
 import { colors } from '@/theme';
 
@@ -157,11 +156,6 @@ export function AdminPredictionsWidget() {
         ? (matchesBySubround[selectedSubroundId] ?? [])
         : [],
     [selectedSubroundId, matchesBySubround],
-  );
-
-  const slateDifficulty = useMemo(
-    () => aggregateSelectionDifficulty(matches.map((m) => m.difficulty)),
-    [matches],
   );
 
   const sortedPlayers = useMemo(() => {
@@ -525,7 +519,6 @@ export function AdminPredictionsWidget() {
               playerName={playerLabel(player)}
               matches={matches}
               predictions={draft[player.auth_id] ?? {}}
-              slateDifficulty={slateDifficulty}
               expanded={!!expanded[player.auth_id]}
               onToggleExpand={() =>
                 setExpanded((prev) => ({

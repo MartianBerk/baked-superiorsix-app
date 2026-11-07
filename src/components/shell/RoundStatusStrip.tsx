@@ -33,7 +33,7 @@ function buildPrimaryLine(status: RoundStatus): string {
  * Thin strip under the main header.
  * - picking: n/X selections (X = current slate size)
  * - live / finished: user's correct count; finished keeps the same state
- * - difficulty pips when `status.slateDifficulty` is set (player: full slate only)
+ * - difficulty pips = aggregate of selected slate matches when set
  * - if another player has a perfect slate, show that alongside
  */
 export function RoundStatusStrip({ status }: Props) {

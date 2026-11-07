@@ -1,12 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 
-import type {
-  LiveMatch,
-  MatchDifficulty,
-  PredictionChoice,
-} from '@/api/superiorsix';
-import { DifficultyPips } from '@/features/matches/DifficultyPips';
+import type { LiveMatch, PredictionChoice } from '@/api/superiorsix';
 import { colors } from '@/theme';
 
 import { PickOutcomeBadge } from './PickOutcomeBadge';
@@ -26,7 +21,6 @@ type Props = {
    * correct picks once live/finished — same rules as the header strip.
    */
   score: number;
-  slateDifficulty: MatchDifficulty | null;
   expanded: boolean;
   onToggleExpand: () => void;
   /** Wall clock for live score / badge timing (Matches shared clock). */
@@ -38,13 +32,13 @@ type Props = {
  * Collapsed: name left; badges + n/X + chevron on the right
  * (extra gap between last badge and n/X).
  * Expanded: per-match Home | badge | Away (badge-only centre).
+ * Slate difficulty lives in the under-header strip, not per player row.
  */
 export function PlayerScoreSection({
   playerName,
   matches,
   predictions,
   score,
-  slateDifficulty,
   expanded,
   onToggleExpand,
   now = new Date(),
@@ -72,7 +66,6 @@ export function PlayerScoreSection({
         style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
       >
         <View style={styles.nameCol}>
-          <DifficultyPips difficulty={slateDifficulty} />
           <Text style={styles.name} numberOfLines={1}>
             {playerName}
           </Text>

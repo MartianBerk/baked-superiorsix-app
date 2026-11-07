@@ -1,14 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 
-import type {
-  LiveMatch,
-  MatchDifficulty,
-  PredictionChoice,
-} from '@/api/superiorsix';
+import type { LiveMatch, PredictionChoice } from '@/api/superiorsix';
 import { colors } from '@/theme';
-
-import { DifficultyPips } from '@/features/matches/DifficultyPips';
 
 import { AdminPredictionMatchRow } from './AdminPredictionMatchRow';
 
@@ -20,8 +14,6 @@ type Props = {
   matches: LiveMatch[];
   /** matchId → prediction for this player. */
   predictions: Record<number, PredictionChoice | null>;
-  /** Overall slate difficulty (mean of selection scores) — collapsed row only. */
-  slateDifficulty: MatchDifficulty | null;
   expanded: boolean;
   onToggleExpand: () => void;
   /** Match id currently saving for this player, if any. */
@@ -33,15 +25,14 @@ type Props = {
 
 /**
  * Expandable player section for admin predictions (matches KickoffGroup chrome).
- * Collapsed: overall difficulty pips + name left, n/X right, chevron
- * (X = current slate size).
+ * Collapsed: name left, n/X right, chevron (X = current slate size).
  * Expanded: match rows with H/D/A (no per-match difficulty).
+ * Slate difficulty lives in the under-header strip, not per player row.
  */
 export function AdminPlayerPredictionSection({
   playerName,
   matches,
   predictions,
-  slateDifficulty,
   expanded,
   onToggleExpand,
   busyMatchId,
@@ -71,7 +62,6 @@ export function AdminPlayerPredictionSection({
         style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
       >
         <View style={styles.headerLeft}>
-          <DifficultyPips difficulty={slateDifficulty} />
           <Text style={styles.name} numberOfLines={1}>
             {playerName}
           </Text>

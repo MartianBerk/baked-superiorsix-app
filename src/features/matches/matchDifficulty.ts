@@ -21,7 +21,7 @@ export function bandForScore(score: number): number {
 
 /**
  * Overall Super Six slate difficulty: mean of per-match scores, then band.
- * Used on admin Scores collapsed player rows (not per-match in expand).
+ * Used for the under-header strip (selected slate matches).
  */
 export function aggregateSelectionDifficulty(
   difficulties: (MatchDifficulty | null | undefined)[],

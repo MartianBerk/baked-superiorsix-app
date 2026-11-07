@@ -343,16 +343,15 @@ export function ScoresPlayerWidget() {
       authId,
       slateSize,
     );
-    const selected = viewer?.selected ?? 0;
-    const slateFullyPredicted = slateSize > 0 && selected >= slateSize;
     setPlayerPickingStatus(
       buildPlayerRoundStatus({
         phase: roundPhase,
         slateSize,
-        selectedCount: selected,
+        selectedCount: viewer?.selected ?? 0,
         correctCount: viewer?.correct ?? 0,
         perfectSix,
-        slateDifficulty: slateFullyPredicted ? slateDifficulty : null,
+        // Banner pips = selected slate matches, not prediction completeness.
+        slateDifficulty,
       }),
     );
   }, [
@@ -612,31 +611,23 @@ export function ScoresPlayerWidget() {
           ) : null}
 
           {matches.length > 0 && rankedBoards.length > 0
-            ? rankedBoards.map((board) => {
-                // Difficulty pips only once this player has picked every slate match.
-                const slateFullySelected =
-                  matches.length > 0 && board.selected >= matches.length;
-                return (
-                  <PlayerScoreSection
-                    key={board.authId}
-                    playerName={board.name}
-                    matches={matches}
-                    predictions={board.predictions}
-                    score={board.score}
-                    slateDifficulty={
-                      slateFullySelected ? slateDifficulty : null
-                    }
-                    expanded={!!expanded[board.authId]}
-                    now={now}
-                    onToggleExpand={() =>
-                      setExpanded((prev) => ({
-                        ...prev,
-                        [board.authId]: !prev[board.authId],
-                      }))
-                    }
-                  />
-                );
-              })
+            ? rankedBoards.map((board) => (
+                <PlayerScoreSection
+                  key={board.authId}
+                  playerName={board.name}
+                  matches={matches}
+                  predictions={board.predictions}
+                  score={board.score}
+                  expanded={!!expanded[board.authId]}
+                  now={now}
+                  onToggleExpand={() =>
+                    setExpanded((prev) => ({
+                      ...prev,
+                      [board.authId]: !prev[board.authId],
+                    }))
+                  }
+                />
+              ))
             : null}
         </View>
       )}

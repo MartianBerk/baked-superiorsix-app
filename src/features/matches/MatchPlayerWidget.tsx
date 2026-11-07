@@ -282,9 +282,6 @@ export function MatchPlayerWidget() {
       subroundOver: selectedSubround?.is_over === true,
       kickoffLocked: subroundLocked,
     });
-    // Same as Scores rows: hide difficulty pips until every slate pick is set.
-    const slateFullyPredicted =
-      slateSize > 0 && pickedCount >= slateSize;
     setPlayerPickingStatus(
       buildPlayerRoundStatus({
         phase,
@@ -292,7 +289,8 @@ export function MatchPlayerWidget() {
         selectedCount: pickedCount,
         correctCount: viewerCorrect ?? 0,
         perfectSix,
-        slateDifficulty: slateFullyPredicted ? slateDifficulty : null,
+        // Banner pips = selected slate matches (always), not prediction gate.
+        slateDifficulty,
       }),
     );
   }, [
