@@ -24,6 +24,11 @@ import {
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
 import type { PerfectSixHolder } from '@/components/shell/potBanner';
+import {
+  buildPlayerRoundStatus,
+  countSelectedPredictions,
+  resolvePlayerRoundPhase,
+} from '@/components/shell/playerRoundStatus';
 import { useRoundStatus } from '@/components/shell/RoundStatusContext';
 import {
   discoveryDayKeys,
@@ -35,7 +40,7 @@ import { SubroundScrubber } from '@/features/matches/SubroundScrubber';
 import { colors } from '@/theme';
 
 import { KickoffDateDisplay } from './KickoffDateDisplay';
-import { LIVE_POLL_MS } from './liveScoreDisplay';
+import { LIVE_POLL_MS, LOCK_BEFORE_KICKOFF_MS } from './liveScoreDisplay';
 import { isPickCurrentlyCorrect } from './pickOutcome';
 import { PlayerScoreSection } from './PlayerScoreSection';
 
@@ -46,7 +51,12 @@ type SlateMatch = LiveMatch & {
 type PlayerBoard = {
   authId: string;
   name: string;
+  /** Display numerator: selected while picking, correct once live/finished. */
   score: number;
+  /** Set prediction badges (Matches-equivalent numerator). */
+  selected: number;
+  /** Correct picks vs live/finished scoreline. */
+  correct: number;
   predictions: Record<number, PredictionChoice | null>;
 };
 
@@ -106,11 +116,14 @@ function boardsFromLiveScores(scores: LiveScorePlayer[]): PlayerBoard[] {
     for (const row of player.matches) {
       predictions[row.match_id] = row.prediction;
     }
+    const selected = countSelectedPredictions(Object.values(predictions));
     return {
       authId: player.auth_id,
       name: displayNameFromLiveScore(player),
-      // Placeholder — display score is recomputed from live slate + picks.
-      score: player.score,
+      // Placeholders — display score is recomputed from live slate + picks.
+      score: selected,
+      selected,
+      correct: 0,
       predictions,
     };
   });
@@ -129,21 +142,22 @@ function displayNameFromLiveScore(row: LiveScorePlayer): string {
   return 'Player';
 }
 
-function perfectSixFromRanked(
-  ranked: PlayerBoard[],
+function perfectSixFromCorrect(
+  boards: PlayerBoard[],
+  correctByAuth: Map<string, number>,
   viewerAuthId: string | null | undefined,
   slateSize: number,
 ): PerfectSixHolder[] {
   const need = slateSize > 0 ? slateSize : 6;
-  return ranked
-    .filter((row) => row.score >= need)
+  return boards
+    .filter((row) => (correctByAuth.get(row.authId) ?? 0) >= need)
     .map((row) => ({
       displayName: row.name,
       isViewer: viewerAuthId != null && row.authId === viewerAuthId,
     }));
 }
 
-/** Correct picks for this player against the live slate (0–6). */
+/** Correct picks for this player against the live slate. */
 function countCorrectPicks(
   predictions: Record<number, PredictionChoice | null>,
   slate: SlateMatch[],
@@ -156,6 +170,20 @@ function countCorrectPicks(
     }
   }
   return correct;
+}
+
+function isKickoffLocked(
+  minKickoff: string | null | undefined,
+  now: Date,
+): boolean {
+  if (!minKickoff) {
+    return false;
+  }
+  const kickoffMs = Date.parse(minKickoff);
+  if (!Number.isFinite(kickoffMs)) {
+    return false;
+  }
+  return now.getTime() + LOCK_BEFORE_KICKOFF_MS >= kickoffMs;
 }
 
 function sortBoardsByCorrect(boards: PlayerBoard[]): PlayerBoard[] {
@@ -256,22 +284,49 @@ export function ScoresPlayerWidget() {
     [matches],
   );
 
-  /** Header n/6 is correct-picks count from live slate, not raw API score. */
-  const rankedBoards = useMemo(
-    () =>
-      sortBoardsByCorrect(
-        boards.map((board) => ({
-          ...board,
-          score: countCorrectPicks(board.predictions, matches, now),
-        })),
-      ),
-    [boards, matches, now],
+  const slateSize =
+    matches.length > 0
+      ? matches.length
+      : (selectedSubround?.match_count ?? 0);
+
+  const kickoffLocked = isKickoffLocked(
+    selectedSubround?.min_kickoff ?? matches[0]?.match_date,
+    now,
   );
 
+  const roundPhase = resolvePlayerRoundPhase({
+    boardLive,
+    subroundOver: selectedSubround?.is_over === true,
+    kickoffLocked,
+  });
+
+  /**
+   * Row + header numerator: while picking, count set predictions (badges),
+   * same as Matches. Once live/finished, count correct picks.
+   */
+  const rankedBoards = useMemo(() => {
+    const withScores = boards.map((board) => {
+      const selected = countSelectedPredictions(
+        Object.values(board.predictions),
+      );
+      const correct = countCorrectPicks(board.predictions, matches, now);
+      return {
+        ...board,
+        selected,
+        correct,
+        score: roundPhase === 'picking' ? selected : correct,
+      };
+    });
+    return sortBoardsByCorrect(withScores);
+  }, [boards, matches, now, roundPhase]);
+
   useEffect(() => {
-    // Keep header strip + pot holders in sync while Scores is mounted.
+    // Publish the same RoundStatus shape Matches uses (shared builder).
     if (!isAuthenticated) {
       setPlayerPickingStatus(null);
+      return;
+    }
+    if (slateSize <= 0 && rankedBoards.length === 0) {
       return;
     }
     const authId = session?.userId;
@@ -279,28 +334,30 @@ export function ScoresPlayerWidget() {
       authId != null
         ? rankedBoards.find((row) => row.authId === authId)
         : undefined;
-    const slateSize =
-      matches.length > 0
-        ? matches.length
-        : (selectedSubround?.match_count ?? 0);
-    const perfectSix = perfectSixFromRanked(rankedBoards, authId, slateSize);
-    const subroundLocked = selectedSubround?.is_over === true;
-    if (subroundLocked || boardLive || rankedBoards.length > 0) {
-      setPlayerPickingStatus({
-        phase: boardLive ? 'live' : subroundLocked ? 'finished' : 'live',
+    const correctByAuth = new Map(
+      rankedBoards.map((row) => [row.authId, row.correct] as const),
+    );
+    const perfectSix = perfectSixFromCorrect(
+      rankedBoards,
+      correctByAuth,
+      authId,
+      slateSize,
+    );
+    setPlayerPickingStatus(
+      buildPlayerRoundStatus({
+        phase: roundPhase,
         slateSize,
-        correctCount: viewer?.score ?? 0,
+        selectedCount: viewer?.selected ?? 0,
+        correctCount: viewer?.correct ?? 0,
         perfectSix,
-      });
-    }
+      }),
+    );
   }, [
     isAuthenticated,
     session?.userId,
     rankedBoards,
-    matches.length,
-    selectedSubround?.match_count,
-    boardLive,
-    selectedSubround?.is_over,
+    slateSize,
+    roundPhase,
     setPlayerPickingStatus,
   ]);
 

@@ -5,6 +5,7 @@ import { AppHeader } from '@/components/shell/AppHeader';
 import { BottomMenu } from '@/components/shell/BottomMenu';
 import { DualModeAuthReset } from '@/components/shell/DualModeAuthReset';
 import { GamedayHeaderSync } from '@/components/shell/GamedayHeaderSync';
+import { GamedayRoundStatusSync } from '@/components/shell/GamedayRoundStatusSync';
 import { RoundStatusProvider } from '@/components/shell/RoundStatusContext';
 import { UserTabModeProvider } from '@/features/auth/UserTabModeContext';
 import { LeadersTabModeProvider } from '@/features/leaders/LeadersTabModeContext';
@@ -26,6 +27,7 @@ export default function SuperSixLayout() {
             <RoundStatusProvider>
               <DualModeAuthReset />
               <GamedayHeaderSync />
+              <GamedayRoundStatusSync />
               <View style={styles.shell}>
                 <AppHeader />
                 <Tabs

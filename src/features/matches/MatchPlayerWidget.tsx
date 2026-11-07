@@ -24,6 +24,10 @@ import {
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
 import type { PerfectSixHolder } from '@/components/shell/potBanner';
+import {
+  buildPlayerRoundStatus,
+  resolvePlayerRoundPhase,
+} from '@/components/shell/playerRoundStatus';
 import { useRoundStatus } from '@/components/shell/RoundStatusContext';
 import { KickoffDateDisplay } from '@/features/scores/KickoffDateDisplay';
 import { LIVE_POLL_MS } from '@/features/scores/liveScoreDisplay';
@@ -262,29 +266,30 @@ export function MatchPlayerWidget() {
   useEffect(() => {
     // Header n/X + pot banner: signed-in only. Persist across tabs (do not
     // clear on unmount) so Scores / Leaders / Profile keep the same strip.
+    // Same builder as Scores / GamedayRoundStatusSync.
     if (!isAuthenticated) {
       setPlayerPickingStatus(null);
       return;
     }
-    if (subroundLocked || boardLive) {
-      setPlayerPickingStatus({
-        phase: boardLive ? 'live' : 'finished',
-        slateSize,
-        correctCount: viewerCorrect ?? 0,
-        perfectSix,
-      });
-    } else {
-      setPlayerPickingStatus({
-        phase: 'picking',
+    const phase = resolvePlayerRoundPhase({
+      boardLive,
+      subroundOver: selectedSubround?.is_over === true,
+      kickoffLocked: subroundLocked,
+    });
+    setPlayerPickingStatus(
+      buildPlayerRoundStatus({
+        phase,
         slateSize,
         selectedCount: pickedCount,
+        correctCount: viewerCorrect ?? 0,
         perfectSix,
-      });
-    }
+      }),
+    );
   }, [
     isAuthenticated,
     subroundLocked,
     boardLive,
+    selectedSubround?.is_over,
     viewerCorrect,
     pickedCount,
     slateSize,

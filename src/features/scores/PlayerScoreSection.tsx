@@ -21,7 +21,10 @@ type Props = {
   matches: LiveMatch[];
   /** matchId → prediction for this player. */
   predictions: Record<number, PredictionChoice | null>;
-  /** Correct picks for this player shown as n/X (X = slate size). */
+  /**
+   * Display numerator for n/X (X = slate size): set predictions while picking,
+   * correct picks once live/finished — same rules as the header strip.
+   */
   score: number;
   slateDifficulty: MatchDifficulty | null;
   expanded: boolean;
@@ -64,7 +67,7 @@ export function PlayerScoreSection({
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded }}
-        accessibilityLabel={`${playerName}, picks ${pickSummary}, ${countLabel} correct${expanded ? ', expanded' : ''}`}
+        accessibilityLabel={`${playerName}, picks ${pickSummary}, ${countLabel}${expanded ? ', expanded' : ''}`}
         onPress={onToggleExpand}
         style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
       >

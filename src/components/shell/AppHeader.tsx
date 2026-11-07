@@ -54,7 +54,7 @@ function isProfilePath(pathname: string): boolean {
 }
 
 /**
- * Top shell: round value left (`# n`), logo center, pot value right (`£…`),
+ * Top shell: round value left (`#n`), logo center, pot value right (`£…`),
  * optional perfect-slate pot banner, plus thin round-status strip.
  * Player strip + pot banner show on all four non-admin tabs when logged in.
  */

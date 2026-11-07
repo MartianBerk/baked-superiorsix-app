@@ -26,7 +26,7 @@ type Props = {
   selectedId: number | null;
   onChange: (subround: Subround) => void;
   /**
-   * `sequence` (admin): `# n`.
+   * `sequence` (admin): `#n`.
    * `kickoff` (player): earliest kickoff date/time in the slate.
    */
   labelMode?: SubroundLabelMode;
@@ -36,9 +36,9 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
-/** Admin centre label: sequence as `# n`. */
+/** Admin centre label: sequence as `#n`. */
 export function subroundSequenceLabel(subround: Subround): string {
-  return `# ${subround.sequence}`;
+  return `#${subround.sequence}`;
 }
 
 /** Player centre label: earliest kickoff date + time (`Sat 31 Oct 3pm`). */
