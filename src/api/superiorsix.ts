@@ -513,6 +513,185 @@ export async function addPrediction(
   return { matchId: body.match_id, prediction: value };
 }
 
+/**
+ * Admin-on-behalf prediction row from SS-17 (`/admin/listpredictions*`).
+ * Keyed by roster `auth_id` (legacy used numeric `player_id`).
+ */
+export type AdminMatchPrediction = {
+  id?: number;
+  round_id?: number;
+  auth_id: string;
+  match_id: number;
+  prediction: PredictionChoice;
+  home_team?: string;
+  away_team?: string;
+  match_date?: string;
+  first_name?: string;
+  last_name?: string;
+};
+
+function asPredictionChoice(value: unknown): PredictionChoice | null {
+  if (value === 'home' || value === 'draw' || value === 'away') {
+    return value;
+  }
+  return null;
+}
+
+/**
+ * Normalize SS-17 / legacy list rows. Accepts `auth_id` (preferred) or
+ * string `player_id` during the BE transition.
+ */
+function normalizeAdminPrediction(
+  raw: Record<string, unknown>,
+): AdminMatchPrediction | null {
+  const matchId = Number(raw.match_id);
+  if (!Number.isFinite(matchId)) {
+    return null;
+  }
+  const choice = asPredictionChoice(raw.prediction);
+  if (choice == null) {
+    return null;
+  }
+  const authRaw = raw.auth_id ?? raw.player_id;
+  if (authRaw == null || authRaw === '') {
+    return null;
+  }
+  const authId = String(authRaw);
+  const roundId =
+    raw.round_id == null || raw.round_id === ''
+      ? undefined
+      : Number(raw.round_id);
+  const id =
+    raw.id == null || raw.id === '' ? undefined : Number(raw.id);
+  return {
+    ...(id != null && Number.isFinite(id) ? { id } : {}),
+    ...(roundId != null && Number.isFinite(roundId)
+      ? { round_id: roundId }
+      : {}),
+    auth_id: authId,
+    match_id: matchId,
+    prediction: choice,
+    ...(typeof raw.home_team === 'string' ? { home_team: raw.home_team } : {}),
+    ...(typeof raw.away_team === 'string' ? { away_team: raw.away_team } : {}),
+    ...(typeof raw.match_date === 'string'
+      ? { match_date: raw.match_date }
+      : {}),
+    ...(typeof raw.first_name === 'string'
+      ? { first_name: raw.first_name }
+      : {}),
+    ...(typeof raw.last_name === 'string' ? { last_name: raw.last_name } : {}),
+  };
+}
+
+function assertNotAdminPredictionNoop(body: unknown, action: string): void {
+  if (
+    body &&
+    typeof body === 'object' &&
+    'noop' in body &&
+    (body as { noop?: unknown }).noop === true
+  ) {
+    throw new ApiError(
+      501,
+      `Admin predictions API not ready yet (${action}). Waiting on SS-17.`,
+    );
+  }
+}
+
+/**
+ * `GET /admin/listpredictionsnew?matchdate=` — all predictions for that UTC
+ * day in the current round (SS-17). `matchdate` is legacy `dd-mm-yyyy`.
+ * Empty / noop scaffold responses yield `[]` so the Scores admin UI can still
+ * render the slate.
+ */
+export async function listAdminPredictions(
+  token: string,
+  opts: { matchDate: string },
+): Promise<AdminMatchPrediction[]> {
+  const params = new URLSearchParams({ matchdate: opts.matchDate });
+  let response: Response;
+  try {
+    response = await apiFetch(
+      'game',
+      `/admin/listpredictionsnew?${params.toString()}`,
+      { token },
+    );
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<Record<string, unknown>>(response);
+  if (
+    body &&
+    typeof body === 'object' &&
+    'noop' in body &&
+    body.noop === true
+  ) {
+    return [];
+  }
+  const rows = Array.isArray(body.predictions) ? body.predictions : [];
+  const out: AdminMatchPrediction[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== 'object') {
+      continue;
+    }
+    const normalized = normalizeAdminPrediction(
+      row as Record<string, unknown>,
+    );
+    if (normalized) {
+      out.push(normalized);
+    }
+  }
+  return out;
+}
+
+/**
+ * `POST /admin/addprediction` — submit or update Home/Draw/Away on behalf of
+ * a rostered player (SS-17). Body uses `auth_id` (UUID string).
+ */
+export async function addAdminPrediction(
+  token: string,
+  opts: {
+    authId: string;
+    matchId: number;
+    prediction: PredictionChoice;
+  },
+): Promise<{ authId: string; matchId: number; prediction: PredictionChoice }> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/admin/addprediction', {
+      method: 'POST',
+      token,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        auth_id: opts.authId,
+        match_id: opts.matchId,
+        prediction: opts.prediction,
+      }),
+    });
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<Record<string, unknown>>(response);
+  assertNotAdminPredictionNoop(body, 'addprediction');
+  const choice =
+    asPredictionChoice(body.prediction) ??
+    asPredictionChoice(opts.prediction);
+  if (choice == null) {
+    throw new ApiError(
+      response.status,
+      'Unexpected prediction value from admin addprediction.',
+    );
+  }
+  const matchId =
+    body.match_id != null && Number.isFinite(Number(body.match_id))
+      ? Number(body.match_id)
+      : opts.matchId;
+  const authId =
+    body.auth_id != null && String(body.auth_id) !== ''
+      ? String(body.auth_id)
+      : opts.authId;
+  return { authId, matchId, prediction: choice };
+}
+
 /** `GET /admin/currentround` — open parent round or null. */
 export async function getCurrentRound(token: string): Promise<RoundInfo | null> {
   let response: Response;

@@ -7,6 +7,7 @@ import { MenuIcon, type MenuIconName } from '@/components/icons/MenuIcon';
 import { useUserTabMode } from '@/features/auth/UserTabModeContext';
 import { useLeadersTabMode } from '@/features/leaders/LeadersTabModeContext';
 import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
+import { useScoresTabMode } from '@/features/scores/ScoresTabModeContext';
 import { colors } from '@/theme';
 
 /** Tab order: fixtures → scores → leaders → user (rightmost). */
@@ -21,7 +22,7 @@ const TAB_ICONS: Record<string, MenuIconName> = {
 const ADMIN_ROLE = 'admin';
 
 /** Tabs that swap player ↔ admin widgets in place. */
-const DUAL_MODE_TABS = new Set(['index', 'leaders', 'profile']);
+const DUAL_MODE_TABS = new Set(['index', 'scores', 'leaders', 'profile']);
 
 const HIT_SIZE = 48;
 
@@ -47,7 +48,7 @@ type TabBarProps = {
  * Main menu at the bottom — inset ~3% each side, rounded bar,
  * circular selected highlight around each icon.
  *
- * Dual-mode tabs (fixtures, leaders, user): first tap focuses the tab;
+ * Dual-mode tabs (fixtures, scores, leaders, user): first tap focuses the tab;
  * second tap on the already-focused tab swaps player ↔ admin in place when
  * the signed-in user has superiorsix `admin`. Non-admins get a no-op on that
  * second tap. Header + nav stay visible during the swap.
@@ -57,6 +58,7 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
   const { isAuthenticated, hasRole } = useAuth();
   const { mode: profileMode, setMode: setProfileMode } = useUserTabMode();
   const { mode: fixturesMode, setMode: setFixturesMode } = useFixturesTabMode();
+  const { mode: scoresMode, setMode: setScoresMode } = useScoresTabMode();
   const { mode: leadersMode, setMode: setLeadersMode } = useLeadersTabMode();
   const canAdminToggle = isAuthenticated && hasRole(ADMIN_ROLE);
 
@@ -73,6 +75,10 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
         setFixturesMode(fixturesMode === 'normal' ? 'admin' : 'normal');
         return;
       }
+      if (routeName === 'scores') {
+        setScoresMode(scoresMode === 'normal' ? 'admin' : 'normal');
+        return;
+      }
       if (routeName === 'leaders') {
         setLeadersMode(leadersMode === 'normal' ? 'admin' : 'normal');
       }
@@ -81,9 +87,11 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
       canAdminToggle,
       profileMode,
       fixturesMode,
+      scoresMode,
       leadersMode,
       setProfileMode,
       setFixturesMode,
+      setScoresMode,
       setLeadersMode,
     ],
   );
@@ -109,6 +117,7 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
           const showAdminBadge =
             (route.name === 'profile' && profileMode === 'admin') ||
             (route.name === 'index' && fixturesMode === 'admin') ||
+            (route.name === 'scores' && scoresMode === 'admin') ||
             (route.name === 'leaders' && leadersMode === 'admin');
 
           return (

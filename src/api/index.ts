@@ -18,6 +18,7 @@ export type {
 } from './auth';
 export {
   acceptInvite,
+  addAdminPrediction,
   addPlayer,
   addPrediction,
   addRound,
@@ -29,6 +30,7 @@ export {
   getPrediction,
   invitePlayer,
   isNoRoundInProgressError,
+  listAdminPredictions,
   listAdminSubrounds,
   listGameSubrounds,
   listInvites,
@@ -43,6 +45,7 @@ export type {
   AcceptInvitePayload,
   AcceptInviteResult,
   AddPlayerPayload,
+  AdminMatchPrediction,
   InvitePlayerPayload,
   InvitePlayerResult,
   LiveMatch,
