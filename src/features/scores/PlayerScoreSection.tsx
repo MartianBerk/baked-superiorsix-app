@@ -16,14 +16,12 @@ import { ScoreMatchRow } from './ScoreMatchRow';
 const CHEVRON_DOWN = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
 const CHEVRON_UP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>`;
 
-const SLOT_TOTAL = 6;
-
 type Props = {
   playerName: string;
   matches: LiveMatch[];
   /** matchId → prediction for this player. */
   predictions: Record<number, PredictionChoice | null>;
-  /** Correct picks for this player (0–6) shown as n/6. */
+  /** Correct picks for this player shown as n/X (X = slate size). */
   score: number;
   slateDifficulty: MatchDifficulty | null;
   expanded: boolean;
@@ -34,8 +32,8 @@ type Props = {
 
 /**
  * Collapsible player block for Scores.
- * Collapsed: name left; badges + n/6 + chevron on the right
- * (extra gap between last badge and n/6).
+ * Collapsed: name left; badges + n/X + chevron on the right
+ * (extra gap between last badge and n/X).
  * Expanded: per-match Home | badge | Away (badge-only centre).
  */
 export function PlayerScoreSection({
@@ -52,7 +50,8 @@ export function PlayerScoreSection({
     'CURRENT',
     colors.textMuted,
   );
-  const countLabel = `${score}/${SLOT_TOTAL}`;
+  const slateSize = matches.length > 0 ? matches.length : 6;
+  const countLabel = `${score}/${slateSize}`;
   const pickSummary = matches
     .map((match) => {
       const prediction = predictions[match.id] ?? null;

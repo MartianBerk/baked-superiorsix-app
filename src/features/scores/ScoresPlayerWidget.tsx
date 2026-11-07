@@ -132,9 +132,11 @@ function displayNameFromLiveScore(row: LiveScorePlayer): string {
 function perfectSixFromRanked(
   ranked: PlayerBoard[],
   viewerAuthId: string | null | undefined,
+  slateSize: number,
 ): PerfectSixHolder[] {
+  const need = slateSize > 0 ? slateSize : 6;
   return ranked
-    .filter((row) => row.score >= 6)
+    .filter((row) => row.score >= need)
     .map((row) => ({
       displayName: row.name,
       isViewer: viewerAuthId != null && row.authId === viewerAuthId,
@@ -277,11 +279,16 @@ export function ScoresPlayerWidget() {
       authId != null
         ? rankedBoards.find((row) => row.authId === authId)
         : undefined;
-    const perfectSix = perfectSixFromRanked(rankedBoards, authId);
+    const slateSize =
+      matches.length > 0
+        ? matches.length
+        : (selectedSubround?.match_count ?? 0);
+    const perfectSix = perfectSixFromRanked(rankedBoards, authId, slateSize);
     const subroundLocked = selectedSubround?.is_over === true;
     if (subroundLocked || boardLive || rankedBoards.length > 0) {
       setPlayerPickingStatus({
         phase: boardLive ? 'live' : subroundLocked ? 'finished' : 'live',
+        slateSize,
         correctCount: viewer?.score ?? 0,
         perfectSix,
       });
@@ -290,6 +297,8 @@ export function ScoresPlayerWidget() {
     isAuthenticated,
     session?.userId,
     rankedBoards,
+    matches.length,
+    selectedSubround?.match_count,
     boardLive,
     selectedSubround?.is_over,
     setPlayerPickingStatus,

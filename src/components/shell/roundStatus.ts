@@ -9,18 +9,23 @@ export type RoundPhase = 'picking' | 'live' | 'finished';
  */
 export type RoundStatus = {
   phase: RoundPhase;
-  /** Matches selected while picking (0–6). */
+  /**
+   * Games in the current slate/subround (denominator for n/X selections|correct).
+   * Prefer the loaded board/matches length — not a hard-coded 6.
+   */
+  slateSize?: number;
+  /** Matches selected while picking (0–slateSize). */
   selectedCount?: number;
-  /** Correct results for the logged-in player while live/finished (0–6). */
+  /** Correct results for the logged-in player while live/finished. */
   correctCount?: number;
   /**
-   * Another player currently has all six correct.
+   * Another player currently has every slate pick correct.
    * Shown alongside the user's own live/finished summary.
    */
   rivalPerfect?: {
     displayName: string;
   } | null;
-  /** Everyone currently on 6/6 (drives the pot banner). */
+  /** Everyone currently on a perfect slate (drives the pot banner). */
   perfectSix?: PerfectSixHolder[];
 };
 

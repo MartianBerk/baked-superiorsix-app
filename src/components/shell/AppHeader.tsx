@@ -88,7 +88,10 @@ export function AppHeader({
       : null);
 
   const potHolders = status?.perfectSix;
-  const potLine = formatPotBannerLine(potHolders ?? []);
+  const potLine = formatPotBannerLine(
+    potHolders ?? [],
+    status?.slateSize ?? 6,
+  );
   const viewerHasPot = (potHolders ?? []).some((h) => h.isViewer);
   const showPotBanner =
     isAuthenticated && !hideStatusStrip && potLine != null;

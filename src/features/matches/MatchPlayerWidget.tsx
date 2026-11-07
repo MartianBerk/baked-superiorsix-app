@@ -167,9 +167,11 @@ function displayNameFromLiveScore(row: {
 function perfectSixFromBoard(
   board: LiveScoresBoard,
   viewerAuthId: string | null | undefined,
+  slateSize: number,
 ): PerfectSixHolder[] {
+  const need = slateSize > 0 ? slateSize : 6;
   return board.scores
-    .filter((row) => row.score >= 6)
+    .filter((row) => row.score >= need)
     .map((row) => ({
       displayName: displayNameFromLiveScore(row),
       isViewer: viewerAuthId != null && row.auth_id === viewerAuthId,
@@ -240,7 +242,7 @@ export function MatchPlayerWidget() {
     return false;
   }, [selectedSubround, now]);
 
-  /** Header “n / 6 Selections” — optimistic from local draft for this slate. */
+  /** Header “n / X Selections” — optimistic from local draft for this slate. */
   const pickedCount = useMemo(() => {
     let count = 0;
     for (const match of matches) {
@@ -251,8 +253,14 @@ export function MatchPlayerWidget() {
     return count;
   }, [matches, draft]);
 
+  /** Prefer loaded fixtures; fall back to subround.match_count from list API. */
+  const slateSize =
+    matches.length > 0
+      ? matches.length
+      : (selectedSubround?.match_count ?? 0);
+
   useEffect(() => {
-    // Header n/6 + pot banner: signed-in only. Persist across tabs (do not
+    // Header n/X + pot banner: signed-in only. Persist across tabs (do not
     // clear on unmount) so Scores / Leaders / Profile keep the same strip.
     if (!isAuthenticated) {
       setPlayerPickingStatus(null);
@@ -261,12 +269,14 @@ export function MatchPlayerWidget() {
     if (subroundLocked || boardLive) {
       setPlayerPickingStatus({
         phase: boardLive ? 'live' : 'finished',
+        slateSize,
         correctCount: viewerCorrect ?? 0,
         perfectSix,
       });
     } else {
       setPlayerPickingStatus({
         phase: 'picking',
+        slateSize,
         selectedCount: pickedCount,
         perfectSix,
       });
@@ -277,6 +287,7 @@ export function MatchPlayerWidget() {
     boardLive,
     viewerCorrect,
     pickedCount,
+    slateSize,
     perfectSix,
     setPlayerPickingStatus,
   ]);
@@ -286,7 +297,9 @@ export function MatchPlayerWidget() {
       setBoardLive(board.live);
       setNextKickoff(board.next_kickoff);
       const authId = session?.userId;
-      setPerfectSix(perfectSixFromBoard(board, authId));
+      const boardSlateSize =
+        board.matches.length > 0 ? board.matches.length : matches.length;
+      setPerfectSix(perfectSixFromBoard(board, authId, boardSlateSize));
       if (authId) {
         const mine = board.scores.find((row) => row.auth_id === authId);
         setViewerCorrect(mine != null ? mine.score : null);
@@ -303,7 +316,7 @@ export function MatchPlayerWidget() {
         [targetId]: mergeBoardFixtures(prev[targetId] ?? [], board.matches),
       }));
     },
-    [session?.userId],
+    [session?.userId, matches.length],
   );
 
   const loadLiveBoard = useCallback(

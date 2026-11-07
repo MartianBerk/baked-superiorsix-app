@@ -8,32 +8,43 @@ type Props = {
   status: RoundStatus;
 };
 
+/** Denominator for header n/X — loaded slate size, with 6 only as last-resort fallback. */
+export function resolveSlateSize(status: RoundStatus): number {
+  const size = status.slateSize;
+  if (size != null && Number.isFinite(size) && size > 0) {
+    return Math.floor(size);
+  }
+  return 6;
+}
+
 function buildPrimaryLine(status: RoundStatus): string {
+  const total = resolveSlateSize(status);
   if (status.phase === 'picking') {
     const n = status.selectedCount ?? 0;
-    return `${n} / 6 Selections`;
+    return `${n} / ${total} Selections`;
   }
 
   const correct = status.correctCount ?? 0;
-  return `${correct} / 6 correct`;
+  return `${correct} / ${total} correct`;
 }
 
 /**
  * Thin strip under the main header.
- * - picking: n/6 selections (legacy MatchSelector / Games copy)
+ * - picking: n/X selections (X = current slate size)
  * - live / finished: user's correct count; finished keeps the same state
- * - if another player has all 6, show that alongside
+ * - if another player has a perfect slate, show that alongside
  */
 export function RoundStatusStrip({ status }: Props) {
+  const total = resolveSlateSize(status);
   const primary = buildPrimaryLine(status);
   const complete =
     status.phase === 'picking'
-      ? (status.selectedCount ?? 0) >= 6
-      : (status.correctCount ?? 0) >= 6;
+      ? (status.selectedCount ?? 0) >= total
+      : (status.correctCount ?? 0) >= total;
 
   const rival =
     status.phase !== 'picking' && status.rivalPerfect
-      ? `${status.rivalPerfect.displayName} has all 6`
+      ? `${status.rivalPerfect.displayName} has all ${total}`
       : null;
 
   return (
