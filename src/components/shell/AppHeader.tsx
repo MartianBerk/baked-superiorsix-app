@@ -98,6 +98,7 @@ export function AppHeader({
   }, [status?.perfectSix]);
 
   const potLine = useMemo(() => formatPotBannerLine(potHolders), [potHolders]);
+  const viewerHasPot = potHolders.some((h) => h.isViewer);
   const showPotBanner =
     isAuthenticated && !hideStatusStrip && potLine != null;
 
@@ -131,7 +132,14 @@ export function AppHeader({
             accessibilityRole="summary"
             accessibilityLabel={potLine}
           >
-            <Text style={styles.potBannerText}>
+            <Text
+              style={[
+                styles.potBannerText,
+                viewerHasPot
+                  ? styles.potBannerTextViewer
+                  : styles.potBannerTextOthers,
+              ]}
+            >
               {potLine}
               {FORCE_VIEWER_AND_OTHER_SIX_CORRECT ? ' (dev)' : ''}
             </Text>
@@ -177,11 +185,18 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   potBannerText: {
-    color: colors.amber,
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.3,
     textAlign: 'center',
+  },
+  /** Same green as RoundStatusStrip “6 / 6 correct”. */
+  potBannerTextViewer: {
+    color: colors.accentBright,
+  },
+  /** Other players only on 6/6. */
+  potBannerTextOthers: {
+    color: colors.amber,
   },
   side: {
     flex: 1,
