@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.menuActive,
   },
   gameNumber: {
-    color: colors.accentBright,
+    color: colors.text,
     fontSize: 11,
     fontWeight: '700',
     minWidth: 22,
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   minute: {
-    color: colors.accentBright,
+    color: colors.text,
     fontSize: 10,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],

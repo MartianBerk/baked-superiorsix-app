@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   gameNumber: {
-    color: colors.accentBright,
+    color: colors.text,
     fontSize: 11,
     fontWeight: '700',
     minWidth: 22,
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   minute: {
-    color: colors.accentBright,
+    color: colors.text,
     fontSize: 11,
     fontWeight: '700',
     minWidth: 28,
