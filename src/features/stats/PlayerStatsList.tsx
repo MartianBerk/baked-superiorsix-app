@@ -1,24 +1,25 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import type { AggregatePlayerStats } from '@/api/superiorsix';
 import { colors } from '@/theme';
 
+import type { StatsCompareRow } from './compareStats';
 import { formatSuccessRate } from './formatStats';
+import { RateDeltaBadge } from './RateDeltaBadge';
 
 type Props = {
-  stats: AggregatePlayerStats[];
+  stats: StatsCompareRow[];
   /** Highlight the signed-in player's row when present. */
   viewerAuthId?: string | null;
 };
 
 /**
- * Previous-round success rates for the roster (backend-sorted by rate desc).
+ * Current-round (n) success rates with inline n vs n−1 delta badges.
  */
 export function PlayerStatsList({ stats, viewerAuthId }: Props) {
   if (stats.length === 0) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyText}>No player rates for the previous round.</Text>
+        <Text style={styles.emptyText}>No player rates yet.</Text>
       </View>
     );
   }
@@ -29,10 +30,12 @@ export function PlayerStatsList({ stats, viewerAuthId }: Props) {
         <Text style={[styles.headerCell, styles.nameCol]}>Player</Text>
         <Text style={[styles.headerCell, styles.correctCol]}>Correct</Text>
         <Text style={[styles.headerCell, styles.rateCol]}>%</Text>
+        <Text style={[styles.headerCell, styles.deltaCol]}>vs n−1</Text>
       </View>
       {stats.map((row, index) => {
         const isViewer =
           viewerAuthId != null && row.playerid === viewerAuthId;
+        const rateLabel = formatSuccessRate(row.success_rate);
         return (
           <View
             key={row.playerid}
@@ -41,7 +44,7 @@ export function PlayerStatsList({ stats, viewerAuthId }: Props) {
               index % 2 === 0 ? styles.rowEven : styles.rowOdd,
               isViewer && styles.rowViewer,
             ]}
-            accessibilityLabel={`${row.name}, ${row.correct} of ${row.matches} correct, ${formatSuccessRate(row.success_rate)}${isViewer ? ', you' : ''}`}
+            accessibilityLabel={`${row.name}, ${row.correct} of ${row.matches} correct, ${rateLabel}${isViewer ? ', you' : ''}`}
           >
             <Text
               style={[styles.cell, styles.nameCol, isViewer && styles.viewerText]}
@@ -57,8 +60,11 @@ export function PlayerStatsList({ stats, viewerAuthId }: Props) {
             <Text
               style={[styles.cell, styles.rateCol, isViewer && styles.viewerText]}
             >
-              {formatSuccessRate(row.success_rate)}
+              {rateLabel}
             </Text>
+            <View style={styles.deltaCol}>
+              <RateDeltaBadge delta={row.rate_delta} />
+            </View>
           </View>
         );
       })}
@@ -116,16 +122,21 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   nameCol: {
-    flex: 1.4,
-    paddingRight: 8,
+    flex: 1.35,
+    paddingRight: 6,
   },
   correctCol: {
-    flex: 0.7,
+    flex: 0.65,
     textAlign: 'center',
   },
   rateCol: {
-    flex: 0.55,
-    textAlign: 'right',
+    flex: 0.45,
+    textAlign: 'center',
+  },
+  deltaCol: {
+    flex: 0.85,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
   empty: {
     paddingVertical: 18,

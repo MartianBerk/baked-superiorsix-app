@@ -14,6 +14,19 @@ export function formatSuccessRate(rate: number): string {
   return `${Math.round(rate)}%`;
 }
 
+/**
+ * n vs n−1 delta label (`up 10%` / `down 5%`).
+ * `delta` is percentage points (current − previous).
+ */
+export function formatRateDelta(delta: number): string {
+  const rounded = Math.round(delta);
+  if (rounded === 0) {
+    return 'flat';
+  }
+  const abs = Math.abs(rounded);
+  return rounded > 0 ? `up ${abs}%` : `down ${abs}%`;
+}
+
 /** Compact day label for graph axis (`01 Feb`). */
 export function formatScoreDayLabel(isoDate: string): string {
   const key = isoDate.includes('T') ? utcDayKey(isoDate) : isoDate.slice(0, 10);

@@ -14,14 +14,17 @@ import type { AggregateScorePoint } from '@/api/superiorsix';
 import { colors } from '@/theme';
 
 import { formatScoreDayLabel } from './formatStats';
+import { RateDeltaBadge } from './RateDeltaBadge';
 
 type Props = {
-  /** Day scores for the logged-in player within the previous closed round. */
+  /** Day scores for the logged-in player in the current round (n). */
   scores: AggregateScorePoint[];
   playerName: string;
   correct: number;
   matches: number;
   successRate: number;
+  /** Percentage-point delta vs previous round (n−1). */
+  rateDelta?: number | null;
 };
 
 const GRAPH_HEIGHT = 200;
@@ -41,6 +44,7 @@ export function SuccessRateGraph({
   correct,
   matches,
   successRate,
+  rateDelta = null,
 }: Props) {
   const { width: windowWidth } = useWindowDimensions();
   const width = Math.min(Math.max(windowWidth - 48, 280), 520);
@@ -78,9 +82,9 @@ export function SuccessRateGraph({
   if (scores.length === 0) {
     return (
       <View style={styles.emptyCard}>
-        <Text style={styles.emptyTitle}>No previous-round scores yet</Text>
+        <Text style={styles.emptyTitle}>No scores yet</Text>
         <Text style={styles.emptyBody}>
-          Your correct-pick graph appears after the first closed round.
+          Your correct-pick graph appears once this round has scored match days.
         </Text>
       </View>
     );
@@ -89,16 +93,17 @@ export function SuccessRateGraph({
   const rateLabel = `${Math.round(successRate)}%`;
 
   return (
-    <View style={styles.card} accessibilityLabel={`${playerName} previous round graph`}>
+    <View style={styles.card} accessibilityLabel={`${playerName} current round graph`}>
       <View style={styles.headerRow}>
         <View style={styles.headerText}>
-          <Text style={styles.kicker}>Previous round</Text>
+          <Text style={styles.kicker}>This round</Text>
           <Text style={styles.title} numberOfLines={1}>
             {playerName}
           </Text>
         </View>
         <View style={styles.summary}>
           <Text style={styles.rate}>{rateLabel}</Text>
+          <RateDeltaBadge delta={rateDelta} size="md" />
           <Text style={styles.correct}>
             {correct}/{matches}
           </Text>
@@ -285,6 +290,7 @@ const styles = StyleSheet.create({
   },
   summary: {
     alignItems: 'flex-end',
+    gap: 2,
   },
   rate: {
     color: colors.accentBright,

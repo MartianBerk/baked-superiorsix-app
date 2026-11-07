@@ -40,7 +40,7 @@ export function WinnersScrubber({ rounds }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.sectionLabel}>Winners archive</Text>
+      <Text style={styles.sectionLabel}>Round archive</Text>
       <View
         style={scrubberChrome.row}
         accessibilityRole="adjustable"
