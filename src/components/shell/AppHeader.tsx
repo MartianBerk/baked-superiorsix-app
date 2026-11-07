@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { usePathname } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,10 +10,6 @@ import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
 import { useScoresTabMode } from '@/features/scores/ScoresTabModeContext';
 import { colors } from '@/theme';
 
-import {
-  FORCE_VIEWER_AND_OTHER_SIX_CORRECT,
-  withDevOtherPlayerSixCorrect,
-} from './devPotBanner';
 import { formatPotBannerLine } from './potBanner';
 import { useRoundStatus } from './RoundStatusContext';
 import { RoundStatusStrip } from './RoundStatusStrip';
@@ -92,13 +87,9 @@ export function AppHeader({
       ? (playerPickingStatus ?? PLACEHOLDER_ROUND_STATUS)
       : null);
 
-  const potHolders = useMemo(() => {
-    const real = status?.perfectSix ?? [];
-    return withDevOtherPlayerSixCorrect(real);
-  }, [status?.perfectSix]);
-
-  const potLine = useMemo(() => formatPotBannerLine(potHolders), [potHolders]);
-  const viewerHasPot = potHolders.some((h) => h.isViewer);
+  const potHolders = status?.perfectSix;
+  const potLine = formatPotBannerLine(potHolders ?? []);
+  const viewerHasPot = (potHolders ?? []).some((h) => h.isViewer);
   const showPotBanner =
     isAuthenticated && !hideStatusStrip && potLine != null;
 
@@ -141,7 +132,6 @@ export function AppHeader({
               ]}
             >
               {potLine}
-              {FORCE_VIEWER_AND_OTHER_SIX_CORRECT ? ' (dev)' : ''}
             </Text>
           </View>
         ) : null}
