@@ -190,18 +190,12 @@ export function SuccessRateGraph({
   }, [scores, previousScores, plotWidth]);
 
   if (scores.length === 0 && previousScores.length === 0) {
-    return (
-      <View style={styles.emptyCard}>
-        <Text style={styles.emptyTitle}>No scores yet</Text>
-        <Text style={styles.emptyBody}>
-          Your correct-pick graph appears once this round has scored match days.
-        </Text>
-      </View>
-    );
+    return null;
   }
 
   const rateLabel = `${Math.round(successRate)}%`;
   const showAllXLabels = chart.slotCount <= 8;
+  const showDelta = rateDelta != null && Number.isFinite(rateDelta);
 
   return (
     <View
@@ -212,7 +206,7 @@ export function SuccessRateGraph({
         <Text style={styles.kicker}>This round</Text>
         <View style={styles.summary}>
           <Text style={styles.rate}>{rateLabel}</Text>
-          <RateDeltaBadge delta={rateDelta} size="md" />
+          {showDelta ? <RateDeltaBadge delta={rateDelta} size="md" /> : null}
           <Text style={styles.correct}>
             {correct}/{matches} correct
           </Text>
@@ -522,23 +516,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.menuBar,
     overflow: 'hidden',
     paddingVertical: 4,
-  },
-  emptyCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    padding: 18,
-  },
-  emptyTitle: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  emptyBody: {
-    color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
   },
 });

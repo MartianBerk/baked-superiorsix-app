@@ -17,14 +17,12 @@ type Props = {
  */
 export function PlayerStatsList({ stats, viewerAuthId }: Props) {
   if (stats.length === 0) {
-    return (
-      <View style={styles.empty}>
-        <Text style={styles.emptyText}>
-          No player rates yet. Rates appear after a round closes.
-        </Text>
-      </View>
-    );
+    return null;
   }
+
+  const showDeltaCol = stats.some(
+    (row) => row.rate_delta != null && Number.isFinite(row.rate_delta),
+  );
 
   return (
     <View style={styles.wrap}>
@@ -32,9 +30,11 @@ export function PlayerStatsList({ stats, viewerAuthId }: Props) {
         <Text style={[styles.headerCell, styles.nameCol]}>Player</Text>
         <Text style={[styles.headerCell, styles.correctCol]}>Correct</Text>
         <Text style={[styles.headerCell, styles.rateCol]}>%</Text>
-        <Text style={[styles.headerCell, styles.deltaHeader]}>
-          Vs Last Round
-        </Text>
+        {showDeltaCol ? (
+          <Text style={[styles.headerCell, styles.deltaHeader]}>
+            Vs Last Round
+          </Text>
+        ) : null}
       </View>
       {stats.map((row, index) => {
         const isViewer =
@@ -66,9 +66,11 @@ export function PlayerStatsList({ stats, viewerAuthId }: Props) {
             >
               {rateLabel}
             </Text>
-            <View style={styles.deltaCol}>
-              <RateDeltaBadge delta={row.rate_delta} />
-            </View>
+            {showDeltaCol ? (
+              <View style={styles.deltaCol}>
+                <RateDeltaBadge delta={row.rate_delta} />
+              </View>
+            ) : null}
           </View>
         );
       })}
@@ -145,18 +147,5 @@ const styles = StyleSheet.create({
   deltaHeader: {
     flex: 0.85,
     textAlign: 'right',
-  },
-  empty: {
-    paddingVertical: 18,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  emptyText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    textAlign: 'center',
   },
 });

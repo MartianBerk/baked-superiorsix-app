@@ -13,13 +13,20 @@ import {
   getStatsAggregate,
   getStatsWinners,
   type AggregatePlayerStats,
+  type AggregateStatsResponse,
   type HistoricRound,
 } from '@/api/superiorsix';
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
 import { colors } from '@/theme';
 
-import { type StatsCompareRow } from './compareStats';
+import { mergeCompareRows, type StatsCompareRow } from './compareStats';
+import {
+  MOCK_STATS_VIEWER_AUTH_ID,
+  withDevCurrentFallback,
+  withDevPreviousFallback,
+  withDevWinnersFallback,
+} from './mockStats';
 import { PlayerStatsList } from './PlayerStatsList';
 import { SuccessRateGraph } from './SuccessRateGraph';
 import {
@@ -29,8 +36,29 @@ import {
 import { WinnersList } from './WinnersList';
 
 /**
- * SS-18 currently exposes previous-closed-round (n−1) rates only. Until a
- * current-round aggregate exists, render that payload without n vs n−1 deltas.
+ * When TEMP mock data is in play, retarget the demo "you" row to the signed-in
+ * auth_id so the graph highlight matches the session.
+ */
+function alignMockViewer(
+  payload: AggregateStatsResponse,
+  viewerAuthId: string | null | undefined,
+  usedMock: boolean,
+): AggregateStatsResponse {
+  if (!usedMock || !viewerAuthId) {
+    return payload;
+  }
+  return {
+    stats: payload.stats.map((row) =>
+      row.playerid === MOCK_STATS_VIEWER_AUTH_ID
+        ? { ...row, playerid: viewerAuthId }
+        : row,
+    ),
+  };
+}
+
+/**
+ * Previous-only rows: same graphic shell data, no n vs n−1 deltas / overlay.
+ * Day series from the closed round are the primary (solid) graph series.
  */
 function rowsWithoutDelta(previous: AggregatePlayerStats[]): StatsCompareRow[] {
   return previous
@@ -55,8 +83,8 @@ function rowsWithoutDelta(previous: AggregatePlayerStats[]): StatsCompareRow[] {
 
 /**
  * Leaders (player) — Performance↔Winners scrubber.
- * Rates from SS-18 `GET /stats/aggregate` (previous closed round); winners from
- * `GET /stats/winners`. FE only renders precomputed rates.
+ * Live: SS-18 `/stats/aggregate` (n−1) + `/stats/winners`. Optional __DEV__ mocks
+ * when the DB is empty (`src/features/stats/mockStats.ts`).
  */
 export function StatsPlayerWidget() {
   const { isAuthenticated, session } = useAuth();
@@ -65,35 +93,97 @@ export function StatsPlayerWidget() {
   const [viewMode, setViewMode] = useState<StatsViewMode>('stats');
   const [compareRows, setCompareRows] = useState<StatsCompareRow[]>([]);
   const [rounds, setRounds] = useState<HistoricRound[]>([]);
+  const [usingMock, setUsingMock] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (opts?: { soft?: boolean }) => {
-    if (!opts?.soft) {
-      setLoading(true);
-    }
-    setError(null);
-    try {
-      const [previousLive, winnersLive] = await Promise.all([
-        getStatsAggregate(),
-        getStatsWinners(),
-      ]);
+  const load = useCallback(
+    async (opts?: { soft?: boolean }) => {
+      if (!opts?.soft) {
+        setLoading(true);
+      }
+      setError(null);
+      try {
+        const [previousLive, winnersLive] = await Promise.all([
+          getStatsAggregate(),
+          getStatsWinners(),
+        ]);
+        const previous = withDevPreviousFallback(previousLive);
+        const current = withDevCurrentFallback({ stats: [] });
+        const winners = withDevWinnersFallback(winnersLive);
+        const mockInUse =
+          previous.usedMock || current.usedMock || winners.usedMock;
 
-      // No current-round aggregate on SS-18 yet — show n−1 rates without deltas.
-      setCompareRows(rowsWithoutDelta(previousLive.stats));
-      setRounds(winnersLive.rounds);
-    } catch (err) {
-      const message =
-        err instanceof ApiError
-          ? err.message
-          : 'Could not load stats. Is baked-superiorsix up?';
-      setError(message);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+        const alignedCurrent = alignMockViewer(
+          current.data,
+          viewerAuthId,
+          current.usedMock,
+        );
+        const alignedPrevious = alignMockViewer(
+          previous.data,
+          viewerAuthId,
+          previous.usedMock,
+        );
+
+        let rows: StatsCompareRow[];
+        if (alignedCurrent.stats.length > 0) {
+          rows = mergeCompareRows(alignedCurrent.stats, alignedPrevious.stats);
+        } else if (alignedPrevious.stats.length > 0) {
+          rows = rowsWithoutDelta(alignedPrevious.stats);
+        } else {
+          rows = [];
+        }
+
+        setCompareRows(rows);
+        setRounds(winners.data.rounds);
+        setUsingMock(mockInUse);
+      } catch (err) {
+        if (__DEV__) {
+          const previous = withDevPreviousFallback({ stats: [] });
+          const current = withDevCurrentFallback({ stats: [] });
+          const winners = withDevWinnersFallback({ rounds: [] });
+          if (
+            current.data.stats.length > 0 ||
+            previous.data.stats.length > 0 ||
+            winners.data.rounds.length > 0
+          ) {
+            const alignedCurrent = alignMockViewer(
+              current.data,
+              viewerAuthId,
+              true,
+            );
+            const alignedPrevious = alignMockViewer(
+              previous.data,
+              viewerAuthId,
+              true,
+            );
+            const rows =
+              alignedCurrent.stats.length > 0
+                ? mergeCompareRows(
+                    alignedCurrent.stats,
+                    alignedPrevious.stats,
+                  )
+                : rowsWithoutDelta(alignedPrevious.stats);
+            setCompareRows(rows);
+            setRounds(winners.data.rounds);
+            setUsingMock(true);
+            setError(null);
+            return;
+          }
+        }
+        const message =
+          err instanceof ApiError
+            ? err.message
+            : 'Could not load stats. Is baked-superiorsix up?';
+        setError(message);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [viewerAuthId],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -149,6 +239,16 @@ export function StatsPlayerWidget() {
     >
       <StatsViewScrubber mode={viewMode} onChange={setViewMode} />
 
+      {usingMock ? (
+        <View style={styles.mockBanner} accessibilityRole="text">
+          <Text style={styles.mockBannerText}>
+            DEV mock stats — remove{' '}
+            <Text style={styles.mockCode}>src/features/stats/mockStats.ts</Text>{' '}
+            when the DB has closed rounds.
+          </Text>
+        </View>
+      ) : null}
+
       {error ? (
         <View style={styles.errorBox}>
           <Text style={styles.errorText}>{error}</Text>
@@ -168,15 +268,8 @@ export function StatsPlayerWidget() {
 
       {viewMode === 'stats' ? (
         <>
-          {!isAuthenticated ? (
-            <View style={styles.signInCard}>
-              <Text style={styles.signInTitle}>Your round graph</Text>
-              <Text style={styles.signInBody}>
-                Sign in on the Profile tab to see your correct-pick graph and
-                n vs n−1 rate change.
-              </Text>
-            </View>
-          ) : viewerRow ? (
+          {/* Logged-out: table only. Logged-in: graph when a rates row exists. */}
+          {isAuthenticated && viewerRow ? (
             <SuccessRateGraph
               scores={viewerRow.scores}
               previousScores={viewerRow.previous_scores}
@@ -186,15 +279,7 @@ export function StatsPlayerWidget() {
               successRate={viewerRow.success_rate}
               rateDelta={viewerRow.rate_delta}
             />
-          ) : (
-            <View style={styles.signInCard}>
-              <Text style={styles.signInTitle}>No stats yet</Text>
-              <Text style={styles.signInBody}>
-                Your graph and rates appear once a round has closed and scored
-                predictions.
-              </Text>
-            </View>
-          )}
+          ) : null}
 
           <View style={styles.section}>
             <PlayerStatsList
@@ -235,6 +320,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+  mockBanner: {
+    backgroundColor: colors.menuActive,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.amber,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  mockBannerText: {
+    color: colors.amber,
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 16,
+  },
+  mockCode: {
+    fontWeight: '800',
+  },
   errorBox: {
     backgroundColor: colors.surface,
     borderRadius: 12,
@@ -262,25 +364,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontWeight: '700',
     fontSize: 13,
-  },
-  signInCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    padding: 14,
-    gap: 8,
-  },
-  signInTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  signInBody: {
-    color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 4,
   },
   section: {
     gap: 8,

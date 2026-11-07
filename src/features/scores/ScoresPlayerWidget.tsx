@@ -228,6 +228,8 @@ export function ScoresPlayerWidget() {
   const [scoresLoading, setScoresLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [boardLive, setBoardLive] = useState(false);
+  /** True when BE reports no open parent round — Scores stays blank. */
+  const [noActiveRound, setNoActiveRound] = useState(false);
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -356,6 +358,7 @@ export function ScoresPlayerWidget() {
             throw err;
           }
         }
+        setNoActiveRound(noRound);
 
         const dayResults = await Promise.all(
           discoveryDayKeys().map((dayKey) =>
@@ -420,6 +423,7 @@ export function ScoresPlayerWidget() {
         setMatchesBySubround({});
         setSelectedSubroundId(null);
         setBoards([]);
+        setNoActiveRound(false);
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -479,6 +483,9 @@ export function ScoresPlayerWidget() {
 
   const showSubroundScrubber =
     subrounds.length > 0 && selectedSubroundId != null;
+  /** No open round (or nothing to show) → blank Scores surface. */
+  const blankScores =
+    noActiveRound || (subrounds.length === 0 && matches.length === 0);
 
   return (
     <ScrollView
@@ -495,67 +502,67 @@ export function ScoresPlayerWidget() {
         />
       }
     >
-      <View style={styles.wrap}>
-        <View style={styles.scrubberRow}>
-          {showSubroundScrubber ? (
-            <View style={styles.subroundCol}>
-              <SubroundScrubber
-                subrounds={subrounds}
-                selectedId={selectedSubroundId}
-                onChange={onSelectSubround}
-                labelMode="sequence"
+      {blankScores ? (
+        <View style={styles.wrap}>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+        </View>
+      ) : (
+        <View style={styles.wrap}>
+          <View style={styles.scrubberRow}>
+            {showSubroundScrubber ? (
+              <View style={styles.subroundCol}>
+                <SubroundScrubber
+                  subrounds={subrounds}
+                  selectedId={selectedSubroundId}
+                  onChange={onSelectSubround}
+                  labelMode="sequence"
+                  style={styles.scrubberFlush}
+                />
+              </View>
+            ) : null}
+            <View
+              style={showSubroundScrubber ? styles.dateCol : styles.dateColFull}
+            >
+              <KickoffDateDisplay
+                kickoffIso={
+                  selectedSubround?.min_kickoff ?? matches[0]?.match_date
+                }
+                live={boardLive}
                 style={styles.scrubberFlush}
               />
             </View>
+          </View>
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          {scoresLoading && matches.length > 0 ? (
+            <View style={styles.listLoading}>
+              <ActivityIndicator color={colors.textMuted} />
+            </View>
           ) : null}
-          <View
-            style={showSubroundScrubber ? styles.dateCol : styles.dateColFull}
-          >
-            <KickoffDateDisplay
-              kickoffIso={
-                selectedSubround?.min_kickoff ?? matches[0]?.match_date
-              }
-              live={boardLive}
-              style={styles.scrubberFlush}
-            />
-          </View>
+
+          {matches.length > 0 && rankedBoards.length > 0
+            ? rankedBoards.map((board) => (
+                <PlayerScoreSection
+                  key={board.authId}
+                  playerName={board.name}
+                  matches={matches}
+                  predictions={board.predictions}
+                  score={board.score}
+                  slateDifficulty={slateDifficulty}
+                  expanded={!!expanded[board.authId]}
+                  now={now}
+                  onToggleExpand={() =>
+                    setExpanded((prev) => ({
+                      ...prev,
+                      [board.authId]: !prev[board.authId],
+                    }))
+                  }
+                />
+              ))
+            : null}
         </View>
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        {scoresLoading && matches.length > 0 ? (
-          <View style={styles.listLoading}>
-            <ActivityIndicator color={colors.textMuted} />
-          </View>
-        ) : null}
-
-        {matches.length === 0 ? (
-          <Text style={styles.lede}>
-            No Super Six selections for this slate yet.
-          </Text>
-        ) : rankedBoards.length === 0 ? (
-          <Text style={styles.lede}>No player scores for this slate yet.</Text>
-        ) : (
-          rankedBoards.map((board) => (
-            <PlayerScoreSection
-              key={board.authId}
-              playerName={board.name}
-              matches={matches}
-              predictions={board.predictions}
-              score={board.score}
-              slateDifficulty={slateDifficulty}
-              expanded={!!expanded[board.authId]}
-              now={now}
-              onToggleExpand={() =>
-                setExpanded((prev) => ({
-                  ...prev,
-                  [board.authId]: !prev[board.authId],
-                }))
-              }
-            />
-          ))
-        )}
-      </View>
+      )}
     </ScrollView>
   );
 }
@@ -607,13 +614,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
     gap: 8,
-  },
-  lede: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: '500',
-    lineHeight: 18,
-    marginBottom: 12,
   },
   error: {
     color: colors.resultLose,

@@ -15,11 +15,7 @@ type Props = {
  */
 export function WinnersList({ rounds }: Props) {
   if (rounds.length === 0) {
-    return (
-      <View style={styles.empty}>
-        <Text style={styles.emptyBody}>No closed rounds yet.</Text>
-      </View>
-    );
+    return null;
   }
 
   return (
@@ -132,16 +128,5 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.2,
     paddingTop: 1,
-  },
-  empty: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    padding: 16,
-  },
-  emptyBody: {
-    color: colors.textMuted,
-    fontSize: 13,
   },
 });
