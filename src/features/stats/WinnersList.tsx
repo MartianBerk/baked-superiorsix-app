@@ -17,64 +17,49 @@ export function WinnersList({ rounds }: Props) {
   if (rounds.length === 0) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyTitle}>Previous winners</Text>
         <Text style={styles.emptyBody}>No closed rounds yet.</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.wrap}>
-      <Text style={styles.sectionLabel}>Previous winners</Text>
-      <View style={styles.list}>
-        <View style={styles.headerRow}>
-          <Text style={[styles.headerCell, styles.winnerCol]}>Winner</Text>
-          <Text style={[styles.headerCell, styles.dateCol]}>Won</Text>
-          <Text style={[styles.headerCell, styles.potCol]}>Pot</Text>
-        </View>
-        {rounds.map((round, index) => (
-          <View
-            key={round.round_id}
-            style={[
-              styles.row,
-              index % 2 === 0 ? styles.rowEven : styles.rowOdd,
-            ]}
-            accessibilityLabel={`${round.winner}, won ${formatWinnerDate(round.end_date)}, pot ${formatJackpotPounds(round.jackpot)}`}
-          >
-            <View style={styles.winnerCol}>
-              <Text style={styles.winner} numberOfLines={2}>
-                {round.winner}
-              </Text>
-              <Text style={styles.detail} numberOfLines={1}>
-                Round {round.round_id} · {round.players} players ·{' '}
-                {round.matches} match days
-              </Text>
-            </View>
-            <Text style={[styles.date, styles.dateCol]} numberOfLines={2}>
-              {formatWinnerDate(round.end_date)}
+    <View style={styles.list}>
+      <View style={styles.headerRow}>
+        <Text style={[styles.headerCell, styles.winnerCol]}>Winner</Text>
+        <Text style={[styles.headerCell, styles.dateCol]}>Won</Text>
+        <Text style={[styles.headerCell, styles.potCol]}>Pot</Text>
+      </View>
+      {rounds.map((round, index) => (
+        <View
+          key={round.round_id}
+          style={[
+            styles.row,
+            index % 2 === 0 ? styles.rowEven : styles.rowOdd,
+          ]}
+          accessibilityLabel={`${round.winner}, won ${formatWinnerDate(round.end_date)}, pot ${formatJackpotPounds(round.jackpot)}`}
+        >
+          <View style={styles.winnerCol}>
+            <Text style={styles.winner} numberOfLines={2}>
+              {round.winner}
             </Text>
-            <Text style={[styles.pot, styles.potCol]}>
-              {formatJackpotPounds(round.jackpot)}
+            <Text style={styles.detail} numberOfLines={1}>
+              Round {round.round_id} · {round.players} players ·{' '}
+              {round.matches} match days
             </Text>
           </View>
-        ))}
-      </View>
+          <Text style={[styles.date, styles.dateCol]} numberOfLines={2}>
+            {formatWinnerDate(round.end_date)}
+          </Text>
+          <Text style={[styles.pot, styles.potCol]}>
+            {formatJackpotPounds(round.jackpot)}
+          </Text>
+        </View>
+      ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    gap: 8,
-  },
-  sectionLabel: {
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    marginLeft: 2,
-  },
   list: {
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
@@ -154,12 +139,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     padding: 16,
-  },
-  emptyTitle: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 4,
   },
   emptyBody: {
     color: colors.textMuted,
