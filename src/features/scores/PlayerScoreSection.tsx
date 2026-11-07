@@ -161,8 +161,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    // Extra space between the last badge and n/6.
-    marginRight: 10,
+    // Extra space between the last badge and n/6 (~1.5× prior 10).
+    marginRight: 15,
   },
   pickNone: {
     width: 22,
