@@ -1,9 +1,11 @@
 /**
- * Header chrome helpers for SS-26.
+ * Header chrome helpers for SS-26 / SS-16.
  *
- * Round N = latest subround sequence number.
+ * Round N = latest subround sequence (`meta.round_number`).
  * Prize pot (pence) = buy_in_pence × full_roster × subround_number
- *   e.g. 14 players × £2 → £14, £28, £42…
+ *   e.g. 14 × £2 → £28, £56, £84…
+ *
+ * Prefer BE `meta.prize_pot_pence` when present; FE formula is the fallback.
  */
 
 /** Pot in pence from buy-in, full roster size, and subround sequence. */
@@ -25,7 +27,7 @@ export function prizePotPence(
   return Math.round(buyInPence * fullRoster * subroundNumber);
 }
 
-/** Format pence as `£14` / `£14.50` (trim trailing .00). */
+/** Format pence as `£28` / `£14.50` (trim trailing .00). */
 export function formatPrizePounds(pence: number): string {
   if (!Number.isFinite(pence) || pence <= 0) {
     return '£X';

@@ -15,7 +15,9 @@ import {
   listGameSubrounds,
   listLiveMatches,
   type LiveMatch,
+  type LiveScoreFixture,
   type LiveScorePlayer,
+  type LiveScoresBoard,
   type MatchDifficulty,
   type PredictionChoice,
   type Subround,
@@ -33,12 +35,7 @@ import { SubroundScrubber } from '@/features/matches/SubroundScrubber';
 import { colors } from '@/theme';
 
 import { KickoffDateDisplay } from './KickoffDateDisplay';
-import {
-  anyMatchPlaying,
-  LIVE_POLL_MS,
-  msUntilNextKickoff,
-  shouldPollLiveScores,
-} from './liveScoreDisplay';
+import { LIVE_POLL_MS } from './liveScoreDisplay';
 import { PlayerScoreSection } from './PlayerScoreSection';
 
 type SlateMatch = LiveMatch & {
@@ -103,79 +100,50 @@ function pickScoresSubround(
   return withMatches[withMatches.length - 1];
 }
 
-function uniqueMatchDates(matches: LiveMatch[]): string[] {
-  const keys = new Set<string>();
-  for (const match of matches) {
-    keys.add(toLegacyDateParam(utcDayKey(match.match_date)));
-  }
-  return [...keys];
+function fixtureToLiveMatch(fixture: LiveScoreFixture): SlateMatch {
+  return {
+    id: fixture.id,
+    home_team: fixture.home_team,
+    away_team: fixture.away_team,
+    home_score: fixture.home_score,
+    away_score: fixture.away_score,
+    status: fixture.status,
+    match_minute: fixture.match_minute,
+    game_number: fixture.game_number,
+    match_date: fixture.match_date,
+    subround_id: fixture.subround_id,
+  };
 }
 
-function mergeLiveScoresOntoMatches(
-  matches: SlateMatch[],
-  boards: LiveScorePlayer[],
+function mergeBoardFixtures(
+  existing: SlateMatch[],
+  boardMatches: LiveScoreFixture[],
 ): SlateMatch[] {
-  const byKey = new Map<string, { home: number | null; away: number | null; status: string }>();
-  for (const player of boards) {
-    for (const row of player.matches) {
-      const key =
-        row.match_id != null
-          ? `id:${row.match_id}`
-          : `teams:${row.home_team}|${row.away_team}`;
-      byKey.set(key, {
-        home: row.home_score ?? null,
-        away: row.away_score ?? null,
-        status: row.status || '',
-      });
-    }
+  if (boardMatches.length === 0) {
+    return existing;
   }
-  return matches.map((match) => {
-    const hit =
-      byKey.get(`id:${match.id}`) ??
-      byKey.get(`teams:${match.home_team}|${match.away_team}`);
-    if (!hit) {
-      return match;
-    }
-    return {
-      ...match,
-      home_score: hit.home ?? match.home_score,
-      away_score: hit.away ?? match.away_score,
-      status: hit.status || match.status,
-    };
-  });
+  const difficultyById = new Map(
+    existing.map((m) => [m.id, m.difficulty] as const),
+  );
+  const merged = boardMatches.map((fixture) => ({
+    ...fixtureToLiveMatch(fixture),
+    difficulty: difficultyById.get(fixture.id) ?? null,
+  }));
+  return sortMatches(merged);
 }
 
-function boardsFromLiveScores(
-  scores: LiveScorePlayer[],
-  slateMatches: LiveMatch[],
-): PlayerBoard[] {
-  const matchIds = new Set(slateMatches.map((m) => m.id));
-  const byTeams = new Map(
-    slateMatches.map((m) => [`${m.home_team}|${m.away_team}`, m.id] as const),
-  );
-
+function boardsFromLiveScores(scores: LiveScorePlayer[]): PlayerBoard[] {
   const boards: PlayerBoard[] = scores.map((player) => {
     const predictions: Record<number, PredictionChoice | null> = {};
     const correctByMatch: Record<number, boolean | null> = {};
-    let score = 0;
     for (const row of player.matches) {
-      const matchId =
-        row.match_id != null && matchIds.has(row.match_id)
-          ? row.match_id
-          : byTeams.get(`${row.home_team}|${row.away_team}`);
-      if (matchId == null) {
-        continue;
-      }
-      predictions[matchId] = row.prediction;
-      correctByMatch[matchId] = row.correct;
-      if (row.correct) {
-        score += 1;
-      }
+      predictions[row.match_id] = row.prediction;
+      correctByMatch[row.match_id] = row.correct;
     }
     return {
       authId: player.auth_id,
       name: player.name,
-      score: player.score || score,
+      score: player.score,
       predictions,
       correctByMatch,
     };
@@ -192,8 +160,8 @@ function boardsFromLiveScores(
 
 /**
  * Player Scores tab: admin-predictions layout without expand/predict.
- * Wires SS-16 livescores (batch) + livematches for the slate; polls every 2m
- * while the live set is active.
+ * One SS-16 `GET /game/livescores?subroundId=` batch; poll every 2m while
+ * `live`, wake at `next_kickoff` between finished and upcoming sets.
  */
 export function ScoresPlayerWidget() {
   const { session } = useAuth();
@@ -209,6 +177,8 @@ export function ScoresPlayerWidget() {
   const selectedSubroundIdRef = useRef<number | null>(null);
 
   const [boards, setBoards] = useState<PlayerBoard[]>([]);
+  const [boardLive, setBoardLive] = useState(false);
+  const [nextKickoff, setNextKickoff] = useState<string | null>(null);
   const [livescoresReady, setLivescoresReady] = useState(true);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -238,17 +208,6 @@ export function ScoresPlayerWidget() {
     [matches],
   );
 
-  const clockMatches = useMemo(
-    () =>
-      matches.map((m) => ({
-        matchDateIso: m.match_date,
-        status: m.status,
-      })),
-    [matches],
-  );
-
-  const liveFlash = anyMatchPlaying(clockMatches);
-
   const viewerCorrect = useMemo(() => {
     if (boards.length === 0) {
       return null;
@@ -270,84 +229,71 @@ export function ScoresPlayerWidget() {
         setPlayerPickingStatus(null);
       };
     }
-    const playing = anyMatchPlaying(clockMatches);
     setPlayerPickingStatus({
-      phase: playing ? 'live' : 'finished',
+      phase: boardLive ? 'live' : 'finished',
       correctCount: viewerCorrect,
     });
     return () => {
       setPlayerPickingStatus(null);
     };
-  }, [matches.length, clockMatches, viewerCorrect, setPlayerPickingStatus]);
+  }, [
+    matches.length,
+    boardLive,
+    viewerCorrect,
+    setPlayerPickingStatus,
+  ]);
 
-  const applyScores = useCallback(
-    (slateMatches: SlateMatch[], scores: LiveScorePlayer[] | null) => {
-      if (scores == null) {
-        setLivescoresReady(false);
-        setBoards([]);
-        return slateMatches;
-      }
-      setLivescoresReady(true);
-      setBoards(boardsFromLiveScores(scores, slateMatches));
-      return mergeLiveScoresOntoMatches(slateMatches, scores);
-    },
-    [],
-  );
+  const applyBoard = useCallback((board: LiveScoresBoard) => {
+    setLivescoresReady(true);
+    setBoards(boardsFromLiveScores(board.scores));
+    setBoardLive(board.live);
+    setNextKickoff(board.next_kickoff);
+    const targetId =
+      board.subround?.id ?? selectedSubroundIdRef.current ?? null;
+    if (targetId == null) {
+      return;
+    }
+    setMatchesBySubround((prev) => ({
+      ...prev,
+      [targetId]: mergeBoardFixtures(prev[targetId] ?? [], board.matches),
+    }));
+    if (board.subround) {
+      setSubrounds((prev) => {
+        const exists = prev.some((row) => row.id === board.subround!.id);
+        if (exists) {
+          return prev.map((row) =>
+            row.id === board.subround!.id ? board.subround! : row,
+          );
+        }
+        return [...prev, board.subround!].sort(
+          (a, b) => a.sequence - b.sequence,
+        );
+      });
+    }
+  }, []);
 
   const loadScores = useCallback(
-    async (slateMatches: SlateMatch[]) => {
-      if (slateMatches.length === 0) {
+    async (subroundId: number | null) => {
+      if (subroundId == null) {
         setBoards([]);
-        setLivescoresReady(true);
+        setBoardLive(false);
+        setNextKickoff(null);
         return;
       }
       setScoresLoading(true);
       try {
-        const dates = uniqueMatchDates(slateMatches);
-        const batches = await Promise.all(
-          dates.map(async (matchDate) => {
-            try {
-              return await getLiveScores(matchDate);
-            } catch (err) {
-              if (err instanceof ApiError && err.status === 501) {
-                return null;
-              }
-              throw err;
-            }
-          }),
-        );
-        if (batches.some((b) => b == null)) {
+        const board = await getLiveScores({ subroundId });
+        // Empty board with no matches and no scores while SS-16 was noop used
+        // to mean "not ready"; with real SS-16 an empty slate is valid.
+        applyBoard(board);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 501) {
           setLivescoresReady(false);
           setBoards([]);
+          setBoardLive(false);
+          setNextKickoff(null);
           return;
         }
-        const mergedPlayers = new Map<string, LiveScorePlayer>();
-        for (const batch of batches) {
-          if (!batch) {
-            continue;
-          }
-          for (const player of batch) {
-            const existing = mergedPlayers.get(player.auth_id);
-            if (!existing) {
-              mergedPlayers.set(player.auth_id, {
-                ...player,
-                matches: [...player.matches],
-              });
-              continue;
-            }
-            existing.matches.push(...player.matches);
-            existing.score = Math.max(existing.score, player.score);
-          }
-        }
-        const scores = [...mergedPlayers.values()];
-        const nextMatches = applyScores(slateMatches, scores);
-        if (selectedSubroundIdRef.current != null) {
-          setMatchesBySubround((prev) => ({
-            ...prev,
-            [selectedSubroundIdRef.current as number]: nextMatches,
-          }));
-        }
-      } catch (err) {
         setError(
           err instanceof ApiError
             ? err.message
@@ -357,7 +303,7 @@ export function ScoresPlayerWidget() {
         setScoresLoading(false);
       }
     },
-    [applyScores],
+    [applyBoard],
   );
 
   const loadCatalog = useCallback(
@@ -381,12 +327,12 @@ export function ScoresPlayerWidget() {
           }
         }
 
+        // Hydrate difficulty from livematches + matchdetail (livescores omits it).
         const dayResults = await Promise.all(
           discoveryDayKeys().map((dayKey) =>
             listLiveMatches(toLegacyDateParam(dayKey)),
           ),
         );
-
         const byId = new Map<number, SlateMatch>();
         for (const dayMatches of dayResults) {
           for (const match of dayMatches) {
@@ -394,7 +340,6 @@ export function ScoresPlayerWidget() {
           }
         }
         let all = [...byId.values()];
-
         const details = await Promise.all(
           all.map(async (match) => {
             try {
@@ -428,17 +373,20 @@ export function ScoresPlayerWidget() {
         if (noRound) {
           setSelectedSubroundId(null);
           setBoards([]);
+          setBoardLive(false);
+          setNextKickoff(null);
           return;
         }
 
-        const next = pickScoresSubround(navigable, selectedSubroundIdRef.current);
+        const next = pickScoresSubround(
+          navigable,
+          selectedSubroundIdRef.current,
+        );
         setSelectedSubroundId(next?.id ?? null);
-        await loadScores(next ? (bySubround[next.id] ?? []) : []);
+        await loadScores(next?.id ?? null);
       } catch (err) {
         setError(
-          err instanceof ApiError
-            ? err.message
-            : 'Could not load scores.',
+          err instanceof ApiError ? err.message : 'Could not load scores.',
         );
         setSubrounds([]);
         setMatchesBySubround({});
@@ -470,76 +418,54 @@ export function ScoresPlayerWidget() {
     return () => clearInterval(id);
   }, []);
 
-  // Live poll: every 2 min while the live set is active; wake at next kickoff.
+  // Live poll: every 2 min while board.live; else wake at next_kickoff.
   useEffect(() => {
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     let wakeTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const clearPoll = () => {
+    const clearAll = () => {
       if (pollTimer) {
         clearInterval(pollTimer);
         pollTimer = null;
       }
-    };
-
-    const tick = () => {
-      setNow(new Date());
-      const current =
-        selectedSubroundIdRef.current != null
-          ? (matchesBySubround[selectedSubroundIdRef.current] ?? [])
-          : [];
-      const clocks = current.map((m) => ({
-        matchDateIso: m.match_date,
-        status: m.status,
-      }));
-      if (shouldPollLiveScores(clocks)) {
-        void loadScores(current);
-      }
-    };
-
-    const arm = () => {
-      clearPoll();
       if (wakeTimer) {
         clearTimeout(wakeTimer);
         wakeTimer = null;
       }
-      const current =
-        selectedSubroundIdRef.current != null
-          ? (matchesBySubround[selectedSubroundIdRef.current] ?? [])
-          : [];
-      const clocks = current.map((m) => ({
-        matchDateIso: m.match_date,
-        status: m.status,
-      }));
-      if (shouldPollLiveScores(clocks, new Date())) {
-        void loadScores(current);
-        pollTimer = setInterval(tick, LIVE_POLL_MS);
-        return;
-      }
-      const wait = msUntilNextKickoff(clocks, new Date());
-      if (wait != null && wait > 0 && wait < 24 * 60 * 60 * 1000) {
-        wakeTimer = setTimeout(() => {
-          arm();
-        }, wait + 250);
-      }
     };
 
-    arm();
-    return () => {
-      clearPoll();
-      if (wakeTimer) {
-        clearTimeout(wakeTimer);
+    const subroundId = selectedSubroundId;
+    if (subroundId == null) {
+      clearAll();
+      return;
+    }
+
+    if (boardLive) {
+      pollTimer = setInterval(() => {
+        void loadScores(subroundId);
+      }, LIVE_POLL_MS);
+      return () => clearAll();
+    }
+
+    if (nextKickoff) {
+      const wait = new Date(nextKickoff).getTime() - Date.now();
+      if (Number.isFinite(wait) && wait > 0 && wait < 24 * 60 * 60 * 1000) {
+        wakeTimer = setTimeout(() => {
+          void loadScores(subroundId);
+        }, wait + 250);
       }
-    };
-  }, [matchesBySubround, selectedSubroundId, loadScores]);
+    }
+
+    return () => clearAll();
+  }, [selectedSubroundId, boardLive, nextKickoff, loadScores]);
 
   const onSelectSubround = useCallback(
     (next: Subround) => {
       setSelectedSubroundId(next.id);
       setError(null);
-      void loadScores(matchesBySubround[next.id] ?? []);
+      void loadScores(next.id);
     },
-    [matchesBySubround, loadScores],
+    [loadScores],
   );
 
   if (loading) {
@@ -585,8 +511,10 @@ export function ScoresPlayerWidget() {
             style={showSubroundScrubber ? styles.dateCol : styles.dateColFull}
           >
             <KickoffDateDisplay
-              kickoffIso={selectedSubround?.min_kickoff}
-              live={liveFlash}
+              kickoffIso={
+                selectedSubround?.min_kickoff ?? matches[0]?.match_date
+              }
+              live={boardLive}
               style={styles.scrubberFlush}
             />
           </View>
@@ -596,8 +524,7 @@ export function ScoresPlayerWidget() {
 
         {!livescoresReady ? (
           <Text style={styles.lede}>
-            Live scoreboard API not ready yet (SS-16 `/game/livescores`). Slate
-            fixtures still load below once available.
+            Live scoreboard API not ready yet (SS-16 `/game/livescores`).
           </Text>
         ) : null}
 
@@ -612,9 +539,7 @@ export function ScoresPlayerWidget() {
             No Super Six selections for this slate yet.
           </Text>
         ) : boards.length === 0 && livescoresReady ? (
-          <Text style={styles.lede}>
-            No player scores for this slate yet.
-          </Text>
+          <Text style={styles.lede}>No player scores for this slate yet.</Text>
         ) : (
           boards.map((board) => (
             <PlayerScoreSection

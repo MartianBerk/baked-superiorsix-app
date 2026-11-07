@@ -18,6 +18,8 @@ const PLAYING_STATUSES = new Set([
   '1H',
   '2H',
   'HT',
+  'HALF TIME',
+  'HALF_TIME',
   'ET',
   'PEN',
   'BREAK',

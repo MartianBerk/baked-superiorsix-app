@@ -1,12 +1,6 @@
 import { useEffect } from 'react';
 
-import {
-  getGameCurrentRound,
-  isNoRoundInProgressError,
-  listGameSubrounds,
-  type GameCurrentRound,
-  type Subround,
-} from '@/api/superiorsix';
+import { getGameMeta, type GameMeta } from '@/api/superiorsix';
 
 import {
   formatPrizePounds,
@@ -16,30 +10,10 @@ import {
 
 import { useRoundStatus } from './RoundStatusContext';
 
-/** Prefer explicit subround fields; else max sequence from the subround list. */
-function resolveSubroundNumber(
-  round: GameCurrentRound | null,
-  subrounds: Subround[],
-): number | null {
-  const fromRound = round?.subround ?? round?.matches ?? null;
-  if (fromRound != null && fromRound >= 1) {
-    return Math.trunc(fromRound);
-  }
-  if (subrounds.length === 0) {
-    return null;
-  }
-  let max = 0;
-  for (const row of subrounds) {
-    if (row.sequence > max) {
-      max = row.sequence;
-    }
-  }
-  return max >= 1 ? max : null;
-}
-
 /**
- * Keeps shell Round / Prize pot labels in sync with SS-16 currentround +
- * latest subround. Pot = buy_in_pence × full_roster × subround_number.
+ * Keeps shell Round / Prize pot labels in sync with SS-16 `GET /game/meta`.
+ * Prefers BE `prize_pot_pence` / `round_number`; falls back to FE formula
+ * buy_in × full_roster × slate (14×£2 → £28 / £56 / £84…).
  */
 export function GamedayHeaderSync() {
   const { setGamedayHeader } = useRoundStatus();
@@ -48,49 +22,38 @@ export function GamedayHeaderSync() {
     let cancelled = false;
 
     async function refresh() {
-      let round: GameCurrentRound | null = null;
-      let subrounds: Subround[] = [];
+      let meta: GameMeta | null = null;
       try {
-        round = await getGameCurrentRound();
+        meta = await getGameMeta();
       } catch {
-        round = null;
-      }
-      try {
-        subrounds = await listGameSubrounds();
-      } catch (err) {
-        if (!isNoRoundInProgressError(err)) {
-          // Leave placeholders on unexpected failures.
-        }
-        subrounds = [];
+        meta = null;
       }
       if (cancelled) {
         return;
       }
 
-      const subroundNumber = resolveSubroundNumber(round, subrounds);
-      const buyIn = round?.buy_in_pence ?? null;
-      const roster = round?.players ?? null;
+      if (!meta || meta.round_number < 1) {
+        setGamedayHeader({ roundLabel: 'N', prizeLabel: '£X' });
+        return;
+      }
 
-      let prizeLabel = '£X';
+      let prizePence = meta.prize_pot_pence;
       if (
-        buyIn != null &&
-        roster != null &&
-        subroundNumber != null &&
-        buyIn >= 0 &&
-        roster >= 0 &&
-        subroundNumber >= 1
+        prizePence <= 0 &&
+        meta.buy_in_pence >= 0 &&
+        meta.n_players >= 0 &&
+        meta.round_number >= 1
       ) {
-        prizeLabel = formatPrizePounds(
-          prizePotPence(buyIn, roster, subroundNumber),
+        prizePence = prizePotPence(
+          meta.buy_in_pence,
+          meta.n_players,
+          meta.round_number,
         );
-      } else if (round?.jackpot != null && round.jackpot > 0) {
-        // Fallback while SS-16 still only ships legacy jackpot.
-        prizeLabel = formatPrizePounds(round.jackpot);
       }
 
       setGamedayHeader({
-        roundLabel: formatRoundLabel(subroundNumber),
-        prizeLabel,
+        roundLabel: formatRoundLabel(meta.round_number),
+        prizeLabel: formatPrizePounds(prizePence),
       });
     }
 
