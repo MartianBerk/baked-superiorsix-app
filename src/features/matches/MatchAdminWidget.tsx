@@ -575,9 +575,9 @@ export function MatchAdminWidget() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {needsRound ? (
           <Text style={styles.lede}>
-            No round in progress. Long-press Leaders → Admin to start a parent
-            round, then return here to build the first selection slate. Fixtures
-            still load below for browsing.
+            No round in progress. Tap Leaders again to open Admin and start a
+            parent round, then return here to build the first selection slate.
+            Fixtures still load below for browsing.
           </Text>
         ) : null}
         {!needsRound &&

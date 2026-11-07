@@ -1,13 +1,9 @@
-import { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useCallback } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth';
 import { MenuIcon, type MenuIconName } from '@/components/icons/MenuIcon';
-import {
-  LongPressMenu,
-  type LongPressMenuOption,
-} from '@/components/shell/LongPressMenu';
 import { useUserTabMode } from '@/features/auth/UserTabModeContext';
 import { useLeadersTabMode } from '@/features/leaders/LeadersTabModeContext';
 import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
@@ -21,8 +17,11 @@ const TAB_ICONS: Record<string, MenuIconName> = {
   profile: 'users',
 };
 
-/** Superior Six role that unlocks the admin long-press destination. */
+/** Superior Six role that unlocks admin mode via second tap. */
 const ADMIN_ROLE = 'admin';
+
+/** Tabs that swap player ↔ admin widgets in place. */
+const DUAL_MODE_TABS = new Set(['index', 'leaders', 'profile']);
 
 const HIT_SIZE = 48;
 
@@ -48,9 +47,10 @@ type TabBarProps = {
  * Main menu at the bottom — inset ~3% each side, rounded bar,
  * circular selected highlight around each icon.
  *
- * Long-press (~500ms) fixtures, leaders, or user when signed in with `admin`
- * offers only the other mode (Admin while on player, Player while on admin).
- * Mode swaps the tab body in place — header + nav stay visible.
+ * Dual-mode tabs (fixtures, leaders, user): first tap focuses the tab;
+ * second tap on the already-focused tab swaps player ↔ admin in place when
+ * the signed-in user has superiorsix `admin`. Non-admins get a no-op on that
+ * second tap. Header + nav stay visible during the swap.
  */
 export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
   const insets = useSafeAreaInsets();
@@ -58,122 +58,35 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
   const { mode: profileMode, setMode: setProfileMode } = useUserTabMode();
   const { mode: fixturesMode, setMode: setFixturesMode } = useFixturesTabMode();
   const { mode: leadersMode, setMode: setLeadersMode } = useLeadersTabMode();
-  const canAdminMenu = isAuthenticated && hasRole(ADMIN_ROLE);
+  const canAdminToggle = isAuthenticated && hasRole(ADMIN_ROLE);
 
-  const profileRoute = useMemo(
-    () => state.routes.find((r) => r.name === 'profile'),
-    [state.routes],
+  const toggleDualMode = useCallback(
+    (routeName: string) => {
+      if (!canAdminToggle) {
+        return;
+      }
+      if (routeName === 'profile') {
+        setProfileMode(profileMode === 'normal' ? 'admin' : 'normal');
+        return;
+      }
+      if (routeName === 'index') {
+        setFixturesMode(fixturesMode === 'normal' ? 'admin' : 'normal');
+        return;
+      }
+      if (routeName === 'leaders') {
+        setLeadersMode(leadersMode === 'normal' ? 'admin' : 'normal');
+      }
+    },
+    [
+      canAdminToggle,
+      profileMode,
+      fixturesMode,
+      leadersMode,
+      setProfileMode,
+      setFixturesMode,
+      setLeadersMode,
+    ],
   );
-  const fixturesRoute = useMemo(
-    () => state.routes.find((r) => r.name === 'index'),
-    [state.routes],
-  );
-  const leadersRoute = useMemo(
-    () => state.routes.find((r) => r.name === 'leaders'),
-    [state.routes],
-  );
-
-  const profileLongPressOptions = useMemo((): LongPressMenuOption[] | null => {
-    if (!canAdminMenu || !profileRoute) {
-      return null;
-    }
-    if (profileMode === 'normal') {
-      return [
-        {
-          id: 'admin',
-          label: 'Admin',
-          icon: <MenuIcon name="cog" size={18} color={colors.text} />,
-          onSelect: () => {
-            setProfileMode('admin');
-            navigateToTab(profileRoute.key);
-          },
-        },
-      ];
-    }
-    return [
-      {
-        id: 'normal',
-        label: 'Player',
-        icon: <MenuIcon name="users" size={18} color={colors.text} />,
-        onSelect: () => {
-          setProfileMode('normal');
-          navigateToTab(profileRoute.key);
-        },
-      },
-    ];
-  }, [canAdminMenu, profileRoute, profileMode, setProfileMode, navigateToTab]);
-
-  const fixturesLongPressOptions = useMemo((): LongPressMenuOption[] | null => {
-    if (!canAdminMenu || !fixturesRoute) {
-      return null;
-    }
-    if (fixturesMode === 'normal') {
-      return [
-        {
-          id: 'admin',
-          label: 'Admin',
-          icon: <MenuIcon name="cog" size={18} color={colors.text} />,
-          onSelect: () => {
-            setFixturesMode('admin');
-            navigateToTab(fixturesRoute.key);
-          },
-        },
-      ];
-    }
-    return [
-      {
-        id: 'normal',
-        label: 'Player',
-        icon: <MenuIcon name="fixtures" size={18} color={colors.text} />,
-        onSelect: () => {
-          setFixturesMode('normal');
-          navigateToTab(fixturesRoute.key);
-        },
-      },
-    ];
-  }, [
-    canAdminMenu,
-    fixturesRoute,
-    fixturesMode,
-    setFixturesMode,
-    navigateToTab,
-  ]);
-
-  const leadersLongPressOptions = useMemo((): LongPressMenuOption[] | null => {
-    if (!canAdminMenu || !leadersRoute) {
-      return null;
-    }
-    if (leadersMode === 'normal') {
-      return [
-        {
-          id: 'admin',
-          label: 'Admin',
-          icon: <MenuIcon name="cog" size={18} color={colors.text} />,
-          onSelect: () => {
-            setLeadersMode('admin');
-            navigateToTab(leadersRoute.key);
-          },
-        },
-      ];
-    }
-    return [
-      {
-        id: 'normal',
-        label: 'Player',
-        icon: <MenuIcon name="leaders" size={18} color={colors.text} />,
-        onSelect: () => {
-          setLeadersMode('normal');
-          navigateToTab(leadersRoute.key);
-        },
-      },
-    ];
-  }, [
-    canAdminMenu,
-    leadersRoute,
-    leadersMode,
-    setLeadersMode,
-    navigateToTab,
-  ]);
 
   return (
     <View
@@ -192,29 +105,32 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
           const focused = state.index === index;
           const { options } = descriptors[route.key];
           const label = options.title ?? route.name;
-          let longPressOptions: LongPressMenuOption[] | null = null;
-          if (route.name === 'profile') {
-            longPressOptions = profileLongPressOptions;
-          } else if (route.name === 'index') {
-            longPressOptions = fixturesLongPressOptions;
-          } else if (route.name === 'leaders') {
-            longPressOptions = leadersLongPressOptions;
-          }
-
+          const isDualMode = DUAL_MODE_TABS.has(route.name);
           const showAdminBadge =
             (route.name === 'profile' && profileMode === 'admin') ||
             (route.name === 'index' && fixturesMode === 'admin') ||
             (route.name === 'leaders' && leadersMode === 'admin');
 
           return (
-            <LongPressMenu
+            <Pressable
               key={route.key}
-              options={longPressOptions}
+              accessibilityRole="button"
               accessibilityState={focused ? { selected: true } : {}}
               accessibilityLabel={options.tabBarAccessibilityLabel ?? label}
+              accessibilityHint={
+                isDualMode && canAdminToggle
+                  ? focused
+                    ? 'Tap again to switch admin and player mode'
+                    : 'Tap twice when selected to switch admin and player mode'
+                  : undefined
+              }
               onPress={() => {
                 if (!focused) {
                   navigateToTab(route.key);
+                  return;
+                }
+                if (isDualMode) {
+                  toggleDualMode(route.name);
                 }
               }}
               style={({ pressed }) => [
@@ -230,7 +146,7 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
                   adminBadge={showAdminBadge}
                 />
               </View>
-            </LongPressMenu>
+            </Pressable>
           );
         })}
       </View>
