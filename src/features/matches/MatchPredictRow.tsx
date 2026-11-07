@@ -40,8 +40,8 @@ type Props = {
 
 /**
  * Player fixture row: home/away stack, difficulty pips, expand for detail +
- * Home/Draw/Away. Past the 10m lock, expands collapse and stay locked; header
- * shows an aligned score line (`- : -` / `0 : 0` / live).
+ * Home/Draw/Away. Past the 10m lock, expands collapse, chevron is hidden, and
+ * the header shows an aligned score line (`- : -` / `0 : 0` / live).
  */
 export function MatchPredictRow({
   match,
@@ -107,26 +107,24 @@ export function MatchPredictRow({
               {CHOICE_LABEL[prediction]}
             </Text>
           ) : null}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ expanded: open, disabled: locked }}
-            accessibilityLabel={
-              locked
-                ? `Predictions locked for ${match.home_team} vs ${match.away_team}`
-                : open
+          {!locked ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: open }}
+              accessibilityLabel={
+                open
                   ? `Collapse ${match.home_team} vs ${match.away_team}`
                   : `Expand ${match.home_team} vs ${match.away_team}`
-            }
-            disabled={locked}
-            onPress={() => setExpanded((prev) => !prev)}
-            style={({ pressed }) => [
-              styles.actionHit,
-              pressed && !locked && styles.actionPressed,
-              locked && styles.actionDisabled,
-            ]}
-          >
-            <SvgXml xml={chevron} width={18} height={18} />
-          </Pressable>
+              }
+              onPress={() => setExpanded((prev) => !prev)}
+              style={({ pressed }) => [
+                styles.actionHit,
+                pressed && styles.actionPressed,
+              ]}
+            >
+              <SvgXml xml={chevron} width={18} height={18} />
+            </Pressable>
+          ) : null}
         </View>
       </View>
 
@@ -217,9 +215,6 @@ const styles = StyleSheet.create({
   },
   actionPressed: {
     backgroundColor: colors.surface,
-  },
-  actionDisabled: {
-    opacity: 0.35,
   },
   signInHint: {
     marginTop: 8,
