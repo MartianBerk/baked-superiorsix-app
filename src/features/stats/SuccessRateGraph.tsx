@@ -1,5 +1,12 @@
-import { useMemo } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Animated,
+  Easing,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import Svg, {
   Circle,
   Defs,
@@ -13,7 +20,6 @@ import Svg, {
 import type { AggregateScorePoint } from '@/api/superiorsix';
 import { colors } from '@/theme';
 
-import { formatScoreDayLabel } from './formatStats';
 import { RateDeltaBadge } from './RateDeltaBadge';
 
 type Props = {
@@ -29,13 +35,18 @@ type Props = {
   rateDelta?: number | null;
 };
 
-type Point = { x: number; y: number; score: number; label: string };
+type Point = { x: number; y: number; score: number; slate: number };
+
+/** Lighter green in the same family as `accentBright` — last-round series. */
+const LAST_ROUND_GREEN = '#6ECF82';
 
 const GRAPH_HEIGHT = 220;
 const PAD_LEFT = 34;
 const PAD_RIGHT = 16;
 const PAD_TOP = 22;
 const PAD_BOTTOM = 36;
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 /** Straight polyline through points (no curves). */
 function straightLinePath(coords: Point[]): string {
@@ -67,9 +78,19 @@ function sortScores(scores: AggregateScorePoint[]): AggregateScorePoint[] {
 }
 
 /**
- * Current-round correct-picks chart with a muted dotted last-round overlay.
- * Series share ordinal match-day slots (day 1…n) so rounds compare visually
- * even when calendar dates differ. Straight segments only.
+ * X extent: previous round length is the default end; current progresses into
+ * that span. If current has more slates, extend past previous.
+ */
+function resolveSlotCount(currentLen: number, previousLen: number): number {
+  if (previousLen > 0) {
+    return Math.max(previousLen, currentLen, 1);
+  }
+  return Math.max(currentLen, 1);
+}
+
+/**
+ * Current-round correct-picks chart with a lighter-green dotted last-round overlay.
+ * X-axis is slate/subround number (`#1`…). Straight segments only.
  */
 export function SuccessRateGraph({
   scores,
@@ -83,11 +104,35 @@ export function SuccessRateGraph({
   const { width: windowWidth } = useWindowDimensions();
   const width = Math.min(Math.max(windowWidth - 48, 280), 520);
   const plotWidth = width - 8;
+  const [flash] = useState(() => new Animated.Value(1));
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(flash, {
+          toValue: 0.2,
+          duration: 650,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: false,
+        }),
+        Animated.timing(flash, {
+          toValue: 1,
+          duration: 650,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: false,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+    };
+  }, [flash]);
 
   const chart = useMemo(() => {
     const current = sortScores(scores);
     const previous = sortScores(previousScores);
-    const slotCount = Math.max(current.length, previous.length, 1);
+    const slotCount = resolveSlotCount(current.length, previous.length);
     const plotW = plotWidth - PAD_LEFT - PAD_RIGHT;
     const plotH = GRAPH_HEIGHT - PAD_TOP - PAD_BOTTOM;
     const rawMax = Math.max(
@@ -110,38 +155,30 @@ export function SuccessRateGraph({
       x: xAt(index),
       y: yAt(point.score),
       score: point.score,
-      label: formatScoreDayLabel(point.date),
+      slate: index + 1,
     }));
 
     const previousCoords: Point[] = previous.map((point, index) => ({
       x: xAt(index),
       y: yAt(point.score),
       score: point.score,
-      label: formatScoreDayLabel(point.date),
+      slate: index + 1,
     }));
 
-    // Prefer current-round day labels; fill trailing slots from previous if needed.
-    const xLabels: string[] = [];
-    for (let i = 0; i < slotCount; i++) {
-      if (current[i]) {
-        xLabels.push(formatScoreDayLabel(current[i].date));
-      } else if (previous[i]) {
-        xLabels.push(formatScoreDayLabel(previous[i].date));
-      } else {
-        xLabels.push(`Day ${i + 1}`);
-      }
-    }
+    const xLabels = Array.from({ length: slotCount }, (_, i) => `#${i + 1}`);
 
     const currentLine = straightLinePath(currentCoords);
-    const previousLine = straightLinePath(previousCoords);
     const areaPath = areaUnderPath(currentLine, currentCoords, baselineY);
     const yTicks = Array.from({ length: yMax + 1 }, (_, i) => i);
+    const endDot =
+      currentCoords.length > 0
+        ? currentCoords[currentCoords.length - 1]
+        : null;
 
     return {
       currentCoords,
       previousCoords,
       currentLine,
-      previousLine,
       areaPath,
       yMax,
       plotH,
@@ -150,6 +187,7 @@ export function SuccessRateGraph({
       xLabels,
       slotCount,
       xAt,
+      endDot,
       hasPrevious: previousCoords.length > 0,
     };
   }, [scores, previousScores, plotWidth]);
@@ -166,7 +204,7 @@ export function SuccessRateGraph({
   }
 
   const rateLabel = `${Math.round(successRate)}%`;
-  const showAllXLabels = chart.slotCount <= 6;
+  const showAllXLabels = chart.slotCount <= 8;
 
   return (
     <View
@@ -179,7 +217,7 @@ export function SuccessRateGraph({
           <Text style={styles.title} numberOfLines={1}>
             {playerName}
           </Text>
-          <Text style={styles.subtitle}>Correct picks by match day</Text>
+          <Text style={styles.subtitle}>Correct picks by slate</Text>
         </View>
         <View style={styles.summary}>
           <Text style={styles.rate}>{rateLabel}</Text>
@@ -266,33 +304,33 @@ export function SuccessRateGraph({
             <Path d={chart.areaPath} fill="url(#statsAreaFill)" />
           ) : null}
 
-          {/* Last round (underneath current): muted dotted straight segments */}
+          {/* Last round: lighter green, dotted, solid (non-flashing) dots */}
           {chart.previousCoords.slice(0, -1).map((coord, index) => {
             const next = chart.previousCoords[index + 1];
             return (
               <Line
-                key={`prev-seg-${coord.label}-${index}`}
+                key={`prev-seg-${coord.slate}`}
                 x1={coord.x}
                 y1={coord.y}
                 x2={next.x}
                 y2={next.y}
-                stroke={colors.textMuted}
+                stroke={LAST_ROUND_GREEN}
                 strokeWidth={2}
                 strokeLinecap="round"
                 strokeDasharray="5 5"
-                opacity={0.9}
+                opacity={0.95}
               />
             );
           })}
 
           {chart.previousCoords.map((coord) => (
             <Circle
-              key={`prev-dot-${coord.label}-${coord.x}`}
+              key={`prev-dot-${coord.slate}`}
               cx={coord.x}
               cy={coord.y}
               r={3.5}
               fill={colors.menuBar}
-              stroke={colors.textMuted}
+              stroke={LAST_ROUND_GREEN}
               strokeWidth={1.75}
             />
           ))}
@@ -308,20 +346,10 @@ export function SuccessRateGraph({
             />
           ) : null}
 
-          {chart.currentCoords.map((coord) => (
+          {/* Current: solid dots for completed slates except the live tip */}
+          {chart.currentCoords.slice(0, -1).map((coord) => (
             <Circle
-              key={`halo-${coord.label}-${coord.x}`}
-              cx={coord.x}
-              cy={coord.y}
-              r={7}
-              fill={colors.accentBright}
-              opacity={0.18}
-            />
-          ))}
-
-          {chart.currentCoords.map((coord) => (
-            <Circle
-              key={`dot-${coord.label}-${coord.x}`}
+              key={`dot-${coord.slate}`}
               cx={coord.x}
               cy={coord.y}
               r={4.25}
@@ -331,9 +359,9 @@ export function SuccessRateGraph({
             />
           ))}
 
-          {chart.currentCoords.map((coord) => (
+          {chart.currentCoords.slice(0, -1).map((coord) => (
             <SvgText
-              key={`val-${coord.label}-${coord.x}`}
+              key={`val-${coord.slate}`}
               x={coord.x}
               y={coord.y - 11}
               fill={colors.text}
@@ -344,6 +372,41 @@ export function SuccessRateGraph({
               {coord.score}
             </SvgText>
           ))}
+
+          {/* Current tip: flashing end dot */}
+          {chart.endDot ? (
+            <>
+              <AnimatedCircle
+                cx={chart.endDot.x}
+                cy={chart.endDot.y}
+                r={9}
+                fill={colors.accentBright}
+                opacity={flash.interpolate({
+                  inputRange: [0.2, 1],
+                  outputRange: [0.08, 0.38],
+                })}
+              />
+              <AnimatedCircle
+                cx={chart.endDot.x}
+                cy={chart.endDot.y}
+                r={4.75}
+                fill={colors.background}
+                stroke={colors.accentBright}
+                strokeWidth={2.25}
+                opacity={flash}
+              />
+              <SvgText
+                x={chart.endDot.x}
+                y={chart.endDot.y - 12}
+                fill={colors.text}
+                fontSize="10"
+                fontWeight="700"
+                textAnchor="middle"
+              >
+                {chart.endDot.score}
+              </SvgText>
+            </>
+          ) : null}
 
           {chart.xLabels.map((label, index) => {
             const show =
@@ -356,12 +419,12 @@ export function SuccessRateGraph({
             }
             return (
               <SvgText
-                key={`xl-${label}-${index}`}
+                key={`xl-${label}`}
                 x={chart.xAt(index)}
                 y={GRAPH_HEIGHT - 10}
                 fill={colors.textMuted}
-                fontSize="10"
-                fontWeight="600"
+                fontSize="11"
+                fontWeight="700"
                 textAnchor="middle"
               >
                 {label}
@@ -454,8 +517,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentBright,
   },
   legendLast: {
-    backgroundColor: colors.textMuted,
-    opacity: 0.75,
+    backgroundColor: LAST_ROUND_GREEN,
+    opacity: 0.9,
   },
   legendLabel: {
     color: colors.textMuted,

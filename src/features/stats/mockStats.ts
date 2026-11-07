@@ -32,11 +32,10 @@ const MOCK_CURRENT: AggregatePlayerStats[] = [
     correct: 4,
     matches: 6,
     success_rate: 66.67,
+    // Only two slates so far — graph x-extent still spans last round’s four.
     scores: [
       { name: 'Ada Lovelace', date: '2026-03-01', score: 1, matches: 1 },
       { name: 'Ada Lovelace', date: '2026-03-08', score: 2, matches: 2 },
-      { name: 'Ada Lovelace', date: '2026-03-15', score: 1, matches: 2 },
-      { name: 'Ada Lovelace', date: '2026-03-22', score: 0, matches: 1 },
     ],
   },
   {
