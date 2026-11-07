@@ -593,12 +593,6 @@ export function MatchPlayerWidget() {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {rowError ? <Text style={styles.error}>{rowError}</Text> : null}
-        {subroundLocked && matches.length > 0 ? (
-          <Text style={styles.lede}>
-            Predictions locked — within 10 minutes of this slate&apos;s first
-            kickoff.
-          </Text>
-        ) : null}
 
         {matches.length > 0 && isAuthenticated && !canPredict ? (
           <Text style={styles.lede}>
