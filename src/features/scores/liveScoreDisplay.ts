@@ -153,8 +153,8 @@ export function formatAlignedScore(
 
 /**
  * Trailing clock label once started:
- * - half-time → `HT`
  * - finished → `FT`
+ * - half-time status, or IN PLAY with null minute → `HT`
  * - else `23'`-style when the API provided a minute
  */
 export function formatMatchMinute(
@@ -166,13 +166,17 @@ export function formatMatchMinute(
   if (!matchHasStarted(matchDateIso, status, now)) {
     return null;
   }
-  if (isHalfTimeStatus(status)) {
-    return 'HT';
-  }
   if (isFinishedStatus(status)) {
     return 'FT';
   }
+  if (isHalfTimeStatus(status)) {
+    return 'HT';
+  }
   if (matchMinute == null || !Number.isFinite(matchMinute)) {
+    // Local livescores often sends IN PLAY with null minute at HT.
+    if (isPlayingStatus(status)) {
+      return 'HT';
+    }
     return null;
   }
   return `${Math.trunc(matchMinute)}'`;
