@@ -31,7 +31,6 @@ const DEFAULT_ROLES: RoleFlags = {
   player: true,
   worldcup: false,
   euros: false,
-  'game-master': false,
 };
 
 function emptyRoleFlags(): RoleFlags {
@@ -39,7 +38,6 @@ function emptyRoleFlags(): RoleFlags {
     player: false,
     worldcup: false,
     euros: false,
-    'game-master': false,
   };
 }
 
@@ -101,7 +99,8 @@ function RoleChips({ value, disabled, onToggle }: RoleChipsProps) {
  * Admin invite form: email + name/nickname seed + role chips.
  * Invite-only — creates passwordless auth user + membership; invitee claims
  * password on first login, then accepts the roster.
- * Roster rows open an in-place role editor (same chips; game-master = "Admin").
+ * Roster rows open an in-place role editor (same chips). Game admin ops use
+ * the superiorsix `admin` membership role (bootstrap / direct auth only).
  */
 export function AdminInviteForm() {
   const { token } = useAuth();
@@ -337,8 +336,9 @@ export function AdminInviteForm() {
       <Text style={styles.lede}>
         Reserve an email, profile seed, and roles. Profile edit access is always
         granted. Auth user + membership are created now; the invitee sets a
-        password on first login, then joins the roster. The Admin chip grants
-        game-master (game ops) — not the bootstrap auth admin role.
+        password on first login, then joins the roster. Game admin access uses
+        the superiorsix admin membership role (bootstrap / direct auth only) —
+        it is not assignable from these chips.
       </Text>
 
       <Text style={styles.label}>Email</Text>

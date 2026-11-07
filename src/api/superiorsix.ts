@@ -304,7 +304,7 @@ export async function updatePlayerRoles(
 
 /**
  * List roster invites via baked-user (`GET /superiorsix/invites`).
- * Requires superiorsix JWT with admin or game-master. Includes invite.roles.
+ * Requires superiorsix JWT with admin. Includes invite.roles.
  */
 export async function listInvites(token: string): Promise<PendingInvite[]> {
   let response: Response;
@@ -607,7 +607,7 @@ export async function listGameSubrounds(roundId?: number): Promise<Subround[]> {
 }
 
 /**
- * `GET /admin/listsubrounds` — game-master list for current (or given) round.
+ * `GET /admin/listsubrounds` — admin list for current (or given) round.
  */
 export async function listAdminSubrounds(
   token: string,
