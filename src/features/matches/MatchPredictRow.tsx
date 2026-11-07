@@ -115,12 +115,14 @@ export function MatchPredictRow({
     <View style={[styles.block, prediction != null && styles.blockPicked]}>
       <View style={styles.row}>
         <View style={styles.leading}>
-          {match.game_number != null ? (
-            <Text style={styles.gameNumber}>#{match.game_number}</Text>
-          ) : (
-            <View style={styles.gameNumberSpacer} />
-          )}
-          <DifficultyPips difficulty={match.difficulty} />
+          <View style={styles.gameAndPips}>
+            {match.game_number != null ? (
+              <Text style={styles.gameNumber}>#{match.game_number}</Text>
+            ) : (
+              <View style={styles.gameNumberSpacer} />
+            )}
+            <DifficultyPips difficulty={match.difficulty} />
+          </View>
           <View style={[styles.teams, { width: teamColumnWidth }]}>
             <Text style={styles.team} numberOfLines={1}>
               {match.home_team}
@@ -228,6 +230,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   leading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    // Extra air only between pips and team names (#n↔pips stay tighter).
+    gap: 16,
+    flexShrink: 0,
+  },
+  gameAndPips: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
