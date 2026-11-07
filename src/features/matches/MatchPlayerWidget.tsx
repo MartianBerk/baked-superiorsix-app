@@ -29,11 +29,6 @@ import { LIVE_POLL_MS } from '@/features/scores/liveScoreDisplay';
 import { colors } from '@/theme';
 
 import {
-  isMatchesDevClockActive,
-  matchesDevClockLabel,
-  matchesNow,
-} from './devClock';
-import {
   discoveryDayKeys,
   toLegacyDateParam,
   utcDayKey,
@@ -43,11 +38,6 @@ import {
   teamColumnWidthForMatches,
   type PlayerMatch,
 } from './MatchPredictRow';
-import {
-  emptyLiveScoresBoard,
-  isMatchesDevMockScoresActive,
-  withDevMockLiveScores,
-} from './mockLiveScores';
 import { SubroundScrubber } from './SubroundScrubber';
 
 /**
@@ -184,11 +174,10 @@ export function MatchPlayerWidget() {
   const [error, setError] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
   /** Wall clock so locked rows flip `- : -` → `0 : 0` at kickoff. */
-  const [now, setNow] = useState(() => matchesNow());
+  const [now, setNow] = useState(() => new Date());
   const [boardLive, setBoardLive] = useState(false);
   const [nextKickoff, setNextKickoff] = useState<string | null>(null);
   const [viewerCorrect, setViewerCorrect] = useState<number | null>(null);
-  const matchesBySubroundRef = useRef<Record<number, PlayerMatch[]>>({});
 
   const canPredict = isAuthenticated && hasRole('player');
 
@@ -294,22 +283,11 @@ export function MatchPlayerWidget() {
         setViewerCorrect(null);
         return;
       }
-      const fallback = matchesBySubroundRef.current[subroundId] ?? [];
       try {
         const board = await getLiveScores({ subroundId });
-        applyLiveBoard(
-          isMatchesDevMockScoresActive()
-            ? withDevMockLiveScores(board, fallback)
-            : board,
-        );
+        applyLiveBoard(board);
       } catch {
         // Livematches still drive the slate; live chrome is best-effort.
-        // Dev mock can still paint score lines without a reachable BFF.
-        if (isMatchesDevMockScoresActive()) {
-          applyLiveBoard(
-            withDevMockLiveScores(emptyLiveScoresBoard(), fallback),
-          );
-        }
       }
     },
     [applyLiveBoard],
@@ -409,8 +387,6 @@ export function MatchPlayerWidget() {
           .sort((a, b) => a.sequence - b.sequence);
 
         setSubrounds(navigable);
-        // Keep ref in sync before await loadLiveBoard (effect would be one tick late).
-        matchesBySubroundRef.current = bySubround;
         setMatchesBySubround(bySubround);
 
         if (noRound) {
@@ -452,10 +428,6 @@ export function MatchPlayerWidget() {
   }, [selectedSubroundId]);
 
   useEffect(() => {
-    matchesBySubroundRef.current = matchesBySubround;
-  }, [matchesBySubround]);
-
-  useEffect(() => {
     if (status === 'loading') {
       return;
     }
@@ -471,11 +443,10 @@ export function MatchPlayerWidget() {
   }, [status, loadCatalog]);
 
   useEffect(() => {
-    // Frozen test clock: initial state already holds MATCHES_DEV_NOW_ISO.
-    if (isMatchesDevClockActive() || !subroundLocked) {
+    if (!subroundLocked) {
       return;
     }
-    const id = setInterval(() => setNow(matchesNow()), 15_000);
+    const id = setInterval(() => setNow(new Date()), 15_000);
     return () => clearInterval(id);
   }, [subroundLocked]);
 
@@ -620,14 +591,6 @@ export function MatchPlayerWidget() {
           </View>
         </View>
 
-        {isMatchesDevClockActive() ? (
-          <Text style={styles.devClock}>
-            Dev clock: {matchesDevClockLabel()} (Europe/London)
-            {isMatchesDevMockScoresActive() ? ' + mock livescores' : ''} —
-            set MATCHES_DEV_NOW_ISO null in src/features/matches/devClock.ts
-            to restore
-          </Text>
-        ) : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {rowError ? <Text style={styles.error}>{rowError}</Text> : null}
         {subroundLocked && matches.length > 0 ? (
@@ -720,13 +683,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 12,
-  },
-  devClock: {
-    color: colors.difficultyMedium,
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 16,
-    marginBottom: 10,
   },
   error: {
     color: '#E8A0A0',

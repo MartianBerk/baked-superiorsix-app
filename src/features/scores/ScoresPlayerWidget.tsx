@@ -22,18 +22,12 @@ import {
   type Subround,
 } from '@/api/superiorsix';
 import { ApiError } from '@/api/errors';
-import { matchesNow } from '@/features/matches/devClock';
 import {
   discoveryDayKeys,
   toLegacyDateParam,
   utcDayKey,
 } from '@/features/matches/formatMatchDate';
 import { aggregateSelectionDifficulty } from '@/features/matches/matchDifficulty';
-import {
-  emptyLiveScoresBoard,
-  isMatchesDevMockScoresActive,
-  withDevMockLiveScores,
-} from '@/features/matches/mockLiveScores';
 import { SubroundScrubber } from '@/features/matches/SubroundScrubber';
 import { colors } from '@/theme';
 
@@ -119,7 +113,7 @@ function boardsFromLiveScores(scores: LiveScorePlayer[]): PlayerBoard[] {
   });
 }
 
-/** Correct picks for this player against the live/mock slate (0–6). */
+/** Correct picks for this player against the live slate (0–6). */
 function countCorrectPicks(
   predictions: Record<number, PredictionChoice | null>,
   slate: SlateMatch[],
@@ -182,15 +176,14 @@ function mergeBoardFixtures(
 /**
  * Player Scores: admin-predictions layout without H/D/A submit.
  * Players collapsed by default; expand shows read-only pick badges only.
- * Slate fixtures still merge `/game/livescores` (+ FE mock) so badges / n/6
- * correct counts stay in sync with Matches.
+ * Slate fixtures merge `/game/livescores` so badges / n/6 correct counts
+ * stay in sync with Matches.
  */
 export function ScoresPlayerWidget() {
   const [subrounds, setSubrounds] = useState<Subround[]>([]);
   const [matchesBySubround, setMatchesBySubround] = useState<
     Record<number, SlateMatch[]>
   >({});
-  const matchesBySubroundRef = useRef<Record<number, SlateMatch[]>>({});
   const [selectedSubroundId, setSelectedSubroundId] = useState<number | null>(
     null,
   );
@@ -204,15 +197,11 @@ export function ScoresPlayerWidget() {
   const [scoresLoading, setScoresLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [boardLive, setBoardLive] = useState(false);
-  const [now] = useState(() => matchesNow());
+  const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
     selectedSubroundIdRef.current = selectedSubroundId;
   }, [selectedSubroundId]);
-
-  useEffect(() => {
-    matchesBySubroundRef.current = matchesBySubround;
-  }, [matchesBySubround]);
 
   const selectedSubround = useMemo(
     () => subrounds.find((row) => row.id === selectedSubroundId) ?? null,
@@ -232,7 +221,7 @@ export function ScoresPlayerWidget() {
     [matches],
   );
 
-  /** Header n/6 is correct-picks count from live/mock slate, not raw API score. */
+  /** Header n/6 is correct-picks count from live slate, not raw API score. */
   const rankedBoards = useMemo(
     () =>
       sortBoardsByCorrect(
@@ -248,12 +237,10 @@ export function ScoresPlayerWidget() {
     (subroundId: number, board: Awaited<ReturnType<typeof getLiveScores>>) => {
       setBoardLive(board.live);
       setBoards(boardsFromLiveScores(board.scores));
-      setMatchesBySubround((prev) => {
-        const merged = mergeBoardFixtures(prev[subroundId] ?? [], board.matches);
-        const next = { ...prev, [subroundId]: merged };
-        matchesBySubroundRef.current = next;
-        return next;
-      });
+      setMatchesBySubround((prev) => ({
+        ...prev,
+        [subroundId]: mergeBoardFixtures(prev[subroundId] ?? [], board.matches),
+      }));
     },
     [],
   );
@@ -268,21 +255,10 @@ export function ScoresPlayerWidget() {
       if (!opts?.quiet) {
         setScoresLoading(true);
       }
-      const fallback = matchesBySubroundRef.current[subroundId] ?? [];
       try {
-        let board = await getLiveScores({ subroundId });
-        if (isMatchesDevMockScoresActive()) {
-          board = withDevMockLiveScores(board, fallback);
-        }
+        const board = await getLiveScores({ subroundId });
         applyLiveBoard(subroundId, board);
       } catch (err) {
-        if (isMatchesDevMockScoresActive()) {
-          applyLiveBoard(
-            subroundId,
-            withDevMockLiveScores(emptyLiveScoresBoard(), fallback),
-          );
-          return;
-        }
         if (err instanceof ApiError && err.status === 501) {
           setBoards([]);
           setBoardLive(false);
@@ -361,7 +337,6 @@ export function ScoresPlayerWidget() {
           .sort((a, b) => a.sequence - b.sequence);
 
         setSubrounds(navigable);
-        matchesBySubroundRef.current = bySubround;
         setMatchesBySubround(bySubround);
 
         if (noRound) {
@@ -405,7 +380,7 @@ export function ScoresPlayerWidget() {
     };
   }, [loadCatalog]);
 
-  // Keep live/mock slate (for badge green + n/6 correct) in step with Matches.
+  // Keep live slate (badge green + n/6 correct) in step with Matches.
   useEffect(() => {
     if (!boardLive || selectedSubroundId == null) {
       return;
@@ -415,6 +390,14 @@ export function ScoresPlayerWidget() {
     }, LIVE_POLL_MS);
     return () => clearInterval(id);
   }, [boardLive, selectedSubroundId, loadScores]);
+
+  useEffect(() => {
+    if (!boardLive) {
+      return;
+    }
+    const id = setInterval(() => setNow(new Date()), 15_000);
+    return () => clearInterval(id);
+  }, [boardLive]);
 
   const onSelectSubround = useCallback(
     (next: Subround) => {
