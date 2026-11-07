@@ -167,7 +167,13 @@ export function MatchPredictRow({
           {minuteLabel ? (
             <Text
               style={styles.minute}
-              accessibilityLabel={`Minute ${minuteLabel}`}
+              accessibilityLabel={
+                minuteLabel === 'HT'
+                  ? 'Half-time'
+                  : minuteLabel === 'FT'
+                    ? 'Full-time'
+                    : `Minute ${minuteLabel}`
+              }
             >
               {minuteLabel}
             </Text>

@@ -70,6 +70,17 @@ export function isFinishedStatus(status: string | null | undefined): boolean {
   );
 }
 
+const HALF_TIME_STATUSES = new Set(['HT', 'HALF TIME', 'HALF_TIME']);
+
+/** True while the fixture is at half-time. */
+export function isHalfTimeStatus(status: string | null | undefined): boolean {
+  const normalized = normalizeStatus(status);
+  return (
+    HALF_TIME_STATUSES.has(normalized) ||
+    HALF_TIME_STATUSES.has(normalized.replace(/ /g, '_'))
+  );
+}
+
 export function isPostponedStatus(status: string | null | undefined): boolean {
   return normalizeStatus(status) === 'POSTPONED';
 }
@@ -140,7 +151,12 @@ export function formatAlignedScore(
   return `${input.homeScore} : ${input.awayScore}`;
 }
 
-/** `23'`-style label once started and API/mock provided a minute; else null. */
+/**
+ * Trailing clock label once started:
+ * - half-time → `HT`
+ * - finished → `FT`
+ * - else `23'`-style when the API provided a minute
+ */
 export function formatMatchMinute(
   matchMinute: number | null | undefined,
   matchDateIso: string | null | undefined,
@@ -149,6 +165,12 @@ export function formatMatchMinute(
 ): string | null {
   if (!matchHasStarted(matchDateIso, status, now)) {
     return null;
+  }
+  if (isHalfTimeStatus(status)) {
+    return 'HT';
+  }
+  if (isFinishedStatus(status)) {
+    return 'FT';
   }
   if (matchMinute == null || !Number.isFinite(matchMinute)) {
     return null;
