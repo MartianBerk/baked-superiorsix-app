@@ -85,6 +85,11 @@ export function AppHeader({
       ? playerPickingStatus
       : null) ??
     (isAuthenticated ? demoRoundStatusForPath(pathname) : null);
+  const showPotBanner =
+    isAuthenticated &&
+    !hideStatusStrip &&
+    status != null &&
+    (status.correctCount ?? 0) === 6;
   return (
     <View
       style={[
@@ -108,6 +113,18 @@ export function AppHeader({
             <Text style={styles.value}>{resolvedPrize}</Text>
           </View>
         </View>
+
+        {showPotBanner ? (
+          <View
+            style={styles.potBanner}
+            accessibilityRole="summary"
+            accessibilityLabel="Six from six — on to win the pot"
+          >
+            <Text style={styles.potBannerText}>
+              6/6 — on to win the pot
+            </Text>
+          </View>
+        ) : null}
 
         {hideStatusStrip || status == null ? null : (
           <RoundStatusStrip status={status} />
@@ -137,6 +154,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  potBanner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    backgroundColor: colors.accent,
+  },
+  potBannerText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   side: {
     flex: 1,
