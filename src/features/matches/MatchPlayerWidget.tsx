@@ -173,7 +173,7 @@ export function MatchPlayerWidget() {
   const [predictionsLoading, setPredictionsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
-  /** Wall clock so locked rows flip `- : -` → `0 : 0` at kickoff. */
+  /** Wall clock for lock / score-line / badge timing. */
   const [now, setNow] = useState(() => new Date());
   const [boardLive, setBoardLive] = useState(false);
   const [nextKickoff, setNextKickoff] = useState<string | null>(null);

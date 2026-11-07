@@ -59,7 +59,7 @@ type Props = {
   onPredict: (choice: PredictionChoice) => void;
   /** Shared team-name column width (longest name across the slate). */
   teamColumnWidth: number;
-  /** Wall clock for `- : -` → `0 : 0` (defaults to now). */
+  /** Wall clock for lock / score-line / badge timing (defaults to now). */
   now?: Date;
 };
 

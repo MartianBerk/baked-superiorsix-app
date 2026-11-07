@@ -1,8 +1,8 @@
 /**
  * Gameday score-line + polling helpers (Martin SS-26 pointers).
  *
- * - Before kickoff (incl. 10m lock window): `- : -`
- * - At kickoff: `0 : 0`, then live scores
+ * - Before real scores / while not in-play or finished: `- : -`
+ * - In-play or finished with scores: `h : a` (no invented `0 : 0` from clock)
  * - Non-live fixtures stay `- : -` while others are playing
  * - Poll livescores every 2 min from kickoff while any match is playing;
  *   stop until the next kickoff once the live set finishes
@@ -116,23 +116,27 @@ export function matchHasStarted(
 
 /**
  * Aligned score text for match headers.
- * Non-started → `- : -`; kicked off with null scores → `0 : 0`; else `h : a`.
+ * Null scores, or not yet in-play/finished → `- : -`.
+ * Do not invent `0 : 0` from wall-clock kickoff alone; show `h : a` only
+ * when both scores are present and the fixture is playing or finished.
  */
 export function formatAlignedScore(
   input: ScoreLineInputs,
-  now: Date = new Date(),
+  _now: Date = new Date(),
 ): string {
+  void _now;
   if (isPostponedStatus(input.status)) {
     return '- : -';
   }
 
-  if (!matchHasStarted(input.matchDateIso, input.status, now)) {
+  if (input.homeScore == null || input.awayScore == null) {
     return '- : -';
   }
 
-  if (input.homeScore == null || input.awayScore == null) {
-    return '0 : 0';
+  if (!isPlayingStatus(input.status) && !isFinishedStatus(input.status)) {
+    return '- : -';
   }
+
   return `${input.homeScore} : ${input.awayScore}`;
 }
 
