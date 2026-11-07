@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SuperiorSixLogo } from '@/components/icons/SuperiorSixLogo';
 import { useLeadersTabMode } from '@/features/leaders/LeadersTabModeContext';
 import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
+import { useScoresTabMode } from '@/features/scores/ScoresTabModeContext';
 import { colors } from '@/theme';
 
 import { useRoundStatus } from './RoundStatusContext';
@@ -23,7 +24,7 @@ type Props = {
    * Thin status strip under the logo row.
    * Omit to use live player picking count on fixtures, else SS-8 tab demos
    * (Scores → live correct; Leaders → + rival all 6).
-   * Hidden in fixtures admin (count in widget) and leaders admin (round UI).
+   * Hidden in fixtures / scores / leaders admin modes.
    */
   roundStatus?: RoundStatus;
 };
@@ -36,6 +37,10 @@ function isFixturesPath(pathname: string): boolean {
     return false;
   }
   return true;
+}
+
+function isScoresPath(pathname: string): boolean {
+  return pathname.includes('/scores');
 }
 
 function isLeadersPath(pathname: string): boolean {
@@ -54,10 +59,12 @@ export function AppHeader({
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const { mode: fixturesMode } = useFixturesTabMode();
+  const { mode: scoresMode } = useScoresTabMode();
   const { mode: leadersMode } = useLeadersTabMode();
   const { playerPickingStatus } = useRoundStatus();
   const hideStatusStrip =
     (fixturesMode === 'admin' && isFixturesPath(pathname)) ||
+    (scoresMode === 'admin' && isScoresPath(pathname)) ||
     (leadersMode === 'admin' && isLeadersPath(pathname));
   const status =
     roundStatus ??
@@ -67,7 +74,6 @@ export function AppHeader({
       ? playerPickingStatus
       : null) ??
     demoRoundStatusForPath(pathname);
-
   return (
     <View
       style={[

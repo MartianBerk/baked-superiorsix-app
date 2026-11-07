@@ -35,14 +35,15 @@ type Props = {
   color?: string;
   active?: boolean;
   /**
-   * When true on fixtures / leaders / users tab icons, overlays a small
-   * top-right cog badge (in-place admin mode).
+   * When true on fixtures / scores / leaders / users tab icons, overlays a
+   * small top-right cog badge (in-place admin mode).
    */
   adminBadge?: boolean;
 };
 
 const ADMIN_BADGE_ICONS: ReadonlySet<MenuIconName> = new Set([
   'fixtures',
+  'scores',
   'leaders',
   'users',
 ]);
