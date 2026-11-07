@@ -114,20 +114,22 @@ export function MatchPredictRow({
   return (
     <View style={[styles.block, prediction != null && styles.blockPicked]}>
       <View style={styles.row}>
-        {match.game_number != null ? (
-          <Text style={styles.gameNumber}>#{match.game_number}</Text>
-        ) : (
-          <View style={styles.gameNumberSpacer} />
-        )}
-        <DifficultyPips difficulty={match.difficulty} />
-        <View style={[styles.teams, { width: teamColumnWidth }]}>
-          <Text style={styles.team} numberOfLines={1}>
-            {match.home_team}
-          </Text>
-          <Text style={styles.team} numberOfLines={1}>
-            {match.away_team}
-            {postponed ? ' (P)' : ''}
-          </Text>
+        <View style={styles.leading}>
+          {match.game_number != null ? (
+            <Text style={styles.gameNumber}>#{match.game_number}</Text>
+          ) : (
+            <View style={styles.gameNumberSpacer} />
+          )}
+          <DifficultyPips difficulty={match.difficulty} />
+          <View style={[styles.teams, { width: teamColumnWidth }]}>
+            <Text style={styles.team} numberOfLines={1}>
+              {match.home_team}
+            </Text>
+            <Text style={styles.team} numberOfLines={1}>
+              {match.away_team}
+              {postponed ? ' (P)' : ''}
+            </Text>
+          </View>
         </View>
 
         <View style={styles.actions}>
@@ -224,6 +226,12 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
+  },
+  leading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flexShrink: 0,
   },
   gameNumber: {
     color: colors.text,
