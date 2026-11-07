@@ -54,8 +54,8 @@ function isProfilePath(pathname: string): boolean {
 }
 
 /**
- * Top shell: round left, logo center, prize pot right,
- * optional 6/6 pot banner, plus thin round-status strip.
+ * Top shell: round value left (`# n`), logo center, pot value right (`£…`),
+ * optional perfect-slate pot banner, plus thin round-status strip.
  * Player strip + pot banner show on all four non-admin tabs when logged in.
  */
 export function AppHeader({
@@ -102,11 +102,11 @@ export function AppHeader({
         styles.outer,
         { paddingTop: Math.max(insets.top, 10) },
       ]}
+      accessibilityLabel={`Round ${resolvedRound}, prize pot ${resolvedPrize}`}
     >
       <View style={styles.card}>
         <View style={styles.bar}>
           <View style={styles.side}>
-            <Text style={styles.label}>Round</Text>
             <Text style={styles.value}>{resolvedRound}</Text>
           </View>
 
@@ -115,7 +115,6 @@ export function AppHeader({
           </View>
 
           <View style={[styles.side, styles.sideRight]}>
-            <Text style={styles.label}>Prize pot</Text>
             <Text style={styles.value}>{resolvedPrize}</Text>
           </View>
         </View>
@@ -195,7 +194,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'flex-start',
     justifyContent: 'center',
-    gap: 2,
     zIndex: 1,
   },
   sideRight: {
@@ -205,11 +203,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  label: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
   },
   value: {
     color: colors.text,

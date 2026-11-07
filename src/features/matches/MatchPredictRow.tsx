@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -213,7 +214,19 @@ export function MatchPredictRow({
               onSelect={onPredict}
             />
           ) : (
-            <Text style={styles.signInHint}>Sign in to set a prediction.</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Sign in"
+              onPress={() => {
+                router.push('/profile');
+              }}
+              style={({ pressed }) => [
+                styles.signInButton,
+                pressed && styles.signInButtonPressed,
+              ]}
+            >
+              <Text style={styles.signInButtonLabel}>Sign in</Text>
+            </Pressable>
           )}
         </MatchDetailPanel>
       ) : null}
@@ -317,10 +330,23 @@ const styles = StyleSheet.create({
   actionPressed: {
     backgroundColor: colors.surface,
   },
-  signInHint: {
+  signInButton: {
+    alignSelf: 'flex-start',
     marginTop: 8,
-    color: colors.textMuted,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: colors.menuActive,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  signInButtonPressed: {
+    opacity: 0.85,
+  },
+  signInButtonLabel: {
+    color: colors.text,
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
 });
