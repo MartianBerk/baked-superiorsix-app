@@ -29,6 +29,11 @@ import { LIVE_POLL_MS } from '@/features/scores/liveScoreDisplay';
 import { colors } from '@/theme';
 
 import {
+  isMatchesDevClockActive,
+  matchesDevClockLabel,
+  matchesNow,
+} from './devClock';
+import {
   discoveryDayKeys,
   toLegacyDateParam,
   utcDayKey,
@@ -173,7 +178,7 @@ export function MatchPlayerWidget() {
   const [error, setError] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
   /** Wall clock so locked rows flip `- : -` → `0 : 0` at kickoff. */
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState(() => matchesNow());
   const [boardLive, setBoardLive] = useState(false);
   const [nextKickoff, setNextKickoff] = useState<string | null>(null);
   const [viewerCorrect, setViewerCorrect] = useState<number | null>(null);
@@ -197,10 +202,10 @@ export function MatchPlayerWidget() {
   const subroundLocked = useMemo(() => {
     const minKickoff = selectedSubround?.min_kickoff;
     if (minKickoff) {
-      return isPastCutoff(minKickoff);
+      return isPastCutoff(minKickoff, now);
     }
     return false;
-  }, [selectedSubround]);
+  }, [selectedSubround, now]);
 
   /** Header “n / 6 Selections” — optimistic from local draft for this slate. */
   const pickedCount = useMemo(() => {
@@ -428,10 +433,11 @@ export function MatchPlayerWidget() {
   }, [status, loadCatalog]);
 
   useEffect(() => {
-    if (!subroundLocked) {
+    // Frozen test clock: initial state already holds MATCHES_DEV_NOW_ISO.
+    if (isMatchesDevClockActive() || !subroundLocked) {
       return;
     }
-    const id = setInterval(() => setNow(new Date()), 15_000);
+    const id = setInterval(() => setNow(matchesNow()), 15_000);
     return () => clearInterval(id);
   }, [subroundLocked]);
 
@@ -576,6 +582,13 @@ export function MatchPlayerWidget() {
           </View>
         </View>
 
+        {isMatchesDevClockActive() ? (
+          <Text style={styles.devClock}>
+            Dev clock: {matchesDevClockLabel()} (Europe/London) — set
+            MATCHES_DEV_NOW_ISO null in src/features/matches/devClock.ts to
+            restore
+          </Text>
+        ) : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {rowError ? <Text style={styles.error}>{rowError}</Text> : null}
         {subroundLocked && matches.length > 0 ? (
@@ -667,6 +680,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 12,
+  },
+  devClock: {
+    color: colors.difficultyMedium,
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 16,
+    marginBottom: 10,
   },
   error: {
     color: '#E8A0A0',
