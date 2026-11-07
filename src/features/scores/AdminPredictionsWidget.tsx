@@ -10,12 +10,14 @@ import {
 
 import {
   addAdminPrediction,
+  fetchMatchDetail,
   isNoRoundInProgressError,
   listAdminPredictions,
   listGameSubrounds,
   listLiveMatches,
   listPlayers,
   type LiveMatch,
+  type MatchDifficulty,
   type PlayerProfile,
   type PredictionChoice,
   type Subround,
@@ -28,16 +30,22 @@ import {
   toLegacyDateParam,
   utcDayKey,
 } from '@/features/matches/formatMatchDate';
+import { aggregateSelectionDifficulty } from '@/features/matches/matchDifficulty';
 import { SubroundScrubber } from '@/features/matches/SubroundScrubber';
 import { colors } from '@/theme';
 
 import { AdminPlayerPredictionSection } from './AdminPlayerPredictionSection';
+import { KickoffDateDisplay } from './KickoffDateDisplay';
 import { playerLabel } from './playerLabel';
 import { useScoresTabMode } from './ScoresTabModeContext';
 
 const ADMIN_ROLE = 'admin';
 
-function sortMatches(matches: LiveMatch[]): LiveMatch[] {
+type SlateMatch = LiveMatch & {
+  difficulty?: MatchDifficulty | null;
+};
+
+function sortMatches(matches: SlateMatch[]): SlateMatch[] {
   return [...matches].sort((a, b) => {
     const aNum = a.game_number ?? 99;
     const bNum = b.game_number ?? 99;
@@ -48,8 +56,8 @@ function sortMatches(matches: LiveMatch[]): LiveMatch[] {
   });
 }
 
-function groupBySubround(matches: LiveMatch[]): Record<number, LiveMatch[]> {
-  const byId: Record<number, LiveMatch[]> = {};
+function groupBySubround(matches: SlateMatch[]): Record<number, SlateMatch[]> {
+  const byId: Record<number, SlateMatch[]> = {};
   for (const match of matches) {
     const subroundId = match.subround_id;
     if (subroundId == null) {
@@ -112,7 +120,7 @@ export function AdminPredictionsWidget() {
   const [players, setPlayers] = useState<PlayerProfile[]>([]);
   const [subrounds, setSubrounds] = useState<Subround[]>([]);
   const [matchesBySubround, setMatchesBySubround] = useState<
-    Record<number, LiveMatch[]>
+    Record<number, SlateMatch[]>
   >({});
   const [selectedSubroundId, setSelectedSubroundId] = useState<number | null>(
     null,
@@ -138,12 +146,22 @@ export function AdminPredictionsWidget() {
     selectedSubroundIdRef.current = selectedSubroundId;
   }, [selectedSubroundId]);
 
+  const selectedSubround = useMemo(
+    () => subrounds.find((row) => row.id === selectedSubroundId) ?? null,
+    [subrounds, selectedSubroundId],
+  );
+
   const matches = useMemo(
     () =>
       selectedSubroundId != null
         ? (matchesBySubround[selectedSubroundId] ?? [])
         : [],
     [selectedSubroundId, matchesBySubround],
+  );
+
+  const slateDifficulty = useMemo(
+    () => aggregateSelectionDifficulty(matches.map((m) => m.difficulty)),
+    [matches],
   );
 
   const sortedPlayers = useMemo(() => {
@@ -241,13 +259,36 @@ export function AdminPredictionsWidget() {
           ),
         ]);
 
-        const byId = new Map<number, LiveMatch>();
+        const byId = new Map<number, SlateMatch>();
         for (const dayMatches of dayResults) {
           for (const match of dayMatches) {
             byId.set(match.id, match);
           }
         }
-        const all = [...byId.values()];
+        let all = [...byId.values()];
+
+        const details = await Promise.all(
+          all.map(async (match) => {
+            try {
+              const detail = await fetchMatchDetail({
+                homeTeam: match.home_team,
+                awayTeam: match.away_team,
+                matchDate: toLegacyDateParam(utcDayKey(match.match_date)),
+              });
+              return { id: match.id, difficulty: detail.difficulty ?? null };
+            } catch {
+              return { id: match.id, difficulty: null };
+            }
+          }),
+        );
+        const difficultyById = new Map(
+          details.map((row) => [row.id, row.difficulty]),
+        );
+        all = all.map((match) => ({
+          ...match,
+          difficulty: difficultyById.get(match.id) ?? null,
+        }));
+
         const bySubround = groupBySubround(all);
         const navigable = listed
           .filter((row) => row.match_count > 0)
@@ -386,7 +427,6 @@ export function AdminPredictionsWidget() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.wrap}>
-          <Text style={styles.title}>Admin predictions</Text>
           <Text style={styles.lede}>
             Sign in with a superiorsix admin account to enter predictions on
             behalf of players.
@@ -407,7 +447,6 @@ export function AdminPredictionsWidget() {
   if (!canManage) {
     return (
       <View style={styles.center}>
-        <Text style={styles.title}>Admin predictions</Text>
         <Text style={styles.lede}>
           Entering player predictions needs the superiorsix admin role.
         </Text>
@@ -421,6 +460,9 @@ export function AdminPredictionsWidget() {
       </View>
     );
   }
+
+  const showSubroundScrubber =
+    subrounds.length > 0 && selectedSubroundId != null;
 
   return (
     <ScrollView
@@ -438,16 +480,28 @@ export function AdminPredictionsWidget() {
       }
     >
       <View style={styles.wrap}>
-        <Text style={styles.title}>Admin predictions</Text>
-        <Text style={styles.lede}>
-          Expand a player, then tap H / D / A to submit on their behalf.
-        </Text>
-        <SubroundScrubber
-          subrounds={subrounds}
-          selectedId={selectedSubroundId}
-          onChange={onSelectSubround}
-          labelMode="kickoff"
-        />
+        <View style={styles.scrubberRow}>
+          {showSubroundScrubber ? (
+            <View style={styles.subroundCol}>
+              <SubroundScrubber
+                subrounds={subrounds}
+                selectedId={selectedSubroundId}
+                onChange={onSelectSubround}
+                labelMode="sequence"
+                style={styles.scrubberFlush}
+              />
+            </View>
+          ) : null}
+          <View
+            style={showSubroundScrubber ? styles.dateCol : styles.dateColFull}
+          >
+            <KickoffDateDisplay
+              kickoffIso={selectedSubround?.min_kickoff}
+              style={styles.scrubberFlush}
+            />
+          </View>
+        </View>
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {rowError ? <Text style={styles.error}>{rowError}</Text> : null}
 
@@ -471,6 +525,7 @@ export function AdminPredictionsWidget() {
               playerName={playerLabel(player)}
               matches={matches}
               predictions={draft[player.auth_id] ?? {}}
+              slateDifficulty={slateDifficulty}
               expanded={!!expanded[player.auth_id]}
               onToggleExpand={() =>
                 setExpanded((prev) => ({
@@ -507,8 +562,35 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
   wrap: {
-    paddingHorizontal: 16,
+    paddingHorizontal: '3%',
     paddingTop: 12,
+  },
+  scrubberRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 6,
+  },
+  /** ~33% — navigable slate scrubber. */
+  subroundCol: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+    minWidth: 0,
+  },
+  /** ~66% — display-only earliest kickoff. */
+  dateCol: {
+    flexGrow: 2,
+    flexShrink: 1,
+    flexBasis: 0,
+    minWidth: 0,
+  },
+  dateColFull: {
+    flex: 1,
+    minWidth: 0,
+  },
+  scrubberFlush: {
+    marginBottom: 0,
   },
   center: {
     flex: 1,
@@ -517,13 +599,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
     gap: 8,
-  },
-  title: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-    marginBottom: 4,
   },
   lede: {
     color: colors.textMuted,

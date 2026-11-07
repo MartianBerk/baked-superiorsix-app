@@ -1,8 +1,14 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 
-import type { LiveMatch, PredictionChoice } from '@/api/superiorsix';
+import type {
+  LiveMatch,
+  MatchDifficulty,
+  PredictionChoice,
+} from '@/api/superiorsix';
 import { colors } from '@/theme';
+
+import { DifficultyPips } from '@/features/matches/DifficultyPips';
 
 import { AdminPredictionMatchRow } from './AdminPredictionMatchRow';
 
@@ -16,6 +22,8 @@ type Props = {
   matches: LiveMatch[];
   /** matchId → prediction for this player. */
   predictions: Record<number, PredictionChoice | null>;
+  /** Overall slate difficulty (mean of selection scores) — collapsed row only. */
+  slateDifficulty: MatchDifficulty | null;
   expanded: boolean;
   onToggleExpand: () => void;
   /** Match id currently saving for this player, if any. */
@@ -27,12 +35,14 @@ type Props = {
 
 /**
  * Expandable player section for admin predictions (matches KickoffGroup chrome).
- * Collapsed: name left, n/6 right, chevron. Expanded: match rows with H/D/A.
+ * Collapsed: overall difficulty pips + name left, n/6 right, chevron.
+ * Expanded: match rows with H/D/A (no per-match difficulty).
  */
 export function AdminPlayerPredictionSection({
   playerName,
   matches,
   predictions,
+  slateDifficulty,
   expanded,
   onToggleExpand,
   busyMatchId,
@@ -60,9 +70,12 @@ export function AdminPlayerPredictionSection({
         onPress={onToggleExpand}
         style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
       >
-        <Text style={styles.name} numberOfLines={1}>
-          {playerName}
-        </Text>
+        <View style={styles.headerLeft}>
+          <DifficultyPips difficulty={slateDifficulty} />
+          <Text style={styles.name} numberOfLines={1}>
+            {playerName}
+          </Text>
+        </View>
         <View style={styles.headerRight}>
           <Text style={styles.count}>{countLabel}</Text>
           <View style={styles.chevronSlot}>
@@ -106,6 +119,13 @@ const styles = StyleSheet.create({
   },
   headerPressed: {
     backgroundColor: colors.menuActive,
+  },
+  headerLeft: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   name: {
     flex: 1,
