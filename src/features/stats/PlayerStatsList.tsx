@@ -30,7 +30,7 @@ export function PlayerStatsList({ stats, viewerAuthId }: Props) {
         <Text style={[styles.headerCell, styles.nameCol]}>Player</Text>
         <Text style={[styles.headerCell, styles.correctCol]}>Correct</Text>
         <Text style={[styles.headerCell, styles.rateCol]}>%</Text>
-        <Text style={[styles.headerCell, styles.deltaCol]}>vs n−1</Text>
+        <Text style={[styles.headerCell, styles.deltaCol]}>Vs Last Round</Text>
       </View>
       {stats.map((row, index) => {
         const isViewer =
