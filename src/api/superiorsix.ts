@@ -272,7 +272,7 @@ export async function getPlayerRoles(
 /**
  * Replace assignable membership roles for a rostered email
  * (`POST /admin/updateroles`). Requires JWT role `admin`.
- * Server preserves bootstrap `admin` and always-grants `user-profile`.
+ * Assignable set includes app-scoped `admin`; server always-grants `user-profile`.
  */
 export async function updatePlayerRoles(
   token: string,

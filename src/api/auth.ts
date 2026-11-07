@@ -29,13 +29,13 @@ export type AuthUser = {
 /**
  * Selectable Superior Six invite / roster-edit permission chips.
  * `user-profile` is always granted server-side — not listed here.
- * superiorsix `admin` (game + account ops) is never assignable in-app
- * (bootstrap / direct auth only).
+ * App-scoped `admin` is assignable by any superiorsix admin (SS-98).
  */
 export const INVITE_PERMISSION_ROLES = [
   'player',
   'worldcup',
   'euros',
+  'admin',
 ] as const;
 
 export type InvitePermissionRole = (typeof INVITE_PERMISSION_ROLES)[number];
@@ -46,6 +46,7 @@ export const INVITE_PERMISSION_ROLE_LABELS: Record<InvitePermissionRole, string>
     player: 'Player',
     worldcup: 'World Cup',
     euros: 'Euros',
+    admin: 'Admin',
   };
 
 /** Friendly label for any superiorsix role string (pending invites / roster meta). */
@@ -56,9 +57,6 @@ export function formatPermissionRoleLabel(role: string): string {
   }
   if (key === 'user-profile') {
     return 'Profile';
-  }
-  if (key === 'admin') {
-    return 'Admin';
   }
   if (key === 'game-master') {
     return 'Game master';
