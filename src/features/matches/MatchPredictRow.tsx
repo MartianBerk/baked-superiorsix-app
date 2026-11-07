@@ -265,9 +265,9 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   badge: {
-    width: 18,
-    height: 18,
-    borderRadius: 5,
+    width: 27,
+    height: 27,
+    borderRadius: 8,
     backgroundColor: colors.menuBar,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
@@ -281,10 +281,10 @@ const styles = StyleSheet.create({
   },
   badgeLabel: {
     color: colors.textMuted,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.2,
-    lineHeight: 12,
+    lineHeight: 14,
   },
   badgeLabelCorrect: {
     color: colors.text,

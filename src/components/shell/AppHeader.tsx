@@ -96,7 +96,7 @@ export function AppHeader({
           </View>
 
           <View style={styles.logoWrap} pointerEvents="none">
-            <SuperiorSixLogo width={72} height={72} />
+            <SuperiorSixLogo width={54} height={54} />
           </View>
 
           <View style={[styles.side, styles.sideRight]}>
