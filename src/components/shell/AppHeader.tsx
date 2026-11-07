@@ -2,6 +2,7 @@ import { usePathname } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAuth } from '@/auth';
 import { SuperiorSixLogo } from '@/components/icons/SuperiorSixLogo';
 import { useLeadersTabMode } from '@/features/leaders/LeadersTabModeContext';
 import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
@@ -58,13 +59,16 @@ export function AppHeader({
 }: Props) {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
+  const { isAuthenticated } = useAuth();
   const { mode: fixturesMode } = useFixturesTabMode();
   const { mode: scoresMode } = useScoresTabMode();
   const { mode: leadersMode } = useLeadersTabMode();
   const { playerPickingStatus, gamedayHeader } = useRoundStatus();
   const resolvedRound = roundLabel ?? gamedayHeader.roundLabel;
   const resolvedPrize = prizeLabel ?? gamedayHeader.prizeLabel;
+  // Selections / correct strip is player-only; hide when logged out.
   const hideStatusStrip =
+    !isAuthenticated ||
     (fixturesMode === 'admin' && isFixturesPath(pathname)) ||
     (scoresMode === 'admin' && isScoresPath(pathname)) ||
     (leadersMode === 'admin' && isLeadersPath(pathname));
@@ -80,7 +84,7 @@ export function AppHeader({
     playerPickingStatus
       ? playerPickingStatus
       : null) ??
-    demoRoundStatusForPath(pathname);
+    (isAuthenticated ? demoRoundStatusForPath(pathname) : null);
   return (
     <View
       style={[
@@ -105,7 +109,9 @@ export function AppHeader({
           </View>
         </View>
 
-        {hideStatusStrip ? null : <RoundStatusStrip status={status} />}
+        {hideStatusStrip || status == null ? null : (
+          <RoundStatusStrip status={status} />
+        )}
       </View>
     </View>
   );

@@ -10,10 +10,14 @@
  *
  * Bump examples (3pm kickoff slate):
  * - 10m pre-kickoff lock: `'2026-11-07T14:50:00Z'`
- * - at kickoff (`0 : 0`): `'2026-11-07T15:00:00Z'`
+ * - at kickoff / live mock: `'2026-11-07T15:00:00Z'`
  * - mid-live:             `'2026-11-07T15:30:00Z'`
+ *
+ * While non-null (and `__DEV__`), Matches also overlays mock livescores
+ * from `./mockLiveScores.ts` so score lines / badges / date flash work
+ * without real ingest.
  */
-export const MATCHES_DEV_NOW_ISO: string | null = '2026-11-07T14:50:00Z';
+export const MATCHES_DEV_NOW_ISO: string | null = '2026-11-07T15:00:00Z';
 
 /** True while the Matches widget is using the frozen test clock. */
 export function isMatchesDevClockActive(): boolean {

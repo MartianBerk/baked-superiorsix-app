@@ -43,6 +43,11 @@ import {
   teamColumnWidthForMatches,
   type PlayerMatch,
 } from './MatchPredictRow';
+import {
+  emptyLiveScoresBoard,
+  isMatchesDevMockScoresActive,
+  withDevMockLiveScores,
+} from './mockLiveScores';
 import { SubroundScrubber } from './SubroundScrubber';
 
 /**
@@ -183,6 +188,7 @@ export function MatchPlayerWidget() {
   const [boardLive, setBoardLive] = useState(false);
   const [nextKickoff, setNextKickoff] = useState<string | null>(null);
   const [viewerCorrect, setViewerCorrect] = useState<number | null>(null);
+  const matchesBySubroundRef = useRef<Record<number, PlayerMatch[]>>({});
 
   const canPredict = isAuthenticated && hasRole('player');
 
@@ -226,6 +232,13 @@ export function MatchPlayerWidget() {
   }, [matches, draft]);
 
   useEffect(() => {
+    // Header n/6 strip is for signed-in players only (redundant logged out).
+    if (!isAuthenticated) {
+      setPlayerPickingStatus(null);
+      return () => {
+        setPlayerPickingStatus(null);
+      };
+    }
     if (subroundLocked || boardLive) {
       setPlayerPickingStatus({
         phase: boardLive ? 'live' : 'finished',
@@ -241,6 +254,7 @@ export function MatchPlayerWidget() {
       setPlayerPickingStatus(null);
     };
   }, [
+    isAuthenticated,
     subroundLocked,
     boardLive,
     viewerCorrect,
@@ -280,11 +294,22 @@ export function MatchPlayerWidget() {
         setViewerCorrect(null);
         return;
       }
+      const fallback = matchesBySubroundRef.current[subroundId] ?? [];
       try {
         const board = await getLiveScores({ subroundId });
-        applyLiveBoard(board);
+        applyLiveBoard(
+          isMatchesDevMockScoresActive()
+            ? withDevMockLiveScores(board, fallback)
+            : board,
+        );
       } catch {
         // Livematches still drive the slate; live chrome is best-effort.
+        // Dev mock can still paint score lines without a reachable BFF.
+        if (isMatchesDevMockScoresActive()) {
+          applyLiveBoard(
+            withDevMockLiveScores(emptyLiveScoresBoard(), fallback),
+          );
+        }
       }
     },
     [applyLiveBoard],
@@ -423,6 +448,10 @@ export function MatchPlayerWidget() {
   useEffect(() => {
     selectedSubroundIdRef.current = selectedSubroundId;
   }, [selectedSubroundId]);
+
+  useEffect(() => {
+    matchesBySubroundRef.current = matchesBySubround;
+  }, [matchesBySubround]);
 
   useEffect(() => {
     if (status === 'loading') {
@@ -591,9 +620,10 @@ export function MatchPlayerWidget() {
 
         {isMatchesDevClockActive() ? (
           <Text style={styles.devClock}>
-            Dev clock: {matchesDevClockLabel()} (Europe/London) — set
-            MATCHES_DEV_NOW_ISO null in src/features/matches/devClock.ts to
-            restore
+            Dev clock: {matchesDevClockLabel()} (Europe/London)
+            {isMatchesDevMockScoresActive() ? ' + mock livescores' : ''} —
+            set MATCHES_DEV_NOW_ISO null in src/features/matches/devClock.ts
+            to restore
           </Text>
         ) : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}

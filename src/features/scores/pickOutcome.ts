@@ -42,8 +42,10 @@ export function scoresHaveStarted(
 }
 
 /**
- * Grey until scores start; green only while the pick matches the live scoreline
- * (null scores at kickoff count as 0–0).
+ * Grey until scores start; green only while the pick matches the live scoreline.
+ * Home/Away treat null scores at kickoff as 0–0. Draw stays grey until both
+ * scores are explicit (so synthetic / unset `0 : 0` before real play never
+ * greens a D pick — only in-play / finished draws with real numbers).
  */
 export function isPickCurrentlyCorrect(
   prediction: PredictionChoice | null | undefined,
@@ -55,6 +57,13 @@ export function isPickCurrentlyCorrect(
   }
   if (!scoresHaveStarted(match, now)) {
     return false;
+  }
+  // Draw must not go green on unset / pre-play `0 : 0` placeholders.
+  if (prediction === 'draw') {
+    if (match.home_score == null || match.away_score == null) {
+      return false;
+    }
+    return match.home_score === match.away_score;
   }
   return (
     prediction ===
