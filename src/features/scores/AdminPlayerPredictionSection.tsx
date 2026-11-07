@@ -15,8 +15,6 @@ import { AdminPredictionMatchRow } from './AdminPredictionMatchRow';
 const CHEVRON_DOWN = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
 const CHEVRON_UP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>`;
 
-const SLOT_TOTAL = 6;
-
 type Props = {
   playerName: string;
   matches: LiveMatch[];
@@ -35,7 +33,8 @@ type Props = {
 
 /**
  * Expandable player section for admin predictions (matches KickoffGroup chrome).
- * Collapsed: overall difficulty pips + name left, n/6 right, chevron.
+ * Collapsed: overall difficulty pips + name left, n/X right, chevron
+ * (X = current slate size).
  * Expanded: match rows with H/D/A (no per-match difficulty).
  */
 export function AdminPlayerPredictionSection({
@@ -59,7 +58,8 @@ export function AdminPlayerPredictionSection({
       picked += 1;
     }
   }
-  const countLabel = `${picked}/${SLOT_TOTAL}`;
+  const slateSize = matches.length > 0 ? matches.length : 6;
+  const countLabel = `${picked}/${slateSize}`;
 
   return (
     <View style={styles.card}>
