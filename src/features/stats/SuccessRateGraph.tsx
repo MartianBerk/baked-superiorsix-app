@@ -19,6 +19,8 @@ import { RateDeltaBadge } from './RateDeltaBadge';
 type Props = {
   /** Day scores for the logged-in player in the current round (n). */
   scores: AggregateScorePoint[];
+  /** Day scores from the previous closed round (n−1) — dotted overlay. */
+  previousScores?: AggregateScorePoint[];
   playerName: string;
   correct: number;
   matches: number;
@@ -27,33 +29,31 @@ type Props = {
   rateDelta?: number | null;
 };
 
-type Point = { x: number; y: number; score: number; date: string };
+type Point = { x: number; y: number; score: number; label: string };
 
-const GRAPH_HEIGHT = 212;
+const GRAPH_HEIGHT = 220;
 const PAD_LEFT = 34;
 const PAD_RIGHT = 16;
 const PAD_TOP = 22;
-const PAD_BOTTOM = 34;
+const PAD_BOTTOM = 36;
 
-/** Smooth cubic segments through day points (monotone-friendly mid controls). */
-function smoothLinePath(coords: Point[]): string {
+/** Straight polyline through points (no curves). */
+function straightLinePath(coords: Point[]): string {
   if (coords.length === 0) {
     return '';
   }
-  if (coords.length === 1) {
-    return `M ${coords[0].x} ${coords[0].y}`;
-  }
   let d = `M ${coords[0].x} ${coords[0].y}`;
-  for (let i = 0; i < coords.length - 1; i++) {
-    const a = coords[i];
-    const b = coords[i + 1];
-    const cpx = (a.x + b.x) / 2;
-    d += ` C ${cpx} ${a.y}, ${cpx} ${b.y}, ${b.x} ${b.y}`;
+  for (let i = 1; i < coords.length; i++) {
+    d += ` L ${coords[i].x} ${coords[i].y}`;
   }
   return d;
 }
 
-function areaUnderPath(linePath: string, coords: Point[], baselineY: number): string {
+function areaUnderPath(
+  linePath: string,
+  coords: Point[],
+  baselineY: number,
+): string {
   if (!linePath || coords.length === 0) {
     return '';
   }
@@ -62,12 +62,18 @@ function areaUnderPath(linePath: string, coords: Point[], baselineY: number): st
   return `${linePath} L ${last.x} ${baselineY} L ${first.x} ${baselineY} Z`;
 }
 
+function sortScores(scores: AggregateScorePoint[]): AggregateScorePoint[] {
+  return [...scores].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 /**
- * Current-round correct-picks chart for the signed-in player.
- * Dark surface + green accent line/area (react-native-svg) — no legacy green wash.
+ * Current-round correct-picks chart with a muted dotted last-round overlay.
+ * Series share ordinal match-day slots (day 1…n) so rounds compare visually
+ * even when calendar dates differ. Straight segments only.
  */
 export function SuccessRateGraph({
   scores,
+  previousScores = [],
   playerName,
   correct,
   matches,
@@ -76,33 +82,79 @@ export function SuccessRateGraph({
 }: Props) {
   const { width: windowWidth } = useWindowDimensions();
   const width = Math.min(Math.max(windowWidth - 48, 280), 520);
+  const plotWidth = width - 8;
 
   const chart = useMemo(() => {
-    const points = [...scores].sort((a, b) => a.date.localeCompare(b.date));
-    const plotW = width - PAD_LEFT - PAD_RIGHT;
+    const current = sortScores(scores);
+    const previous = sortScores(previousScores);
+    const slotCount = Math.max(current.length, previous.length, 1);
+    const plotW = plotWidth - PAD_LEFT - PAD_RIGHT;
     const plotH = GRAPH_HEIGHT - PAD_TOP - PAD_BOTTOM;
-    const rawMax = Math.max(0, ...points.map((p) => p.score));
-    // Headroom so markers/labels don’t kiss the top edge.
+    const rawMax = Math.max(
+      0,
+      ...current.map((p) => p.score),
+      ...previous.map((p) => p.score),
+    );
     const yMax = Math.max(2, rawMax + (rawMax > 0 ? 1 : 0));
     const baselineY = PAD_TOP + plotH;
 
-    const coords: Point[] = points.map((point, index) => {
-      const x =
-        points.length === 1
-          ? PAD_LEFT + plotW / 2
-          : PAD_LEFT + (plotW * index) / (points.length - 1);
-      const y = PAD_TOP + plotH - (plotH * point.score) / yMax;
-      return { x, y, score: point.score, date: point.date };
-    });
+    const xAt = (index: number) =>
+      slotCount === 1
+        ? PAD_LEFT + plotW / 2
+        : PAD_LEFT + (plotW * index) / (slotCount - 1);
 
-    const linePath = smoothLinePath(coords);
-    const areaPath = areaUnderPath(linePath, coords, baselineY);
+    const yAt = (score: number) =>
+      PAD_TOP + plotH - (plotH * score) / yMax;
+
+    const currentCoords: Point[] = current.map((point, index) => ({
+      x: xAt(index),
+      y: yAt(point.score),
+      score: point.score,
+      label: formatScoreDayLabel(point.date),
+    }));
+
+    const previousCoords: Point[] = previous.map((point, index) => ({
+      x: xAt(index),
+      y: yAt(point.score),
+      score: point.score,
+      label: formatScoreDayLabel(point.date),
+    }));
+
+    // Prefer current-round day labels; fill trailing slots from previous if needed.
+    const xLabels: string[] = [];
+    for (let i = 0; i < slotCount; i++) {
+      if (current[i]) {
+        xLabels.push(formatScoreDayLabel(current[i].date));
+      } else if (previous[i]) {
+        xLabels.push(formatScoreDayLabel(previous[i].date));
+      } else {
+        xLabels.push(`Day ${i + 1}`);
+      }
+    }
+
+    const currentLine = straightLinePath(currentCoords);
+    const previousLine = straightLinePath(previousCoords);
+    const areaPath = areaUnderPath(currentLine, currentCoords, baselineY);
     const yTicks = Array.from({ length: yMax + 1 }, (_, i) => i);
 
-    return { coords, linePath, areaPath, yMax, plotH, baselineY, yTicks };
-  }, [scores, width]);
+    return {
+      currentCoords,
+      previousCoords,
+      currentLine,
+      previousLine,
+      areaPath,
+      yMax,
+      plotH,
+      baselineY,
+      yTicks,
+      xLabels,
+      slotCount,
+      xAt,
+      hasPrevious: previousCoords.length > 0,
+    };
+  }, [scores, previousScores, plotWidth]);
 
-  if (scores.length === 0) {
+  if (scores.length === 0 && previousScores.length === 0) {
     return (
       <View style={styles.emptyCard}>
         <Text style={styles.emptyTitle}>No scores yet</Text>
@@ -114,12 +166,12 @@ export function SuccessRateGraph({
   }
 
   const rateLabel = `${Math.round(successRate)}%`;
-  const showAllXLabels = chart.coords.length <= 6;
+  const showAllXLabels = chart.slotCount <= 6;
 
   return (
     <View
       style={styles.card}
-      accessibilityLabel={`${playerName} current round graph`}
+      accessibilityLabel={`${playerName} current round graph with last round overlay`}
     >
       <View style={styles.headerRow}>
         <View style={styles.headerText}>
@@ -138,32 +190,43 @@ export function SuccessRateGraph({
         </View>
       </View>
 
+      {chart.hasPrevious ? (
+        <View style={styles.legend} accessibilityRole="text">
+          <View style={styles.legendItem}>
+            <View style={[styles.legendSwatch, styles.legendThis]} />
+            <Text style={styles.legendLabel}>This round</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendSwatch, styles.legendLast]} />
+            <Text style={styles.legendLabel}>Last round</Text>
+          </View>
+        </View>
+      ) : null}
+
       <View style={styles.chartFrame}>
-        <Svg width={width - 8} height={GRAPH_HEIGHT}>
+        <Svg width={plotWidth} height={GRAPH_HEIGHT}>
           <Defs>
             <LinearGradient id="statsAreaFill" x1="0" y1="0" x2="0" y2="1">
               <Stop
                 offset="0"
                 stopColor={colors.accentBright}
-                stopOpacity="0.32"
+                stopOpacity="0.28"
               />
               <Stop
                 offset="0.55"
                 stopColor={colors.accent}
-                stopOpacity="0.12"
+                stopOpacity="0.1"
               />
               <Stop offset="1" stopColor={colors.accent} stopOpacity="0.02" />
             </LinearGradient>
           </Defs>
 
-          {/* Plot floor */}
           <Path
-            d={`M ${PAD_LEFT} ${PAD_TOP} H ${width - 8 - PAD_RIGHT} V ${chart.baselineY} H ${PAD_LEFT} Z`}
+            d={`M ${PAD_LEFT} ${PAD_TOP} H ${plotWidth - PAD_RIGHT} V ${chart.baselineY} H ${PAD_LEFT} Z`}
             fill={colors.background}
             opacity={0.55}
           />
 
-          {/* Horizontal guides only */}
           {chart.yTicks.map((tick) => {
             const y =
               PAD_TOP + chart.plotH - (chart.plotH * tick) / chart.yMax;
@@ -172,7 +235,7 @@ export function SuccessRateGraph({
                 key={`y-${tick}`}
                 x1={PAD_LEFT}
                 y1={y}
-                x2={width - 8 - PAD_RIGHT}
+                x2={plotWidth - PAD_RIGHT}
                 y2={y}
                 stroke={colors.border}
                 strokeWidth={tick === 0 ? 1.25 : StyleSheet.hairlineWidth * 2}
@@ -181,7 +244,6 @@ export function SuccessRateGraph({
             );
           })}
 
-          {/* Y labels */}
           {chart.yTicks.map((tick) => {
             const y =
               PAD_TOP + chart.plotH - (chart.plotH * tick) / chart.yMax;
@@ -204,9 +266,40 @@ export function SuccessRateGraph({
             <Path d={chart.areaPath} fill="url(#statsAreaFill)" />
           ) : null}
 
-          {chart.linePath ? (
+          {/* Last round (underneath current): muted dotted straight segments */}
+          {chart.previousCoords.slice(0, -1).map((coord, index) => {
+            const next = chart.previousCoords[index + 1];
+            return (
+              <Line
+                key={`prev-seg-${coord.label}-${index}`}
+                x1={coord.x}
+                y1={coord.y}
+                x2={next.x}
+                y2={next.y}
+                stroke={colors.textMuted}
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeDasharray="5 5"
+                opacity={0.9}
+              />
+            );
+          })}
+
+          {chart.previousCoords.map((coord) => (
+            <Circle
+              key={`prev-dot-${coord.label}-${coord.x}`}
+              cx={coord.x}
+              cy={coord.y}
+              r={3.5}
+              fill={colors.menuBar}
+              stroke={colors.textMuted}
+              strokeWidth={1.75}
+            />
+          ))}
+
+          {chart.currentLine ? (
             <Path
-              d={chart.linePath}
+              d={chart.currentLine}
               stroke={colors.accentBright}
               strokeWidth={2.75}
               fill="none"
@@ -215,9 +308,9 @@ export function SuccessRateGraph({
             />
           ) : null}
 
-          {chart.coords.map((coord) => (
+          {chart.currentCoords.map((coord) => (
             <Circle
-              key={`halo-${coord.date}`}
+              key={`halo-${coord.label}-${coord.x}`}
               cx={coord.x}
               cy={coord.y}
               r={7}
@@ -226,9 +319,9 @@ export function SuccessRateGraph({
             />
           ))}
 
-          {chart.coords.map((coord) => (
+          {chart.currentCoords.map((coord) => (
             <Circle
-              key={`dot-${coord.date}`}
+              key={`dot-${coord.label}-${coord.x}`}
               cx={coord.x}
               cy={coord.y}
               r={4.25}
@@ -238,9 +331,9 @@ export function SuccessRateGraph({
             />
           ))}
 
-          {chart.coords.map((coord) => (
+          {chart.currentCoords.map((coord) => (
             <SvgText
-              key={`val-${coord.date}`}
+              key={`val-${coord.label}-${coord.x}`}
               x={coord.x}
               y={coord.y - 11}
               fill={colors.text}
@@ -252,26 +345,26 @@ export function SuccessRateGraph({
             </SvgText>
           ))}
 
-          {chart.coords.map((coord, index) => {
+          {chart.xLabels.map((label, index) => {
             const show =
               showAllXLabels ||
               index === 0 ||
-              index === chart.coords.length - 1 ||
+              index === chart.xLabels.length - 1 ||
               index % 2 === 0;
             if (!show) {
               return null;
             }
             return (
               <SvgText
-                key={`xl-${coord.date}`}
-                x={coord.x}
+                key={`xl-${label}-${index}`}
+                x={chart.xAt(index)}
                 y={GRAPH_HEIGHT - 10}
                 fill={colors.textMuted}
                 fontSize="10"
                 fontWeight="600"
                 textAnchor="middle"
               >
-                {formatScoreDayLabel(coord.date)}
+                {label}
               </SvgText>
             );
           })}
@@ -297,7 +390,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 10,
     gap: 12,
   },
   headerText: {
@@ -338,6 +431,35 @@ const styles = StyleSheet.create({
   correct: {
     color: colors.textMuted,
     fontSize: 12,
+    fontWeight: '600',
+  },
+  legend: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 8,
+    paddingHorizontal: 2,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendSwatch: {
+    width: 18,
+    height: 3,
+    borderRadius: 1,
+  },
+  legendThis: {
+    backgroundColor: colors.accentBright,
+  },
+  legendLast: {
+    backgroundColor: colors.textMuted,
+    opacity: 0.75,
+  },
+  legendLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
     fontWeight: '600',
   },
   chartFrame: {

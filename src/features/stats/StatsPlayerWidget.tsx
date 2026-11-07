@@ -67,6 +67,7 @@ function rowsWithoutDelta(previous: AggregatePlayerStats[]): StatsCompareRow[] {
       previous_success_rate: null,
       rate_delta: null,
       scores: row.scores,
+      previous_scores: [],
     }))
     .sort(
       (a, b) =>
@@ -273,6 +274,7 @@ export function StatsPlayerWidget() {
           ) : viewerRow ? (
             <SuccessRateGraph
               scores={viewerRow.scores}
+              previousScores={viewerRow.previous_scores}
               playerName={viewerRow.name}
               correct={viewerRow.correct}
               matches={viewerRow.matches}

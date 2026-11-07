@@ -18,7 +18,10 @@ export type StatsCompareRow = {
    * Null when previous is unavailable.
    */
   rate_delta: number | null;
+  /** Current round (n) day scores for the graph. */
   scores: AggregateScorePoint[];
+  /** Previous round (n−1) day scores for the dotted overlay series. */
+  previous_scores: AggregateScorePoint[];
 };
 
 function rateDelta(
@@ -51,6 +54,7 @@ export function mergeCompareRows(
       previous_success_rate: previousRate,
       rate_delta: rateDelta(row.success_rate, previousRate),
       scores: row.scores,
+      previous_scores: prior?.scores ?? [],
     };
   });
 
@@ -68,6 +72,7 @@ export function mergeCompareRows(
       previous_success_rate: prior.success_rate,
       rate_delta: rateDelta(0, prior.success_rate),
       scores: [],
+      previous_scores: prior.scores,
     });
   }
 

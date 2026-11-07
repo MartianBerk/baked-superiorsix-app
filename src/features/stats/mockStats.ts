@@ -83,7 +83,8 @@ const MOCK_CURRENT: AggregatePlayerStats[] = [
 /**
  * Previous closed round (n−1) — SS-18 `/stats/aggregate` shape.
  * Chosen so demos show both up and down deltas vs MOCK_CURRENT:
- * Ada −5pp, Bob +10pp, Cara +17pp, Dan flat-ish (−0).
+ * Ada −5pp, Bob +10pp, Cara +17pp, Dan flat (−0). Each row includes a
+ * four-point day series for the dotted last-round graph overlay.
  */
 const MOCK_PREVIOUS: AggregatePlayerStats[] = [
   {
@@ -92,10 +93,12 @@ const MOCK_PREVIOUS: AggregatePlayerStats[] = [
     correct: 5,
     matches: 7,
     success_rate: 71.43,
+    // Four match days; shape differs from current so the dotted overlay reads clearly.
     scores: [
       { name: 'Ada Lovelace', date: '2026-02-01', score: 2, matches: 2 },
-      { name: 'Ada Lovelace', date: '2026-02-08', score: 2, matches: 2 },
-      { name: 'Ada Lovelace', date: '2026-02-15', score: 1, matches: 3 },
+      { name: 'Ada Lovelace', date: '2026-02-08', score: 1, matches: 1 },
+      { name: 'Ada Lovelace', date: '2026-02-15', score: 2, matches: 2 },
+      { name: 'Ada Lovelace', date: '2026-02-22', score: 0, matches: 2 },
     ],
   },
   {
@@ -105,8 +108,10 @@ const MOCK_PREVIOUS: AggregatePlayerStats[] = [
     matches: 5,
     success_rate: 40.0,
     scores: [
-      { name: 'Bob Builder', date: '2026-02-01', score: 1, matches: 2 },
-      { name: 'Bob Builder', date: '2026-02-08', score: 1, matches: 3 },
+      { name: 'Bob Builder', date: '2026-02-01', score: 1, matches: 1 },
+      { name: 'Bob Builder', date: '2026-02-08', score: 1, matches: 1 },
+      { name: 'Bob Builder', date: '2026-02-15', score: 0, matches: 2 },
+      { name: 'Bob Builder', date: '2026-02-22', score: 0, matches: 1 },
     ],
   },
   {
@@ -117,7 +122,9 @@ const MOCK_PREVIOUS: AggregatePlayerStats[] = [
     success_rate: 50.0,
     scores: [
       { name: 'Cara Chase', date: '2026-02-01', score: 1, matches: 2 },
-      { name: 'Cara Chase', date: '2026-02-08', score: 2, matches: 4 },
+      { name: 'Cara Chase', date: '2026-02-08', score: 1, matches: 1 },
+      { name: 'Cara Chase', date: '2026-02-15', score: 1, matches: 2 },
+      { name: 'Cara Chase', date: '2026-02-22', score: 0, matches: 1 },
     ],
   },
   {
@@ -127,8 +134,10 @@ const MOCK_PREVIOUS: AggregatePlayerStats[] = [
     matches: 6,
     success_rate: 33.33,
     scores: [
-      { name: 'Dan Drift', date: '2026-02-01', score: 1, matches: 3 },
-      { name: 'Dan Drift', date: '2026-02-08', score: 1, matches: 3 },
+      { name: 'Dan Drift', date: '2026-02-01', score: 1, matches: 2 },
+      { name: 'Dan Drift', date: '2026-02-08', score: 0, matches: 1 },
+      { name: 'Dan Drift', date: '2026-02-15', score: 0, matches: 2 },
+      { name: 'Dan Drift', date: '2026-02-22', score: 1, matches: 1 },
     ],
   },
 ];
