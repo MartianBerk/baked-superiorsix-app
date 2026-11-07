@@ -21,7 +21,7 @@ export function formatSuccessRate(rate: number): string {
 export function formatRateDelta(delta: number): string {
   const rounded = Math.round(delta);
   if (rounded === 0) {
-    return 'flat';
+    return '—';
   }
   const abs = Math.abs(rounded);
   return rounded > 0 ? `up ${abs}%` : `down ${abs}%`;

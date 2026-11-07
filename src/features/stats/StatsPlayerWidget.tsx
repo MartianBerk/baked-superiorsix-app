@@ -33,7 +33,7 @@ import {
   StatsViewScrubber,
   type StatsViewMode,
 } from './StatsViewScrubber';
-import { WinnersScrubber } from './WinnersScrubber';
+import { WinnersList } from './WinnersList';
 
 /**
  * When TEMP mock data is in play, retarget the demo "you" row to the signed-in
@@ -303,7 +303,7 @@ export function StatsPlayerWidget() {
         </>
       ) : (
         <View style={styles.section}>
-          <WinnersScrubber rounds={rounds} />
+          <WinnersList rounds={rounds} />
         </View>
       )}
     </ScrollView>

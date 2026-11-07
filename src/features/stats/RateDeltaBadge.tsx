@@ -20,13 +20,13 @@ type Props = {
 
 /**
  * Inline n vs n−1 success-rate delta: green-up / red-down chevron + label
- * (`up 10%` / `down 5%`). Flat → muted em dash.
+ * (`up 10%` / `down 5%`). Unchanged / missing → muted em dash.
  */
 export function RateDeltaBadge({ delta, size = 'sm' }: Props) {
   if (delta == null || !Number.isFinite(delta)) {
     return (
       <Text
-        style={[styles.flat, size === 'md' && styles.flatMd]}
+        style={[styles.unchanged, size === 'md' && styles.unchangedMd]}
         accessibilityLabel="No previous-round comparison"
       >
         —
@@ -38,10 +38,10 @@ export function RateDeltaBadge({ delta, size = 'sm' }: Props) {
   if (rounded === 0) {
     return (
       <Text
-        style={[styles.flat, size === 'md' && styles.flatMd]}
+        style={[styles.unchanged, size === 'md' && styles.unchangedMd]}
         accessibilityLabel="Unchanged vs previous round"
       >
-        flat
+        —
       </Text>
     );
   }
@@ -85,12 +85,12 @@ const styles = StyleSheet.create({
   labelMd: {
     fontSize: 14,
   },
-  flat: {
+  unchanged: {
     color: colors.textMuted,
     fontSize: 12,
     fontWeight: '600',
   },
-  flatMd: {
+  unchangedMd: {
     fontSize: 14,
   },
 });
