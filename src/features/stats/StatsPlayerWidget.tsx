@@ -13,20 +13,13 @@ import {
   getStatsAggregate,
   getStatsWinners,
   type AggregatePlayerStats,
-  type AggregateStatsResponse,
   type HistoricRound,
 } from '@/api/superiorsix';
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
 import { colors } from '@/theme';
 
-import { mergeCompareRows, type StatsCompareRow } from './compareStats';
-import {
-  MOCK_STATS_VIEWER_AUTH_ID,
-  withDevCurrentFallback,
-  withDevPreviousFallback,
-  withDevWinnersFallback,
-} from './mockStats';
+import { type StatsCompareRow } from './compareStats';
 import { PlayerStatsList } from './PlayerStatsList';
 import { SuccessRateGraph } from './SuccessRateGraph';
 import {
@@ -36,29 +29,9 @@ import {
 import { WinnersList } from './WinnersList';
 
 /**
- * When TEMP mock data is in play, retarget the demo "you" row to the signed-in
- * auth_id so the graph highlight matches the session.
- */
-function alignMockViewer(
-  payload: AggregateStatsResponse,
-  viewerAuthId: string | null | undefined,
-  usedMock: boolean,
-): AggregateStatsResponse {
-  if (!usedMock || !viewerAuthId) {
-    return payload;
-  }
-  return {
-    stats: payload.stats.map((row) =>
-      row.playerid === MOCK_STATS_VIEWER_AUTH_ID
-        ? { ...row, playerid: viewerAuthId }
-        : row,
-    ),
-  };
-}
-
-/**
  * Previous-only rows: same graphic shell data, no n vs n−1 deltas / overlay.
  * Day series from the closed round are the primary (solid) graph series.
+ * (SS-18 aggregate is n−1; wire mergeCompareRows when a current-n API exists.)
  */
 function rowsWithoutDelta(previous: AggregatePlayerStats[]): StatsCompareRow[] {
   return previous
@@ -83,8 +56,8 @@ function rowsWithoutDelta(previous: AggregatePlayerStats[]): StatsCompareRow[] {
 
 /**
  * Leaders (player) — Performance↔Winners scrubber.
- * Live: SS-18 `/stats/aggregate` (n−1) + `/stats/winners`. Optional __DEV__ mocks
- * when the DB is empty (`src/features/stats/mockStats.ts`).
+ * Live only: SS-18 `/stats/aggregate` (n−1) + `/stats/winners`.
+ * Empty payloads render blank (no mock fixtures).
  */
 export function StatsPlayerWidget() {
   const { isAuthenticated, session } = useAuth();
@@ -93,97 +66,37 @@ export function StatsPlayerWidget() {
   const [viewMode, setViewMode] = useState<StatsViewMode>('stats');
   const [compareRows, setCompareRows] = useState<StatsCompareRow[]>([]);
   const [rounds, setRounds] = useState<HistoricRound[]>([]);
-  const [usingMock, setUsingMock] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(
-    async (opts?: { soft?: boolean }) => {
-      if (!opts?.soft) {
-        setLoading(true);
-      }
-      setError(null);
-      try {
-        const [previousLive, winnersLive] = await Promise.all([
-          getStatsAggregate(),
-          getStatsWinners(),
-        ]);
-        const previous = withDevPreviousFallback(previousLive);
-        const current = withDevCurrentFallback({ stats: [] });
-        const winners = withDevWinnersFallback(winnersLive);
-        const mockInUse =
-          previous.usedMock || current.usedMock || winners.usedMock;
-
-        const alignedCurrent = alignMockViewer(
-          current.data,
-          viewerAuthId,
-          current.usedMock,
-        );
-        const alignedPrevious = alignMockViewer(
-          previous.data,
-          viewerAuthId,
-          previous.usedMock,
-        );
-
-        let rows: StatsCompareRow[];
-        if (alignedCurrent.stats.length > 0) {
-          rows = mergeCompareRows(alignedCurrent.stats, alignedPrevious.stats);
-        } else if (alignedPrevious.stats.length > 0) {
-          rows = rowsWithoutDelta(alignedPrevious.stats);
-        } else {
-          rows = [];
-        }
-
-        setCompareRows(rows);
-        setRounds(winners.data.rounds);
-        setUsingMock(mockInUse);
-      } catch (err) {
-        if (__DEV__) {
-          const previous = withDevPreviousFallback({ stats: [] });
-          const current = withDevCurrentFallback({ stats: [] });
-          const winners = withDevWinnersFallback({ rounds: [] });
-          if (
-            current.data.stats.length > 0 ||
-            previous.data.stats.length > 0 ||
-            winners.data.rounds.length > 0
-          ) {
-            const alignedCurrent = alignMockViewer(
-              current.data,
-              viewerAuthId,
-              true,
-            );
-            const alignedPrevious = alignMockViewer(
-              previous.data,
-              viewerAuthId,
-              true,
-            );
-            const rows =
-              alignedCurrent.stats.length > 0
-                ? mergeCompareRows(
-                    alignedCurrent.stats,
-                    alignedPrevious.stats,
-                  )
-                : rowsWithoutDelta(alignedPrevious.stats);
-            setCompareRows(rows);
-            setRounds(winners.data.rounds);
-            setUsingMock(true);
-            setError(null);
-            return;
-          }
-        }
-        const message =
-          err instanceof ApiError
-            ? err.message
-            : 'Could not load stats. Is baked-superiorsix up?';
-        setError(message);
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [viewerAuthId],
-  );
+  const load = useCallback(async (opts?: { soft?: boolean }) => {
+    if (!opts?.soft) {
+      setLoading(true);
+    }
+    setError(null);
+    try {
+      const [previous, winners] = await Promise.all([
+        getStatsAggregate(),
+        getStatsWinners(),
+      ]);
+      setCompareRows(
+        previous.stats.length > 0
+          ? rowsWithoutDelta(previous.stats)
+          : [],
+      );
+      setRounds(winners.rounds);
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : 'Could not load stats. Is baked-superiorsix up?';
+      setError(message);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -238,16 +151,6 @@ export function StatsPlayerWidget() {
       }
     >
       <StatsViewScrubber mode={viewMode} onChange={setViewMode} />
-
-      {usingMock ? (
-        <View style={styles.mockBanner} accessibilityRole="text">
-          <Text style={styles.mockBannerText}>
-            DEV mock stats — remove{' '}
-            <Text style={styles.mockCode}>src/features/stats/mockStats.ts</Text>{' '}
-            when the DB has closed rounds.
-          </Text>
-        </View>
-      ) : null}
 
       {error ? (
         <View style={styles.errorBox}>
@@ -319,23 +222,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 13,
     fontWeight: '600',
-  },
-  mockBanner: {
-    backgroundColor: colors.menuActive,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.amber,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  mockBannerText: {
-    color: colors.amber,
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 16,
-  },
-  mockCode: {
-    fontWeight: '800',
   },
   errorBox: {
     backgroundColor: colors.surface,
