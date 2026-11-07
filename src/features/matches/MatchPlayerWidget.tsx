@@ -121,7 +121,6 @@ export function MatchPlayerWidget() {
     null,
   );
   const selectedSubroundIdRef = useRef<number | null>(null);
-  selectedSubroundIdRef.current = selectedSubroundId;
 
   const [draft, setDraft] = useState<Record<number, PredictionChoice | null>>(
     {},
@@ -132,6 +131,8 @@ export function MatchPlayerWidget() {
   const [predictionsLoading, setPredictionsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
+  /** Wall clock so locked rows flip `- : -` → `0 : 0` at kickoff. */
+  const [now, setNow] = useState(() => new Date());
 
   const canPredict = isAuthenticated && hasRole('player');
 
@@ -308,6 +309,10 @@ export function MatchPlayerWidget() {
   );
 
   useEffect(() => {
+    selectedSubroundIdRef.current = selectedSubroundId;
+  }, [selectedSubroundId]);
+
+  useEffect(() => {
     if (status === 'loading') {
       return;
     }
@@ -321,6 +326,14 @@ export function MatchPlayerWidget() {
       cancelled = true;
     };
   }, [status, loadCatalog]);
+
+  useEffect(() => {
+    if (!subroundLocked) {
+      return;
+    }
+    const id = setInterval(() => setNow(new Date()), 15_000);
+    return () => clearInterval(id);
+  }, [subroundLocked]);
 
   const onSelectSubround = useCallback(
     (next: Subround) => {
@@ -440,6 +453,7 @@ export function MatchPlayerWidget() {
                 busy={busyId === match.id}
                 locked={subroundLocked}
                 canPredict={canPredict}
+                now={now}
                 onPredict={(choice) => {
                   void onPredict(match, choice);
                 }}

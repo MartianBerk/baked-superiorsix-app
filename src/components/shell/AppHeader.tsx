@@ -52,8 +52,8 @@ function isLeadersPath(pathname: string): boolean {
  * plus thin round-status strip at the bottom of the header card.
  */
 export function AppHeader({
-  roundLabel = 'N',
-  prizeLabel = '£X',
+  roundLabel,
+  prizeLabel,
   roundStatus,
 }: Props) {
   const insets = useSafeAreaInsets();
@@ -61,15 +61,22 @@ export function AppHeader({
   const { mode: fixturesMode } = useFixturesTabMode();
   const { mode: scoresMode } = useScoresTabMode();
   const { mode: leadersMode } = useLeadersTabMode();
-  const { playerPickingStatus } = useRoundStatus();
+  const { playerPickingStatus, gamedayHeader } = useRoundStatus();
+  const resolvedRound = roundLabel ?? gamedayHeader.roundLabel;
+  const resolvedPrize = prizeLabel ?? gamedayHeader.prizeLabel;
   const hideStatusStrip =
     (fixturesMode === 'admin' && isFixturesPath(pathname)) ||
     (scoresMode === 'admin' && isScoresPath(pathname)) ||
     (leadersMode === 'admin' && isLeadersPath(pathname));
   const status =
     roundStatus ??
-    (isFixturesPath(pathname) &&
-    fixturesMode === 'normal' &&
+    (fixturesMode === 'normal' &&
+    isFixturesPath(pathname) &&
+    playerPickingStatus
+      ? playerPickingStatus
+      : null) ??
+    (scoresMode === 'normal' &&
+    isScoresPath(pathname) &&
     playerPickingStatus
       ? playerPickingStatus
       : null) ??
@@ -85,7 +92,7 @@ export function AppHeader({
         <View style={styles.bar}>
           <View style={styles.side}>
             <Text style={styles.label}>Round</Text>
-            <Text style={styles.value}>{roundLabel}</Text>
+            <Text style={styles.value}>{resolvedRound}</Text>
           </View>
 
           <View style={styles.logoWrap} pointerEvents="none">
@@ -94,7 +101,7 @@ export function AppHeader({
 
           <View style={[styles.side, styles.sideRight]}>
             <Text style={styles.label}>Prize pot</Text>
-            <Text style={styles.value}>{prizeLabel}</Text>
+            <Text style={styles.value}>{resolvedPrize}</Text>
           </View>
         </View>
 

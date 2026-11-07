@@ -7,6 +7,7 @@ import type {
   MatchDifficulty,
   PredictionChoice,
 } from '@/api/superiorsix';
+import { formatAlignedScore } from '@/features/scores/liveScoreDisplay';
 import { colors } from '@/theme';
 
 import { DifficultyPips } from './DifficultyPips';
@@ -33,11 +34,14 @@ type Props = {
   locked: boolean;
   canPredict: boolean;
   onPredict: (choice: PredictionChoice) => void;
+  /** Wall clock for `- : -` → `0 : 0` (defaults to now). */
+  now?: Date;
 };
 
 /**
  * Player fixture row: home/away stack, difficulty pips, expand for detail +
- * Home/Draw/Away. No add/drop (admin-only).
+ * Home/Draw/Away. Past the 10m lock, expands collapse and stay locked; header
+ * shows an aligned score line (`- : -` / `0 : 0` / live).
  */
 export function MatchPredictRow({
   match,
@@ -46,13 +50,28 @@ export function MatchPredictRow({
   locked,
   canPredict,
   onPredict,
+  now = new Date(),
 }: Props) {
   const [expanded, setExpanded] = useState(false);
+  /** Lock forces sections closed without a cascading setState effect. */
+  const open = expanded && !locked;
   const postponed = match.status === 'POSTPONED';
-  const chevron = (expanded ? CHEVRON_UP : CHEVRON_DOWN).replaceAll(
+  const chevron = (open ? CHEVRON_UP : CHEVRON_DOWN).replaceAll(
     'CURRENT',
     colors.textMuted,
   );
+
+  const scoreLine = locked
+    ? formatAlignedScore(
+        {
+          matchDateIso: match.match_date,
+          status: match.status,
+          homeScore: match.home_score,
+          awayScore: match.away_score,
+        },
+        now,
+      )
+    : null;
 
   return (
     <View style={[styles.block, prediction != null && styles.blockPicked]}>
@@ -72,6 +91,14 @@ export function MatchPredictRow({
           {match.game_number != null ? (
             <Text style={styles.slot}>#{match.game_number}</Text>
           ) : null}
+          {scoreLine ? (
+            <Text
+              style={styles.score}
+              accessibilityLabel={`Score ${scoreLine}`}
+            >
+              {scoreLine}
+            </Text>
+          ) : null}
           {prediction != null ? (
             <Text
               style={styles.pick}
@@ -82,16 +109,20 @@ export function MatchPredictRow({
           ) : null}
           <Pressable
             accessibilityRole="button"
-            accessibilityState={{ expanded }}
+            accessibilityState={{ expanded: open, disabled: locked }}
             accessibilityLabel={
-              expanded
-                ? `Collapse ${match.home_team} vs ${match.away_team}`
-                : `Expand ${match.home_team} vs ${match.away_team}`
+              locked
+                ? `Predictions locked for ${match.home_team} vs ${match.away_team}`
+                : open
+                  ? `Collapse ${match.home_team} vs ${match.away_team}`
+                  : `Expand ${match.home_team} vs ${match.away_team}`
             }
+            disabled={locked}
             onPress={() => setExpanded((prev) => !prev)}
             style={({ pressed }) => [
               styles.actionHit,
-              pressed && styles.actionPressed,
+              pressed && !locked && styles.actionPressed,
+              locked && styles.actionDisabled,
             ]}
           >
             <SvgXml xml={chevron} width={18} height={18} />
@@ -99,7 +130,7 @@ export function MatchPredictRow({
         </View>
       </View>
 
-      {expanded ? (
+      {open ? (
         <MatchDetailPanel
           homeTeam={match.home_team}
           awayTeam={match.away_team}
@@ -161,6 +192,15 @@ const styles = StyleSheet.create({
     minWidth: 18,
     textAlign: 'right',
   },
+  score: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    fontVariant: ['tabular-nums'],
+    minWidth: 48,
+    textAlign: 'center',
+  },
   pick: {
     color: colors.text,
     fontSize: 12,
@@ -177,6 +217,9 @@ const styles = StyleSheet.create({
   },
   actionPressed: {
     backgroundColor: colors.surface,
+  },
+  actionDisabled: {
+    opacity: 0.35,
   },
   signInHint: {
     marginTop: 8,

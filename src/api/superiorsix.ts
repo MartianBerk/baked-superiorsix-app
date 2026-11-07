@@ -953,6 +953,214 @@ export async function dropMatch(
 }
 
 /**
+ * Public gameday round summary from SS-16 (`GET /game/currentround`).
+ * Prefer this over admin `currentround` for header chrome. Tolerates noop /
+ * empty bodies by returning `null`.
+ */
+export type GameCurrentRound = {
+  /** Parent round id (legacy `round_id` or SS-16 `id`). */
+  id: number;
+  start_date?: string | null;
+  /** Earliest upcoming / current slate kickoff (legacy). */
+  current_match_date?: string | null;
+  /**
+   * Buy-in stake in pence. SS-16 may send this directly; legacy jackpot
+   * clients derive pot on the FE instead.
+   */
+  buy_in_pence?: number | null;
+  /** Active full roster size (non-retired). Used for pot = buy_in × roster × subround. */
+  players?: number | null;
+  /** Legacy precomputed jackpot (pence). Prefer FE formula when buy_in+players known. */
+  jackpot?: number | null;
+  /** Latest / current subround sequence when BE provides it. */
+  subround?: number | null;
+  /** Legacy field: match-day / subround count — treat as subround when present. */
+  matches?: number | null;
+};
+
+function asFiniteNumber(value: unknown): number | null {
+  if (value == null || value === '') {
+    return null;
+  }
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeGameCurrentRound(
+  raw: Record<string, unknown>,
+): GameCurrentRound | null {
+  const id = asFiniteNumber(raw.id ?? raw.round_id);
+  if (id == null) {
+    return null;
+  }
+  return {
+    id,
+    ...(typeof raw.start_date === 'string' ? { start_date: raw.start_date } : {}),
+    ...(typeof raw.current_match_date === 'string'
+      ? { current_match_date: raw.current_match_date }
+      : {}),
+    buy_in_pence: asFiniteNumber(raw.buy_in_pence),
+    players: asFiniteNumber(raw.players ?? raw.n_players),
+    jackpot: asFiniteNumber(raw.jackpot),
+    subround: asFiniteNumber(raw.subround ?? raw.subround_number),
+    matches: asFiniteNumber(raw.matches),
+  };
+}
+
+/**
+ * `GET /game/currentround` — public jackpot / progress summary (SS-16).
+ * Returns `null` when no open round or the route is still a noop scaffold.
+ */
+export async function getGameCurrentRound(): Promise<GameCurrentRound | null> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/game/currentround');
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<Record<string, unknown>>(response);
+  if (
+    !body ||
+    typeof body !== 'object' ||
+    ('noop' in body && body.noop === true)
+  ) {
+    return null;
+  }
+  const raw = body.current_round;
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+  return normalizeGameCurrentRound(raw as Record<string, unknown>);
+}
+
+/** One match row inside a livescores player payload (SS-16 / legacy). */
+export type LiveScoreMatch = {
+  match_id?: number | null;
+  home_team: string;
+  away_team: string;
+  prediction: PredictionChoice;
+  correct: boolean;
+  status: string;
+  home_score?: number | null;
+  away_score?: number | null;
+  match_date?: string | null;
+  game_number?: number | null;
+};
+
+/** Player scoreboard row from `GET /game/livescores` (SS-16). */
+export type LiveScorePlayer = {
+  /** Roster auth UUID when SS-16 keys by auth; else legacy numeric id as string. */
+  auth_id: string;
+  name: string;
+  score: number;
+  matches: LiveScoreMatch[];
+};
+
+function normalizeLiveScoreMatch(
+  raw: Record<string, unknown>,
+): LiveScoreMatch | null {
+  const home =
+    typeof raw.home_team === 'string' ? raw.home_team : null;
+  const away =
+    typeof raw.away_team === 'string' ? raw.away_team : null;
+  const choice = asPredictionChoice(raw.prediction);
+  if (!home || !away || choice == null) {
+    return null;
+  }
+  const matchId = asFiniteNumber(raw.match_id ?? raw.id);
+  const gameNumber = asFiniteNumber(raw.game_number);
+  return {
+    ...(matchId != null ? { match_id: matchId } : {}),
+    home_team: home,
+    away_team: away,
+    prediction: choice,
+    correct: raw.correct === true,
+    status: typeof raw.status === 'string' ? raw.status : '',
+    home_score: asFiniteNumber(raw.home_score),
+    away_score: asFiniteNumber(raw.away_score),
+    ...(typeof raw.match_date === 'string'
+      ? { match_date: raw.match_date }
+      : {}),
+    ...(gameNumber != null ? { game_number: gameNumber } : {}),
+  };
+}
+
+function normalizeLiveScorePlayer(
+  raw: Record<string, unknown>,
+): LiveScorePlayer | null {
+  const authRaw = raw.auth_id ?? raw.id;
+  if (authRaw == null || authRaw === '') {
+    return null;
+  }
+  const name =
+    typeof raw.name === 'string' && raw.name.trim()
+      ? raw.name.trim()
+      : String(authRaw);
+  const matchesRaw = Array.isArray(raw.matches) ? raw.matches : [];
+  const matches: LiveScoreMatch[] = [];
+  for (const row of matchesRaw) {
+    if (!row || typeof row !== 'object') {
+      continue;
+    }
+    const normalized = normalizeLiveScoreMatch(row as Record<string, unknown>);
+    if (normalized) {
+      matches.push(normalized);
+    }
+  }
+  const score =
+    asFiniteNumber(raw.score) ??
+    matches.reduce((sum, m) => sum + (m.correct ? 1 : 0), 0);
+  return {
+    auth_id: String(authRaw),
+    name,
+    score,
+    matches,
+  };
+}
+
+/**
+ * `GET /game/livescores?matchDate=` — Super Six scoreboard for one UTC day
+ * (SS-16). `matchDate` is legacy `dd-mm-yyyy`. Returns `null` when the route
+ * is still a noop scaffold so the Scores UI can show a clear waiting state.
+ */
+export async function getLiveScores(
+  matchDate: string,
+): Promise<LiveScorePlayer[] | null> {
+  const params = new URLSearchParams({ matchDate });
+  let response: Response;
+  try {
+    response = await apiFetch(
+      'game',
+      `/game/livescores?${params.toString()}`,
+    );
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<Record<string, unknown>>(response);
+  if (
+    !body ||
+    typeof body !== 'object' ||
+    ('noop' in body && body.noop === true)
+  ) {
+    return null;
+  }
+  const rows = Array.isArray(body.scores) ? body.scores : [];
+  const out: LiveScorePlayer[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== 'object') {
+      continue;
+    }
+    const normalized = normalizeLiveScorePlayer(
+      row as Record<string, unknown>,
+    );
+    if (normalized) {
+      out.push(normalized);
+    }
+  }
+  return out;
+}
+
+/**
  * Smoke the superiorsix BFF after login: health + one Bearer-protected route.
  *
  * `/user/getprediction` requires `player` + roster; 403 “not on roster” still
