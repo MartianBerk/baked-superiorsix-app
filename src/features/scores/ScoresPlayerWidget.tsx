@@ -608,24 +608,31 @@ export function ScoresPlayerWidget() {
           ) : null}
 
           {matches.length > 0 && rankedBoards.length > 0
-            ? rankedBoards.map((board) => (
-                <PlayerScoreSection
-                  key={board.authId}
-                  playerName={board.name}
-                  matches={matches}
-                  predictions={board.predictions}
-                  score={board.score}
-                  slateDifficulty={slateDifficulty}
-                  expanded={!!expanded[board.authId]}
-                  now={now}
-                  onToggleExpand={() =>
-                    setExpanded((prev) => ({
-                      ...prev,
-                      [board.authId]: !prev[board.authId],
-                    }))
-                  }
-                />
-              ))
+            ? rankedBoards.map((board) => {
+                // Difficulty pips only once this player has picked every slate match.
+                const slateFullySelected =
+                  matches.length > 0 && board.selected >= matches.length;
+                return (
+                  <PlayerScoreSection
+                    key={board.authId}
+                    playerName={board.name}
+                    matches={matches}
+                    predictions={board.predictions}
+                    score={board.score}
+                    slateDifficulty={
+                      slateFullySelected ? slateDifficulty : null
+                    }
+                    expanded={!!expanded[board.authId]}
+                    now={now}
+                    onToggleExpand={() =>
+                      setExpanded((prev) => ({
+                        ...prev,
+                        [board.authId]: !prev[board.authId],
+                      }))
+                    }
+                  />
+                );
+              })
             : null}
         </View>
       )}
