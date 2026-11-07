@@ -34,7 +34,7 @@ type Props = {
 
 /**
  * Collapsible player block for Scores.
- * Collapsed: `Name  H H D A D D  n/6` (inline badges + correct count).
+ * Collapsed: name left, badges centered, n/6 (+ chevron) right.
  * Expanded: per-match Home | badge | Away (badge-only centre).
  */
 export function PlayerScoreSection({
@@ -74,7 +74,7 @@ export function PlayerScoreSection({
             {playerName}
           </Text>
         </View>
-        <View style={styles.badges}>
+        <View style={styles.badges} pointerEvents="none">
           {matches.map((match) => {
             const prediction = predictions[match.id] ?? null;
             if (prediction == null) {
@@ -94,9 +94,11 @@ export function PlayerScoreSection({
             );
           })}
         </View>
-        <Text style={styles.count}>{countLabel}</Text>
-        <View style={styles.chevronSlot}>
-          <SvgXml xml={chevron} width={18} height={18} />
+        <View style={styles.rightCol}>
+          <Text style={styles.count}>{countLabel}</Text>
+          <View style={styles.chevronSlot}>
+            <SvgXml xml={chevron} width={18} height={18} />
+          </View>
         </View>
       </Pressable>
       {expanded
@@ -123,9 +125,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   header: {
+    position: 'relative',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
     paddingHorizontal: 10,
     paddingVertical: 10,
     backgroundColor: colors.menuBar,
@@ -134,13 +136,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.menuActive,
   },
   nameCol: {
-    flexGrow: 1,
-    flexShrink: 1,
-    flexBasis: 72,
-    minWidth: 56,
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    zIndex: 1,
+    paddingRight: 8,
   },
   name: {
     flexShrink: 1,
@@ -151,10 +153,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   badges: {
+    ...StyleSheet.absoluteFillObject,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
-    flexShrink: 0,
   },
   pickNone: {
     width: 22,
@@ -164,6 +167,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  rightCol: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
+    zIndex: 1,
+    paddingLeft: 8,
   },
   count: {
     color: colors.text,
