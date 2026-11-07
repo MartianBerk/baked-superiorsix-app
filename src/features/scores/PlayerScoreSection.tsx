@@ -19,14 +19,14 @@ type Props = {
   predictions: Record<number, PredictionChoice | null>;
   /** matchId → correct flag when known from livescores. */
   correctByMatch: Record<number, boolean | null>;
-  /** Overall correct count for the collapsed-style header. */
+  /** Overall correct / pick count for the header. */
   score: number;
   slateDifficulty: MatchDifficulty | null;
-  now: Date;
 };
 
 /**
  * Always-open player block for Scores (admin layout chrome, no expand/predict).
+ * Picks board only — no live score chrome.
  */
 export function PlayerScoreSection({
   playerName,
@@ -35,7 +35,6 @@ export function PlayerScoreSection({
   correctByMatch,
   score,
   slateDifficulty,
-  now,
 }: Props) {
   const countLabel = `${score}/${SLOT_TOTAL}`;
 
@@ -44,7 +43,7 @@ export function PlayerScoreSection({
       <View
         style={styles.header}
         accessibilityRole="header"
-        accessibilityLabel={`${playerName}, ${countLabel} correct`}
+        accessibilityLabel={`${playerName}, ${countLabel}`}
       >
         <View style={styles.headerLeft}>
           <DifficultyPips difficulty={slateDifficulty} />
@@ -60,7 +59,6 @@ export function PlayerScoreSection({
           match={match}
           prediction={predictions[match.id] ?? null}
           correct={correctByMatch[match.id] ?? null}
-          now={now}
         />
       ))}
     </View>
