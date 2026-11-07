@@ -15,7 +15,7 @@ export function formatSuccessRate(rate: number): string {
 }
 
 /**
- * n vs n−1 delta label (`up 10%` / `down 5%`).
+ * n vs n−1 delta percentage only (`5%`). Direction is shown via the arrow icon.
  * `delta` is percentage points (current − previous).
  */
 export function formatRateDelta(delta: number): string {
@@ -23,8 +23,7 @@ export function formatRateDelta(delta: number): string {
   if (rounded === 0) {
     return '—';
   }
-  const abs = Math.abs(rounded);
-  return rounded > 0 ? `up ${abs}%` : `down ${abs}%`;
+  return `${Math.abs(rounded)}%`;
 }
 
 /** Compact day label for graph axis (`01 Feb`). */

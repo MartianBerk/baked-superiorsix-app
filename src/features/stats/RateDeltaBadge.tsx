@@ -19,8 +19,8 @@ type Props = {
 };
 
 /**
- * Inline n vs n−1 success-rate delta: green-up / red-down chevron + label
- * (`up 10%` / `down 5%`). Unchanged / missing → muted em dash.
+ * Inline n vs n−1 success-rate delta: green-up / red-down chevron + % only
+ * (`↑ 17%` / `↓ 5%`). Unchanged / missing → muted em dash.
  */
 export function RateDeltaBadge({ delta, size = 'sm' }: Props) {
   if (delta == null || !Number.isFinite(delta)) {
@@ -55,7 +55,7 @@ export function RateDeltaBadge({ delta, size = 'sm' }: Props) {
   return (
     <View
       style={styles.row}
-      accessibilityLabel={`${label} versus previous round`}
+      accessibilityLabel={`${up ? 'up' : 'down'} ${label} versus previous round`}
     >
       <SvgXml xml={icon} width={iconSize} height={iconSize} />
       <Text

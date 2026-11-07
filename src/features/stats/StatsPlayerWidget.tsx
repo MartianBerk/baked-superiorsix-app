@@ -292,11 +292,6 @@ export function StatsPlayerWidget() {
           )}
 
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>
-              {isAuthenticated
-                ? 'Other players · vs previous round'
-                : 'Players · vs previous round'}
-            </Text>
             <PlayerStatsList
               stats={isAuthenticated ? listRows : compareRows}
               viewerAuthId={viewerAuthId}
@@ -401,13 +396,5 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: 8,
-  },
-  sectionLabel: {
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    marginLeft: 2,
   },
 });

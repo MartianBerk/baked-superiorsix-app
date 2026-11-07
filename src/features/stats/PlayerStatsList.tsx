@@ -30,7 +30,9 @@ export function PlayerStatsList({ stats, viewerAuthId }: Props) {
         <Text style={[styles.headerCell, styles.nameCol]}>Player</Text>
         <Text style={[styles.headerCell, styles.correctCol]}>Correct</Text>
         <Text style={[styles.headerCell, styles.rateCol]}>%</Text>
-        <Text style={[styles.headerCell, styles.deltaCol]}>Vs Last Round</Text>
+        <Text style={[styles.headerCell, styles.deltaHeader]}>
+          Vs Last Round
+        </Text>
       </View>
       {stats.map((row, index) => {
         const isViewer =
@@ -137,6 +139,10 @@ const styles = StyleSheet.create({
     flex: 0.85,
     alignItems: 'flex-end',
     justifyContent: 'center',
+  },
+  deltaHeader: {
+    flex: 0.85,
+    textAlign: 'right',
   },
   empty: {
     paddingVertical: 18,

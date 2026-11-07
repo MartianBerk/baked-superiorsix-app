@@ -17,11 +17,11 @@ type Props = {
 };
 
 function labelFor(mode: StatsViewMode): string {
-  return mode === 'stats' ? 'Stats' : 'Winners';
+  return mode === 'stats' ? 'Performance' : 'Winners';
 }
 
 /**
- * Under-header scrubber: toggles Stats ↔ Winners (not round history).
+ * Under-header scrubber: toggles Performance ↔ Winners (not round history).
  */
 export function StatsViewScrubber({ mode, onChange }: Props) {
   const index = VIEWS.indexOf(mode);
@@ -36,7 +36,7 @@ export function StatsViewScrubber({ mode, onChange }: Props) {
     >
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Show Stats"
+        accessibilityLabel="Show Performance"
         disabled={!canLeft}
         onPress={() => {
           if (canLeft) {

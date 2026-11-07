@@ -209,13 +209,7 @@ export function SuccessRateGraph({
       accessibilityLabel={`${playerName} current round graph with last round overlay`}
     >
       <View style={styles.headerRow}>
-        <View style={styles.headerText}>
-          <Text style={styles.kicker}>This round</Text>
-          <Text style={styles.title} numberOfLines={1}>
-            {playerName}
-          </Text>
-          <Text style={styles.subtitle}>Correct picks by slate</Text>
-        </View>
+        <Text style={styles.kicker}>This round</Text>
         <View style={styles.summary}>
           <Text style={styles.rate}>{rateLabel}</Text>
           <RateDeltaBadge delta={rateDelta} size="md" />
@@ -232,7 +226,19 @@ export function SuccessRateGraph({
             <Text style={styles.legendLabel}>This round</Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.legendSwatch, styles.legendLast]} />
+            <Svg width={20} height={6}>
+              <Line
+                x1={0}
+                y1={3}
+                x2={20}
+                y2={3}
+                stroke={LAST_ROUND_GREEN}
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeDasharray="3.5 3.5"
+                opacity={PREV_LINE_OPACITY + 0.15}
+              />
+            </Svg>
             <Text style={styles.legendLabel}>Last round</Text>
           </View>
         </View>
@@ -432,7 +438,7 @@ export function SuccessRateGraph({
             fontWeight="700"
             textAnchor="middle"
           >
-            Slate
+            Round
           </SvgText>
         </Svg>
       </View>
@@ -459,29 +465,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     gap: 12,
   },
-  headerText: {
-    flex: 1,
-    minWidth: 0,
-  },
   kicker: {
     color: colors.textMuted,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
-    marginBottom: 3,
-  },
-  title: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-  },
-  subtitle: {
     marginTop: 4,
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
   },
   summary: {
     alignItems: 'flex-end',
@@ -518,10 +508,6 @@ const styles = StyleSheet.create({
   },
   legendThis: {
     backgroundColor: colors.accentBright,
-  },
-  legendLast: {
-    backgroundColor: LAST_ROUND_GREEN,
-    opacity: 0.9,
   },
   legendLabel: {
     color: colors.textMuted,
