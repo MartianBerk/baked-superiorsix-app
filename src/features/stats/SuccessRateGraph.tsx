@@ -33,15 +33,24 @@ type Point = { x: number; y: number; score: number; slate: number };
 /** Lighter green in the same family as `accentBright` — last-round series. */
 const LAST_ROUND_GREEN = '#6ECF82';
 
-const GRAPH_HEIGHT = 220;
-const PAD_LEFT = 34;
+const GRAPH_HEIGHT = 228;
+const PAD_LEFT = 40;
 const PAD_RIGHT = 16;
-const PAD_TOP = 22;
-const PAD_BOTTOM = 36;
+const PAD_TOP = 18;
+const PAD_BOTTOM = 44;
+
+/** Full Super Six pick range — never rescale to the player's local max. */
+const Y_MAX = 6;
 
 /** Tip flash opacity range (plain numbers — avoids Animated→SVG bool toast on web). */
 const TIP_OPACITY_MIN = 0.25;
 const TIP_OPACITY_MAX = 1;
+
+const DOT_PREV = 2.4;
+const DOT_CURRENT = 2.6;
+const DOT_TIP = 5;
+const DOT_TIP_HALO = 9;
+const PREV_LINE_OPACITY = 0.42;
 
 /** Straight polyline through points (no curves). */
 function straightLinePath(coords: Point[]): string {
@@ -128,12 +137,7 @@ export function SuccessRateGraph({
     const slotCount = resolveSlotCount(current.length, previous.length);
     const plotW = plotWidth - PAD_LEFT - PAD_RIGHT;
     const plotH = GRAPH_HEIGHT - PAD_TOP - PAD_BOTTOM;
-    const rawMax = Math.max(
-      0,
-      ...current.map((p) => p.score),
-      ...previous.map((p) => p.score),
-    );
-    const yMax = Math.max(2, rawMax + (rawMax > 0 ? 1 : 0));
+    const yMax = Y_MAX;
     const baselineY = PAD_TOP + plotH;
 
     const xAt = (index: number) =>
@@ -142,7 +146,7 @@ export function SuccessRateGraph({
         : PAD_LEFT + (plotW * index) / (slotCount - 1);
 
     const yAt = (score: number) =>
-      PAD_TOP + plotH - (plotH * score) / yMax;
+      PAD_TOP + plotH - (plotH * Math.min(score, yMax)) / yMax;
 
     const currentCoords: Point[] = current.map((point, index) => ({
       x: xAt(index),
@@ -294,7 +298,7 @@ export function SuccessRateGraph({
             return (
               <SvgText
                 key={`yl-${tick}`}
-                x={PAD_LEFT - 10}
+                x={PAD_LEFT - 8}
                 y={y + 3.5}
                 fill={colors.textMuted}
                 fontSize="10"
@@ -305,6 +309,19 @@ export function SuccessRateGraph({
               </SvgText>
             );
           })}
+
+          {/* Y-axis title */}
+          <SvgText
+            x={11}
+            y={PAD_TOP + chart.plotH / 2}
+            fill={colors.textMuted}
+            fontSize="10"
+            fontWeight="700"
+            textAnchor="middle"
+            transform={`rotate(-90, 11, ${PAD_TOP + chart.plotH / 2})`}
+          >
+            Picks
+          </SvgText>
 
           {chart.areaPath ? (
             <Path d={chart.areaPath} fill="url(#statsAreaFill)" />
@@ -321,10 +338,10 @@ export function SuccessRateGraph({
                 x2={next.x}
                 y2={next.y}
                 stroke={LAST_ROUND_GREEN}
-                strokeWidth={2}
+                strokeWidth={1.75}
                 strokeLinecap="round"
                 strokeDasharray="5 5"
-                opacity={0.95}
+                opacity={PREV_LINE_OPACITY}
               />
             );
           })}
@@ -334,8 +351,9 @@ export function SuccessRateGraph({
               key={`prev-dot-${coord.slate}`}
               cx={coord.x}
               cy={coord.y}
-              r={3.75}
+              r={DOT_PREV}
               fill={LAST_ROUND_GREEN}
+              opacity={PREV_LINE_OPACITY + 0.2}
             />
           ))}
 
@@ -343,67 +361,41 @@ export function SuccessRateGraph({
             <Path
               d={chart.currentLine}
               stroke={colors.accentBright}
-              strokeWidth={2.75}
+              strokeWidth={2.5}
               fill="none"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
           ) : null}
 
-          {/* Current: solid dots for completed slates except the live tip */}
+          {/* Current: small solid dots for completed slates except the live tip */}
           {chart.currentCoords.slice(0, -1).map((coord) => (
             <Circle
               key={`dot-${coord.slate}`}
               cx={coord.x}
               cy={coord.y}
-              r={4.25}
-              fill={colors.background}
-              stroke={colors.accentBright}
-              strokeWidth={2}
+              r={DOT_CURRENT}
+              fill={colors.accentBright}
             />
           ))}
 
-          {chart.currentCoords.slice(0, -1).map((coord) => (
-            <SvgText
-              key={`val-${coord.slate}`}
-              x={coord.x}
-              y={coord.y - 11}
-              fill={colors.text}
-              fontSize="10"
-              fontWeight="700"
-              textAnchor="middle"
-            >
-              {coord.score}
-            </SvgText>
-          ))}
-
-          {/* Current tip: flashing end dot (numeric opacity only) */}
+          {/* Current tip: larger flashing end dot */}
           {chart.endDot ? (
             <>
               <Circle
                 cx={chart.endDot.x}
                 cy={chart.endDot.y}
-                r={9}
+                r={DOT_TIP_HALO}
                 fill={colors.accentBright}
                 opacity={0.12 + tipOpacity * 0.28}
               />
               <Circle
                 cx={chart.endDot.x}
                 cy={chart.endDot.y}
-                r={4.75}
+                r={DOT_TIP}
                 fill={colors.accentBright}
                 opacity={tipOpacity}
               />
-              <SvgText
-                x={chart.endDot.x}
-                y={chart.endDot.y - 12}
-                fill={colors.text}
-                fontSize="10"
-                fontWeight="700"
-                textAnchor="middle"
-              >
-                {chart.endDot.score}
-              </SvgText>
             </>
           ) : null}
 
@@ -420,7 +412,7 @@ export function SuccessRateGraph({
               <SvgText
                 key={`xl-${label}`}
                 x={chart.xAt(index)}
-                y={GRAPH_HEIGHT - 10}
+                y={GRAPH_HEIGHT - 18}
                 fill={colors.textMuted}
                 fontSize="11"
                 fontWeight="700"
@@ -430,6 +422,18 @@ export function SuccessRateGraph({
               </SvgText>
             );
           })}
+
+          {/* X-axis title */}
+          <SvgText
+            x={(PAD_LEFT + plotWidth - PAD_RIGHT) / 2}
+            y={GRAPH_HEIGHT - 4}
+            fill={colors.textMuted}
+            fontSize="10"
+            fontWeight="700"
+            textAnchor="middle"
+          >
+            Slate
+          </SvgText>
         </Svg>
       </View>
     </View>
