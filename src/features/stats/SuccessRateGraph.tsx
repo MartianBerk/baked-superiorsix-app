@@ -1,12 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Animated,
-  Easing,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Svg, {
   Circle,
   Defs,
@@ -46,7 +39,9 @@ const PAD_RIGHT = 16;
 const PAD_TOP = 22;
 const PAD_BOTTOM = 36;
 
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+/** Tip flash opacity range (plain numbers — avoids Animated→SVG bool toast on web). */
+const TIP_OPACITY_MIN = 0.25;
+const TIP_OPACITY_MAX = 1;
 
 /** Straight polyline through points (no curves). */
 function straightLinePath(coords: Point[]): string {
@@ -104,30 +99,28 @@ export function SuccessRateGraph({
   const { width: windowWidth } = useWindowDimensions();
   const width = Math.min(Math.max(windowWidth - 48, 280), 520);
   const plotWidth = width - 8;
-  const [flash] = useState(() => new Animated.Value(1));
+  const [tipOpacity, setTipOpacity] = useState(TIP_OPACITY_MAX);
 
   useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(flash, {
-          toValue: 0.2,
-          duration: 650,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: false,
-        }),
-        Animated.timing(flash, {
-          toValue: 1,
-          duration: 650,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: false,
-        }),
-      ]),
-    );
-    loop.start();
+    let direction = -1;
+    const id = setInterval(() => {
+      setTipOpacity((prev) => {
+        const next = prev + direction * 0.08;
+        if (next <= TIP_OPACITY_MIN) {
+          direction = 1;
+          return TIP_OPACITY_MIN;
+        }
+        if (next >= TIP_OPACITY_MAX) {
+          direction = -1;
+          return TIP_OPACITY_MAX;
+        }
+        return next;
+      });
+    }, 70);
     return () => {
-      loop.stop();
+      clearInterval(id);
     };
-  }, [flash]);
+  }, []);
 
   const chart = useMemo(() => {
     const current = sortScores(scores);
@@ -268,6 +261,19 @@ export function SuccessRateGraph({
           {chart.yTicks.map((tick) => {
             const y =
               PAD_TOP + chart.plotH - (chart.plotH * tick) / chart.yMax;
+            if (tick === 0) {
+              return (
+                <Line
+                  key={`y-${tick}`}
+                  x1={PAD_LEFT}
+                  y1={y}
+                  x2={plotWidth - PAD_RIGHT}
+                  y2={y}
+                  stroke={colors.border}
+                  strokeWidth={1.25}
+                />
+              );
+            }
             return (
               <Line
                 key={`y-${tick}`}
@@ -276,8 +282,8 @@ export function SuccessRateGraph({
                 x2={plotWidth - PAD_RIGHT}
                 y2={y}
                 stroke={colors.border}
-                strokeWidth={tick === 0 ? 1.25 : StyleSheet.hairlineWidth * 2}
-                strokeDasharray={tick === 0 ? undefined : '3 5'}
+                strokeWidth={StyleSheet.hairlineWidth * 2}
+                strokeDasharray="3 5"
               />
             );
           })}
@@ -328,10 +334,8 @@ export function SuccessRateGraph({
               key={`prev-dot-${coord.slate}`}
               cx={coord.x}
               cy={coord.y}
-              r={3.5}
-              fill={colors.menuBar}
-              stroke={LAST_ROUND_GREEN}
-              strokeWidth={1.75}
+              r={3.75}
+              fill={LAST_ROUND_GREEN}
             />
           ))}
 
@@ -373,27 +377,22 @@ export function SuccessRateGraph({
             </SvgText>
           ))}
 
-          {/* Current tip: flashing end dot */}
+          {/* Current tip: flashing end dot (numeric opacity only) */}
           {chart.endDot ? (
             <>
-              <AnimatedCircle
+              <Circle
                 cx={chart.endDot.x}
                 cy={chart.endDot.y}
                 r={9}
                 fill={colors.accentBright}
-                opacity={flash.interpolate({
-                  inputRange: [0.2, 1],
-                  outputRange: [0.08, 0.38],
-                })}
+                opacity={0.12 + tipOpacity * 0.28}
               />
-              <AnimatedCircle
+              <Circle
                 cx={chart.endDot.x}
                 cy={chart.endDot.y}
                 r={4.75}
-                fill={colors.background}
-                stroke={colors.accentBright}
-                strokeWidth={2.25}
-                opacity={flash}
+                fill={colors.accentBright}
+                opacity={tipOpacity}
               />
               <SvgText
                 x={chart.endDot.x}
