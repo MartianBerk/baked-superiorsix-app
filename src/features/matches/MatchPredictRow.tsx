@@ -13,7 +13,12 @@ import type {
   MatchDifficulty,
   PredictionChoice,
 } from '@/api/superiorsix';
-import { formatAlignedScore } from '@/features/scores/liveScoreDisplay';
+import {
+  formatAlignedScore,
+  hasKickedOff,
+  isFinishedStatus,
+  isPlayingStatus,
+} from '@/features/scores/liveScoreDisplay';
 import { colors } from '@/theme';
 
 import { DifficultyPips } from './DifficultyPips';
@@ -28,6 +33,35 @@ const BADGE_LABEL: Record<PredictionChoice, string> = {
   draw: 'D',
   away: 'A',
 };
+
+function outcomeFromScores(
+  homeScore: number,
+  awayScore: number,
+): PredictionChoice {
+  if (homeScore > awayScore) {
+    return 'home';
+  }
+  if (homeScore < awayScore) {
+    return 'away';
+  }
+  return 'draw';
+}
+
+/** True once the score line leaves `- : -` (kickoff / in-play / finished). */
+function scoresHaveStarted(
+  match: Pick<LiveMatch, 'match_date' | 'status'>,
+  now: Date,
+  postponed: boolean,
+): boolean {
+  if (postponed) {
+    return false;
+  }
+  return (
+    hasKickedOff(match.match_date, now) ||
+    isPlayingStatus(match.status) ||
+    isFinishedStatus(match.status)
+  );
+}
 
 /** Approx width for team column from longest label (fontSize 12 semibold). */
 export function teamColumnWidthForMatches(matches: LiveMatch[]): number {
@@ -65,8 +99,9 @@ type Props = {
  * Player fixture row: home/away stack, difficulty pips, single chosen H/D/A
  * badge to the right of teams when signed in with a pick (aligned across rows),
  * expand for detail / PredictionPicker. Past the 10m lock, expands collapse,
- * chevron is hidden, and the header shows an aligned score line. The pick badge
- * stays visible in live mode. Logged out or no prediction → no badge.
+ * chevron is hidden, and the header shows an aligned score line. Pick badge is
+ * grey until scores start, then green accent when the pick matches the scoreline.
+ * Logged out or no prediction → no badge.
  */
 export function MatchPredictRow({
   match,
@@ -88,6 +123,12 @@ export function MatchPredictRow({
   );
   const pickLabel =
     canPredict && prediction != null ? BADGE_LABEL[prediction] : null;
+  const pickCorrect =
+    pickLabel != null &&
+    prediction != null &&
+    scoresHaveStarted(match, now, postponed) &&
+    prediction ===
+      outcomeFromScores(match.home_score ?? 0, match.away_score ?? 0);
 
   const scoreLine = locked
     ? formatAlignedScore(
@@ -117,13 +158,27 @@ export function MatchPredictRow({
 
         {pickLabel != null ? (
           <View
-            style={styles.badge}
-            accessibilityLabel={`Pick ${pickLabel} for ${match.home_team} vs ${match.away_team}`}
+            style={[styles.badge, pickCorrect && styles.badgeCorrect]}
+            accessibilityLabel={
+              pickCorrect
+                ? `Correct pick ${pickLabel} for ${match.home_team} vs ${match.away_team}`
+                : `Pick ${pickLabel} for ${match.home_team} vs ${match.away_team}`
+            }
           >
             {busy ? (
-              <ActivityIndicator size="small" color={colors.text} />
+              <ActivityIndicator
+                size="small"
+                color={pickCorrect ? colors.text : colors.textMuted}
+              />
             ) : (
-              <Text style={styles.badgeLabel}>{pickLabel}</Text>
+              <Text
+                style={[
+                  styles.badgeLabel,
+                  pickCorrect && styles.badgeLabelCorrect,
+                ]}
+              >
+                {pickLabel}
+              </Text>
             )}
           </View>
         ) : null}
@@ -210,21 +265,29 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   badge: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: colors.accent,
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+    backgroundColor: colors.menuBar,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.accentBright,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
+  badgeCorrect: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accentBright,
+  },
   badgeLabel: {
-    color: colors.text,
-    fontSize: 13,
+    color: colors.textMuted,
+    fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
+    lineHeight: 12,
+  },
+  badgeLabelCorrect: {
+    color: colors.text,
   },
   actions: {
     flex: 1,
