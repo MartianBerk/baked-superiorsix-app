@@ -42,7 +42,16 @@ export function RoundStatusProvider({ children }: { children: ReactNode }) {
     useState<GamedayHeaderChrome>(DEFAULT_HEADER);
 
   const setPlayerPickingStatus = useCallback((status: RoundStatus | null) => {
-    setPlayerPickingStatusState(status);
+    setPlayerPickingStatusState((prev) => {
+      if (status == null) {
+        return null;
+      }
+      // Publishers without difficulty data omit the field — keep prior pips.
+      if (status.slateDifficulty !== undefined || prev?.slateDifficulty == null) {
+        return status;
+      }
+      return { ...status, slateDifficulty: prev.slateDifficulty };
+    });
   }, []);
 
   const setGamedayHeader = useCallback((chrome: GamedayHeaderChrome) => {

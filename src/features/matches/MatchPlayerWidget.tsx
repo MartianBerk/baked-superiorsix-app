@@ -38,6 +38,7 @@ import {
   toLegacyDateParam,
   utcDayKey,
 } from './formatMatchDate';
+import { aggregateSelectionDifficulty } from './matchDifficulty';
 import {
   MatchPredictRow,
   teamColumnWidthForMatches,
@@ -263,6 +264,11 @@ export function MatchPlayerWidget() {
       ? matches.length
       : (selectedSubround?.match_count ?? 0);
 
+  const slateDifficulty = useMemo(
+    () => aggregateSelectionDifficulty(matches.map((m) => m.difficulty)),
+    [matches],
+  );
+
   useEffect(() => {
     // Header n/X + pot banner: signed-in only. Persist across tabs (do not
     // clear on unmount) so Scores / Leaders / Profile keep the same strip.
@@ -276,6 +282,9 @@ export function MatchPlayerWidget() {
       subroundOver: selectedSubround?.is_over === true,
       kickoffLocked: subroundLocked,
     });
+    // Same as Scores rows: hide difficulty pips until every slate pick is set.
+    const slateFullyPredicted =
+      slateSize > 0 && pickedCount >= slateSize;
     setPlayerPickingStatus(
       buildPlayerRoundStatus({
         phase,
@@ -283,6 +292,7 @@ export function MatchPlayerWidget() {
         selectedCount: pickedCount,
         correctCount: viewerCorrect ?? 0,
         perfectSix,
+        slateDifficulty: slateFullyPredicted ? slateDifficulty : null,
       }),
     );
   }, [
@@ -293,6 +303,7 @@ export function MatchPlayerWidget() {
     viewerCorrect,
     pickedCount,
     slateSize,
+    slateDifficulty,
     perfectSix,
     setPlayerPickingStatus,
   ]);

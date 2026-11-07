@@ -343,13 +343,16 @@ export function ScoresPlayerWidget() {
       authId,
       slateSize,
     );
+    const selected = viewer?.selected ?? 0;
+    const slateFullyPredicted = slateSize > 0 && selected >= slateSize;
     setPlayerPickingStatus(
       buildPlayerRoundStatus({
         phase: roundPhase,
         slateSize,
-        selectedCount: viewer?.selected ?? 0,
+        selectedCount: selected,
         correctCount: viewer?.correct ?? 0,
         perfectSix,
+        slateDifficulty: slateFullyPredicted ? slateDifficulty : null,
       }),
     );
   }, [
@@ -357,6 +360,7 @@ export function ScoresPlayerWidget() {
     session?.userId,
     rankedBoards,
     slateSize,
+    slateDifficulty,
     roundPhase,
     setPlayerPickingStatus,
   ]);

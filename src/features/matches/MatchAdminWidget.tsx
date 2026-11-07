@@ -23,6 +23,7 @@ import {
 } from '@/api/superiorsix';
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
+import { useRoundStatus } from '@/components/shell/RoundStatusContext';
 import { LoginForm } from '@/features/auth/LoginForm';
 import { colors } from '@/theme';
 
@@ -34,6 +35,7 @@ import {
   toLegacyDateParam,
   utcDayKey,
 } from './formatMatchDate';
+import { aggregateSelectionDifficulty } from './matchDifficulty';
 import {
   addToLowestSlot,
   distinctDayKeys,
@@ -115,6 +117,7 @@ function slotsForSubround(
 export function MatchAdminWidget() {
   const { status, isAuthenticated, token, hasRole } = useAuth();
   const { setMode } = useFixturesTabMode();
+  const { setPlayerPickingStatus } = useRoundStatus();
 
   const [matches, setMatches] = useState<AdminMatch[]>([]);
   const [leagues, setLeagues] = useState<LeagueInfo[]>([]);
@@ -198,12 +201,37 @@ export function MatchAdminWidget() {
   }, [displayMatches, selectedDate, leaguesById]);
 
   const selectedCount = occupiedCount(draftSlots);
+  const selectedSlateDifficulty = useMemo(() => {
+    const difficulties = draftSlots.map((id) =>
+      id != null ? (byId.get(id)?.difficulty ?? null) : null,
+    );
+    return aggregateSelectionDifficulty(difficulties);
+  }, [draftSlots, byId]);
   const savedSlots = useMemo(
     () => slotsForSubround(matches, selectedSubroundId),
     [matches, selectedSubroundId],
   );
   const dirty = canEdit && !slotsEqual(draftSlots, savedSlots);
   const canSubmit = dirty && !submitting;
+
+  useEffect(() => {
+    // Header strip: selection count + mean difficulty of the draft slate.
+    if (!isAuthenticated) {
+      setPlayerPickingStatus(null);
+      return;
+    }
+    setPlayerPickingStatus({
+      phase: 'picking',
+      slateSize: MAX_SLOTS,
+      selectedCount,
+      slateDifficulty: selectedSlateDifficulty,
+    });
+  }, [
+    isAuthenticated,
+    selectedCount,
+    selectedSlateDifficulty,
+    setPlayerPickingStatus,
+  ]);
 
   const applySubroundSelection = useCallback(
     (next: Subround, allMatches: AdminMatch[]) => {
@@ -547,9 +575,6 @@ export function MatchAdminWidget() {
     >
       <View style={styles.wrap}>
         <View style={styles.headerStrip}>
-          <Text style={styles.headerLabel}>
-            {`Match Week:   ${selectedCount} / ${MAX_SLOTS} selections`}
-          </Text>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Submit match selections"
@@ -678,7 +703,7 @@ const styles = StyleSheet.create({
   headerStrip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     gap: 12,
     marginBottom: 12,
   },
@@ -708,12 +733,6 @@ const styles = StyleSheet.create({
   },
   scrubberFlush: {
     marginBottom: 0,
-  },
-  headerLabel: {
-    flex: 1,
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '700',
   },
   submit: {
     minWidth: 88,

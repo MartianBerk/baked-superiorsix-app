@@ -1,3 +1,5 @@
+import type { MatchDifficulty } from '@/api/superiorsix';
+
 import type { PerfectSixHolder } from './potBanner';
 
 /** Round lifecycle for the thin header status strip. */
@@ -18,6 +20,13 @@ export type RoundStatus = {
   selectedCount?: number;
   /** Correct results for the logged-in player while live/finished. */
   correctCount?: number;
+  /**
+   * Aggregate slate difficulty for header pips.
+   * Player: set only once the logged-in player has predicted every match.
+   * Admin Matches: mean of currently selected fixture difficulties.
+   * Omit to leave the previous value; pass `null` to clear.
+   */
+  slateDifficulty?: MatchDifficulty | null;
   /**
    * Another player currently has every slate pick correct.
    * Shown alongside the user's own live/finished summary.

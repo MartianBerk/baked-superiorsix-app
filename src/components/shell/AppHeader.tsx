@@ -6,7 +6,6 @@ import { useAuth } from '@/auth';
 import { SuperiorSixLogo } from '@/components/icons/SuperiorSixLogo';
 import { useUserTabMode } from '@/features/auth/UserTabModeContext';
 import { useLeadersTabMode } from '@/features/leaders/LeadersTabModeContext';
-import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
 import { useScoresTabMode } from '@/features/scores/ScoresTabModeContext';
 import { colors } from '@/theme';
 
@@ -25,21 +24,12 @@ type Props = {
   prizeLabel?: string;
   /**
    * Thin status strip under the logo row.
-   * Omit to use live player picking / correct count on every player tab.
-   * Hidden in fixtures / scores / leaders / profile admin modes.
+   * Omit to use live player picking / correct count on every player tab
+   * (and fixtures admin selection count).
+   * Hidden in scores / leaders / profile admin modes.
    */
   roundStatus?: RoundStatus;
 };
-
-function isFixturesPath(pathname: string): boolean {
-  if (pathname.includes('/scores') || pathname.includes('/leaders')) {
-    return false;
-  }
-  if (pathname.includes('/profile')) {
-    return false;
-  }
-  return true;
-}
 
 function isScoresPath(pathname: string): boolean {
   return pathname.includes('/scores');
@@ -56,7 +46,7 @@ function isProfilePath(pathname: string): boolean {
 /**
  * Top shell: round value left (`# n`), logo center, pot value right (`£…`),
  * optional perfect-slate pot banner, plus thin round-status strip.
- * Player strip + pot banner show on all four non-admin tabs when logged in.
+ * Player strip + pot banner on player tabs; fixtures admin also shows the strip.
  */
 export function AppHeader({
   roundLabel,
@@ -66,17 +56,16 @@ export function AppHeader({
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const { isAuthenticated } = useAuth();
-  const { mode: fixturesMode } = useFixturesTabMode();
   const { mode: scoresMode } = useScoresTabMode();
   const { mode: leadersMode } = useLeadersTabMode();
   const { mode: profileMode } = useUserTabMode();
   const { playerPickingStatus, gamedayHeader } = useRoundStatus();
   const resolvedRound = roundLabel ?? gamedayHeader.roundLabel;
   const resolvedPrize = prizeLabel ?? gamedayHeader.prizeLabel;
-  // Player-only chrome; hide when logged out or any dual-mode tab is admin.
+  // Hide when logged out, or on Scores / Leaders / Profile admin.
+  // Fixtures admin keeps the strip (selection count + slate difficulty pips).
   const hideStatusStrip =
     !isAuthenticated ||
-    (fixturesMode === 'admin' && isFixturesPath(pathname)) ||
     (scoresMode === 'admin' && isScoresPath(pathname)) ||
     (leadersMode === 'admin' && isLeadersPath(pathname)) ||
     (profileMode === 'admin' && isProfilePath(pathname));

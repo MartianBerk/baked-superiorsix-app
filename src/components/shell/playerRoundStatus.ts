@@ -1,4 +1,4 @@
-import type { PredictionChoice } from '@/api/superiorsix';
+import type { MatchDifficulty, PredictionChoice } from '@/api/superiorsix';
 
 import type { PerfectSixHolder } from './potBanner';
 import type { RoundPhase, RoundStatus } from './roundStatus';
@@ -41,12 +41,21 @@ export function buildPlayerRoundStatus(opts: {
   selectedCount: number;
   correctCount: number;
   perfectSix?: PerfectSixHolder[];
+  /**
+   * Header difficulty pips. Pass explicitly (including `null` to hide).
+   * Omit so callers that lack difficulty data can leave the previous value.
+   */
+  slateDifficulty?: MatchDifficulty | null;
 }): RoundStatus {
   const slateSize =
     opts.slateSize > 0 && Number.isFinite(opts.slateSize)
       ? Math.floor(opts.slateSize)
       : undefined;
   const perfectSix = opts.perfectSix;
+  const withDifficulty =
+    opts.slateDifficulty !== undefined
+      ? { slateDifficulty: opts.slateDifficulty }
+      : {};
 
   if (opts.phase === 'picking') {
     return {
@@ -54,6 +63,7 @@ export function buildPlayerRoundStatus(opts: {
       slateSize,
       selectedCount: Math.max(0, opts.selectedCount),
       perfectSix,
+      ...withDifficulty,
     };
   }
 
@@ -62,5 +72,6 @@ export function buildPlayerRoundStatus(opts: {
     slateSize,
     correctCount: Math.max(0, opts.correctCount),
     perfectSix,
+    ...withDifficulty,
   };
 }
