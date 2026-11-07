@@ -469,7 +469,10 @@ export function ScoresPlayerWidget() {
             style={showSubroundScrubber ? styles.dateCol : styles.dateColFull}
           >
             <KickoffDateDisplay
-              kickoffIso={selectedSubround?.min_kickoff}
+              kickoffIso={
+                selectedSubround?.min_kickoff ?? matches[0]?.match_date
+              }
+              live={boardLive}
               style={styles.scrubberFlush}
             />
           </View>
