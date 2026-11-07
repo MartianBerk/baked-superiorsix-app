@@ -24,6 +24,10 @@ import {
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
 import type { PerfectSixHolder } from '@/components/shell/potBanner';
+import {
+  buildPlayerRoundStatus,
+  resolvePlayerRoundPhase,
+} from '@/components/shell/playerRoundStatus';
 import { useRoundStatus } from '@/components/shell/RoundStatusContext';
 import { KickoffDateDisplay } from '@/features/scores/KickoffDateDisplay';
 import { LIVE_POLL_MS } from '@/features/scores/liveScoreDisplay';
@@ -34,6 +38,7 @@ import {
   toLegacyDateParam,
   utcDayKey,
 } from './formatMatchDate';
+import { aggregateSelectionDifficulty } from './matchDifficulty';
 import {
   MatchPredictRow,
   teamColumnWidthForMatches,
@@ -167,9 +172,11 @@ function displayNameFromLiveScore(row: {
 function perfectSixFromBoard(
   board: LiveScoresBoard,
   viewerAuthId: string | null | undefined,
+  slateSize: number,
 ): PerfectSixHolder[] {
+  const need = slateSize > 0 ? slateSize : 6;
   return board.scores
-    .filter((row) => row.score >= 6)
+    .filter((row) => row.score >= need)
     .map((row) => ({
       displayName: displayNameFromLiveScore(row),
       isViewer: viewerAuthId != null && row.auth_id === viewerAuthId,
@@ -240,7 +247,7 @@ export function MatchPlayerWidget() {
     return false;
   }, [selectedSubround, now]);
 
-  /** Header “n / 6 Selections” — optimistic from local draft for this slate. */
+  /** Header “n / X Selections” — optimistic from local draft for this slate. */
   const pickedCount = useMemo(() => {
     let count = 0;
     for (const match of matches) {
@@ -251,32 +258,50 @@ export function MatchPlayerWidget() {
     return count;
   }, [matches, draft]);
 
+  /** Prefer loaded fixtures; fall back to subround.match_count from list API. */
+  const slateSize =
+    matches.length > 0
+      ? matches.length
+      : (selectedSubround?.match_count ?? 0);
+
+  const slateDifficulty = useMemo(
+    () => aggregateSelectionDifficulty(matches.map((m) => m.difficulty)),
+    [matches],
+  );
+
   useEffect(() => {
-    // Header n/6 + pot banner: signed-in only. Persist across tabs (do not
+    // Header n/X + pot banner: signed-in only. Persist across tabs (do not
     // clear on unmount) so Scores / Leaders / Profile keep the same strip.
+    // Same builder as Scores / GamedayRoundStatusSync.
     if (!isAuthenticated) {
       setPlayerPickingStatus(null);
       return;
     }
-    if (subroundLocked || boardLive) {
-      setPlayerPickingStatus({
-        phase: boardLive ? 'live' : 'finished',
+    const phase = resolvePlayerRoundPhase({
+      boardLive,
+      subroundOver: selectedSubround?.is_over === true,
+      kickoffLocked: subroundLocked,
+    });
+    setPlayerPickingStatus(
+      buildPlayerRoundStatus({
+        phase,
+        slateSize,
+        selectedCount: pickedCount,
         correctCount: viewerCorrect ?? 0,
         perfectSix,
-      });
-    } else {
-      setPlayerPickingStatus({
-        phase: 'picking',
-        selectedCount: pickedCount,
-        perfectSix,
-      });
-    }
+        // Banner pips = selected slate matches (always), not prediction gate.
+        slateDifficulty,
+      }),
+    );
   }, [
     isAuthenticated,
     subroundLocked,
     boardLive,
+    selectedSubround?.is_over,
     viewerCorrect,
     pickedCount,
+    slateSize,
+    slateDifficulty,
     perfectSix,
     setPlayerPickingStatus,
   ]);
@@ -286,7 +311,9 @@ export function MatchPlayerWidget() {
       setBoardLive(board.live);
       setNextKickoff(board.next_kickoff);
       const authId = session?.userId;
-      setPerfectSix(perfectSixFromBoard(board, authId));
+      const boardSlateSize =
+        board.matches.length > 0 ? board.matches.length : matches.length;
+      setPerfectSix(perfectSixFromBoard(board, authId, boardSlateSize));
       if (authId) {
         const mine = board.scores.find((row) => row.auth_id === authId);
         setViewerCorrect(mine != null ? mine.score : null);
@@ -303,7 +330,7 @@ export function MatchPlayerWidget() {
         [targetId]: mergeBoardFixtures(prev[targetId] ?? [], board.matches),
       }));
     },
-    [session?.userId],
+    [session?.userId, matches.length],
   );
 
   const loadLiveBoard = useCallback(

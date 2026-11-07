@@ -24,6 +24,11 @@ import {
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
 import type { PerfectSixHolder } from '@/components/shell/potBanner';
+import {
+  buildPlayerRoundStatus,
+  countSelectedPredictions,
+  resolvePlayerRoundPhase,
+} from '@/components/shell/playerRoundStatus';
 import { useRoundStatus } from '@/components/shell/RoundStatusContext';
 import {
   discoveryDayKeys,
@@ -35,7 +40,7 @@ import { SubroundScrubber } from '@/features/matches/SubroundScrubber';
 import { colors } from '@/theme';
 
 import { KickoffDateDisplay } from './KickoffDateDisplay';
-import { LIVE_POLL_MS } from './liveScoreDisplay';
+import { LIVE_POLL_MS, LOCK_BEFORE_KICKOFF_MS } from './liveScoreDisplay';
 import { isPickCurrentlyCorrect } from './pickOutcome';
 import { PlayerScoreSection } from './PlayerScoreSection';
 
@@ -46,7 +51,12 @@ type SlateMatch = LiveMatch & {
 type PlayerBoard = {
   authId: string;
   name: string;
+  /** Display numerator: selected while picking, correct once live/finished. */
   score: number;
+  /** Set prediction badges (Matches-equivalent numerator). */
+  selected: number;
+  /** Correct picks vs live/finished scoreline. */
+  correct: number;
   predictions: Record<number, PredictionChoice | null>;
 };
 
@@ -106,11 +116,14 @@ function boardsFromLiveScores(scores: LiveScorePlayer[]): PlayerBoard[] {
     for (const row of player.matches) {
       predictions[row.match_id] = row.prediction;
     }
+    const selected = countSelectedPredictions(Object.values(predictions));
     return {
       authId: player.auth_id,
       name: displayNameFromLiveScore(player),
-      // Placeholder — display score is recomputed from live slate + picks.
-      score: player.score,
+      // Placeholders — display score is recomputed from live slate + picks.
+      score: selected,
+      selected,
+      correct: 0,
       predictions,
     };
   });
@@ -129,19 +142,22 @@ function displayNameFromLiveScore(row: LiveScorePlayer): string {
   return 'Player';
 }
 
-function perfectSixFromRanked(
-  ranked: PlayerBoard[],
+function perfectSixFromCorrect(
+  boards: PlayerBoard[],
+  correctByAuth: Map<string, number>,
   viewerAuthId: string | null | undefined,
+  slateSize: number,
 ): PerfectSixHolder[] {
-  return ranked
-    .filter((row) => row.score >= 6)
+  const need = slateSize > 0 ? slateSize : 6;
+  return boards
+    .filter((row) => (correctByAuth.get(row.authId) ?? 0) >= need)
     .map((row) => ({
       displayName: row.name,
       isViewer: viewerAuthId != null && row.authId === viewerAuthId,
     }));
 }
 
-/** Correct picks for this player against the live slate (0–6). */
+/** Correct picks for this player against the live slate. */
 function countCorrectPicks(
   predictions: Record<number, PredictionChoice | null>,
   slate: SlateMatch[],
@@ -154,6 +170,20 @@ function countCorrectPicks(
     }
   }
   return correct;
+}
+
+function isKickoffLocked(
+  minKickoff: string | null | undefined,
+  now: Date,
+): boolean {
+  if (!minKickoff) {
+    return false;
+  }
+  const kickoffMs = Date.parse(minKickoff);
+  if (!Number.isFinite(kickoffMs)) {
+    return false;
+  }
+  return now.getTime() + LOCK_BEFORE_KICKOFF_MS >= kickoffMs;
 }
 
 function sortBoardsByCorrect(boards: PlayerBoard[]): PlayerBoard[] {
@@ -228,6 +258,8 @@ export function ScoresPlayerWidget() {
   const [scoresLoading, setScoresLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [boardLive, setBoardLive] = useState(false);
+  /** True when BE reports no open parent round — Scores stays blank. */
+  const [noActiveRound, setNoActiveRound] = useState(false);
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -252,21 +284,50 @@ export function ScoresPlayerWidget() {
     [matches],
   );
 
-  /** Header n/6 is correct-picks count from live slate, not raw API score. */
-  const rankedBoards = useMemo(
-    () =>
-      sortBoardsByCorrect(
-        boards.map((board) => ({
-          ...board,
-          score: countCorrectPicks(board.predictions, matches, now),
-        })),
-      ),
-    [boards, matches, now],
+  const slateSize =
+    matches.length > 0
+      ? matches.length
+      : (selectedSubround?.match_count ?? 0);
+
+  const kickoffLocked = isKickoffLocked(
+    selectedSubround?.min_kickoff ?? matches[0]?.match_date,
+    now,
   );
 
+  const roundPhase = resolvePlayerRoundPhase({
+    boardLive,
+    subroundOver: selectedSubround?.is_over === true,
+    kickoffLocked,
+  });
+
+  /**
+   * Row + header numerator: while picking, count set predictions (badges),
+   * same as Matches. Once live/finished, count correct picks.
+   */
+  const rankedBoards = useMemo(() => {
+    const withScores = boards.map((board) => {
+      const selected = countSelectedPredictions(
+        Object.values(board.predictions),
+      );
+      const correct = countCorrectPicks(board.predictions, matches, now);
+      return {
+        ...board,
+        selected,
+        correct,
+        score: roundPhase === 'picking' ? selected : correct,
+      };
+    });
+    return sortBoardsByCorrect(withScores);
+  }, [boards, matches, now, roundPhase]);
+
   useEffect(() => {
-    // Keep header strip + pot holders in sync while Scores is mounted.
+    // Publish the same RoundStatus shape Matches uses (shared builder).
     if (!isAuthenticated) {
+      setPlayerPickingStatus(null);
+      return;
+    }
+    if (slateSize <= 0 && rankedBoards.length === 0) {
+      // Drop stale admin /6 (or prior slate) until this board loads.
       setPlayerPickingStatus(null);
       return;
     }
@@ -275,21 +336,33 @@ export function ScoresPlayerWidget() {
       authId != null
         ? rankedBoards.find((row) => row.authId === authId)
         : undefined;
-    const perfectSix = perfectSixFromRanked(rankedBoards, authId);
-    const subroundLocked = selectedSubround?.is_over === true;
-    if (subroundLocked || boardLive || rankedBoards.length > 0) {
-      setPlayerPickingStatus({
-        phase: boardLive ? 'live' : subroundLocked ? 'finished' : 'live',
-        correctCount: viewer?.score ?? 0,
+    const correctByAuth = new Map(
+      rankedBoards.map((row) => [row.authId, row.correct] as const),
+    );
+    const perfectSix = perfectSixFromCorrect(
+      rankedBoards,
+      correctByAuth,
+      authId,
+      slateSize,
+    );
+    setPlayerPickingStatus(
+      buildPlayerRoundStatus({
+        phase: roundPhase,
+        slateSize,
+        selectedCount: viewer?.selected ?? 0,
+        correctCount: viewer?.correct ?? 0,
         perfectSix,
-      });
-    }
+        // Banner pips = selected slate matches, not prediction completeness.
+        slateDifficulty,
+      }),
+    );
   }, [
     isAuthenticated,
     session?.userId,
     rankedBoards,
-    boardLive,
-    selectedSubround?.is_over,
+    slateSize,
+    slateDifficulty,
+    roundPhase,
     setPlayerPickingStatus,
   ]);
 
@@ -356,6 +429,7 @@ export function ScoresPlayerWidget() {
             throw err;
           }
         }
+        setNoActiveRound(noRound);
 
         const dayResults = await Promise.all(
           discoveryDayKeys().map((dayKey) =>
@@ -420,6 +494,7 @@ export function ScoresPlayerWidget() {
         setMatchesBySubround({});
         setSelectedSubroundId(null);
         setBoards([]);
+        setNoActiveRound(false);
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -479,6 +554,9 @@ export function ScoresPlayerWidget() {
 
   const showSubroundScrubber =
     subrounds.length > 0 && selectedSubroundId != null;
+  /** No open round (or nothing to show) → blank Scores surface. */
+  const blankScores =
+    noActiveRound || (subrounds.length === 0 && matches.length === 0);
 
   return (
     <ScrollView
@@ -495,67 +573,66 @@ export function ScoresPlayerWidget() {
         />
       }
     >
-      <View style={styles.wrap}>
-        <View style={styles.scrubberRow}>
-          {showSubroundScrubber ? (
-            <View style={styles.subroundCol}>
-              <SubroundScrubber
-                subrounds={subrounds}
-                selectedId={selectedSubroundId}
-                onChange={onSelectSubround}
-                labelMode="sequence"
+      {blankScores ? (
+        <View style={styles.wrap}>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+        </View>
+      ) : (
+        <View style={styles.wrap}>
+          <View style={styles.scrubberRow}>
+            {showSubroundScrubber ? (
+              <View style={styles.subroundCol}>
+                <SubroundScrubber
+                  subrounds={subrounds}
+                  selectedId={selectedSubroundId}
+                  onChange={onSelectSubround}
+                  labelMode="sequence"
+                  style={styles.scrubberFlush}
+                />
+              </View>
+            ) : null}
+            <View
+              style={showSubroundScrubber ? styles.dateCol : styles.dateColFull}
+            >
+              <KickoffDateDisplay
+                kickoffIso={
+                  selectedSubround?.min_kickoff ?? matches[0]?.match_date
+                }
+                live={boardLive}
                 style={styles.scrubberFlush}
               />
             </View>
+          </View>
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          {scoresLoading && matches.length > 0 ? (
+            <View style={styles.listLoading}>
+              <ActivityIndicator color={colors.textMuted} />
+            </View>
           ) : null}
-          <View
-            style={showSubroundScrubber ? styles.dateCol : styles.dateColFull}
-          >
-            <KickoffDateDisplay
-              kickoffIso={
-                selectedSubround?.min_kickoff ?? matches[0]?.match_date
-              }
-              live={boardLive}
-              style={styles.scrubberFlush}
-            />
-          </View>
+
+          {matches.length > 0 && rankedBoards.length > 0
+            ? rankedBoards.map((board) => (
+                <PlayerScoreSection
+                  key={board.authId}
+                  playerName={board.name}
+                  matches={matches}
+                  predictions={board.predictions}
+                  score={board.score}
+                  expanded={!!expanded[board.authId]}
+                  now={now}
+                  onToggleExpand={() =>
+                    setExpanded((prev) => ({
+                      ...prev,
+                      [board.authId]: !prev[board.authId],
+                    }))
+                  }
+                />
+              ))
+            : null}
         </View>
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        {scoresLoading && matches.length > 0 ? (
-          <View style={styles.listLoading}>
-            <ActivityIndicator color={colors.textMuted} />
-          </View>
-        ) : null}
-
-        {matches.length === 0 ? (
-          <Text style={styles.lede}>
-            No Super Six selections for this slate yet.
-          </Text>
-        ) : rankedBoards.length === 0 ? (
-          <Text style={styles.lede}>No player scores for this slate yet.</Text>
-        ) : (
-          rankedBoards.map((board) => (
-            <PlayerScoreSection
-              key={board.authId}
-              playerName={board.name}
-              matches={matches}
-              predictions={board.predictions}
-              score={board.score}
-              slateDifficulty={slateDifficulty}
-              expanded={!!expanded[board.authId]}
-              now={now}
-              onToggleExpand={() =>
-                setExpanded((prev) => ({
-                  ...prev,
-                  [board.authId]: !prev[board.authId],
-                }))
-              }
-            />
-          ))
-        )}
-      </View>
+      )}
     </ScrollView>
   );
 }
@@ -607,13 +684,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
     gap: 8,
-  },
-  lede: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: '500',
-    lineHeight: 18,
-    marginBottom: 12,
   },
   error: {
     color: colors.resultLose,

@@ -1,4 +1,4 @@
-/** Someone currently on 6/6 for the pot banner. */
+/** Someone currently on a perfect slate for the pot banner. */
 export type PerfectSixHolder = {
   displayName: string;
   isViewer: boolean;
@@ -15,17 +15,22 @@ function formatNameList(names: string[]): string {
 }
 
 /**
- * Pot banner copy:
- * - You have 6 / 6 and have the pot
- * - Cara has 6 / 6 and has the pot
- * - You and Cara have 6 / 6 and share the pot
+ * Pot banner copy (X = slate size):
+ * - You have X / X and have the pot
+ * - Cara has X / X and has the pot
+ * - You and Cara have X / X and share the pot
  */
 export function formatPotBannerLine(
   holders: PerfectSixHolder[],
+  slateSize = 6,
 ): string | null {
   if (holders.length === 0) {
     return null;
   }
+
+  const total =
+    slateSize > 0 && Number.isFinite(slateSize) ? Math.floor(slateSize) : 6;
+  const scoreLabel = `${total} / ${total}`;
 
   const ordered = [
     ...holders.filter((h) => h.isViewer),
@@ -41,11 +46,11 @@ export function formatPotBannerLine(
   if (ordered.length === 1) {
     const only = ordered[0];
     if (only.isViewer) {
-      return 'You have 6 / 6 and have the pot';
+      return `You have ${scoreLabel} and have the pot`;
     }
-    return `${only.displayName} has 6 / 6 and has the pot`;
+    return `${only.displayName} has ${scoreLabel} and has the pot`;
   }
 
   const names = ordered.map((h) => (h.isViewer ? 'You' : h.displayName));
-  return `${formatNameList(names)} have 6 / 6 and share the pot`;
+  return `${formatNameList(names)} have ${scoreLabel} and share the pot`;
 }

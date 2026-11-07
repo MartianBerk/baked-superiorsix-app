@@ -1,3 +1,4 @@
+import { usePathname } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -23,6 +24,7 @@ import {
 } from '@/api/superiorsix';
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
+import { useRoundStatus } from '@/components/shell/RoundStatusContext';
 import { LoginForm } from '@/features/auth/LoginForm';
 import { colors } from '@/theme';
 
@@ -34,6 +36,7 @@ import {
   toLegacyDateParam,
   utcDayKey,
 } from './formatMatchDate';
+import { aggregateSelectionDifficulty } from './matchDifficulty';
 import {
   addToLowestSlot,
   distinctDayKeys,
@@ -49,8 +52,24 @@ import {
 import { SubroundScrubber } from './SubroundScrubber';
 
 const ADMIN_ROLE = 'admin';
-/** Soft capacity — game_number slots stay 1..6; full six is not required. */
+/**
+ * Target slate size for admin Matches.
+ * Banner denominator is always this (e.g. 4/6 while picking).
+ * Fewer than 6 is allowed on submit; selecting more than 6 is blocked.
+ */
 const MAX_SLOTS = 6;
+
+/** Fixtures tab routes only — tabs keep this widget mounted off-tab. */
+function isFixturesPath(pathname: string): boolean {
+  if (
+    pathname.includes('/scores') ||
+    pathname.includes('/leaders') ||
+    pathname.includes('/profile')
+  ) {
+    return false;
+  }
+  return true;
+}
 /**
  * Client-only id for the open “current” slate before BE creates it on Submit.
  * First / next subround is created by `addmatches`, not `currentsubround?create`.
@@ -115,6 +134,9 @@ function slotsForSubround(
 export function MatchAdminWidget() {
   const { status, isAuthenticated, token, hasRole } = useAuth();
   const { setMode } = useFixturesTabMode();
+  const { setPlayerPickingStatus } = useRoundStatus();
+  const pathname = usePathname();
+  const ownsHeaderStrip = isFixturesPath(pathname);
 
   const [matches, setMatches] = useState<AdminMatch[]>([]);
   const [leagues, setLeagues] = useState<LeagueInfo[]>([]);
@@ -198,12 +220,42 @@ export function MatchAdminWidget() {
   }, [displayMatches, selectedDate, leaguesById]);
 
   const selectedCount = occupiedCount(draftSlots);
+  const selectedSlateDifficulty = useMemo(() => {
+    const difficulties = draftSlots.map((id) =>
+      id != null ? (byId.get(id)?.difficulty ?? null) : null,
+    );
+    return aggregateSelectionDifficulty(difficulties);
+  }, [draftSlots, byId]);
   const savedSlots = useMemo(
     () => slotsForSubround(matches, selectedSubroundId),
     [matches, selectedSubroundId],
   );
   const dirty = canEdit && !slotsEqual(draftSlots, savedSlots);
   const canSubmit = dirty && !submitting;
+
+  useEffect(() => {
+    // Header strip: n/6 while this admin surface owns the fixtures tab.
+    // Clear on leave/unmount so player Scores/Matches can republish submitted size.
+    if (!isAuthenticated || !ownsHeaderStrip) {
+      setPlayerPickingStatus(null);
+      return;
+    }
+    setPlayerPickingStatus({
+      phase: 'picking',
+      slateSize: MAX_SLOTS,
+      selectedCount,
+      slateDifficulty: selectedSlateDifficulty,
+    });
+    return () => {
+      setPlayerPickingStatus(null);
+    };
+  }, [
+    isAuthenticated,
+    ownsHeaderStrip,
+    selectedCount,
+    selectedSlateDifficulty,
+    setPlayerPickingStatus,
+  ]);
 
   const applySubroundSelection = useCallback(
     (next: Subround, allMatches: AdminMatch[]) => {
@@ -365,6 +417,13 @@ export function MatchAdminWidget() {
         if (prev.includes(match.id)) {
           queueMicrotask(() => setError(null));
           return dropFromSlots(prev, match.id);
+        }
+        // Hard cap at MAX_SLOTS — banner stays n/6; never allow a 7th pick.
+        if (occupiedCount(prev) >= MAX_SLOTS) {
+          queueMicrotask(() =>
+            setError('All 6 selection slots are full. Drop one first.'),
+          );
+          return prev;
         }
         const next = addToLowestSlot(prev, match.id);
         if (next == null) {
@@ -547,9 +606,6 @@ export function MatchAdminWidget() {
     >
       <View style={styles.wrap}>
         <View style={styles.headerStrip}>
-          <Text style={styles.headerLabel}>
-            {`Match Week:   ${selectedCount} / ${MAX_SLOTS} selections`}
-          </Text>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Submit match selections"
@@ -678,7 +734,7 @@ const styles = StyleSheet.create({
   headerStrip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     gap: 12,
     marginBottom: 12,
   },
@@ -708,12 +764,6 @@ const styles = StyleSheet.create({
   },
   scrubberFlush: {
     marginBottom: 0,
-  },
-  headerLabel: {
-    flex: 1,
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '700',
   },
   submit: {
     minWidth: 88,

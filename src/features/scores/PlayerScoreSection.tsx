@@ -1,12 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 
-import type {
-  LiveMatch,
-  MatchDifficulty,
-  PredictionChoice,
-} from '@/api/superiorsix';
-import { DifficultyPips } from '@/features/matches/DifficultyPips';
+import type { LiveMatch, PredictionChoice } from '@/api/superiorsix';
 import { colors } from '@/theme';
 
 import { PickOutcomeBadge } from './PickOutcomeBadge';
@@ -16,16 +11,16 @@ import { ScoreMatchRow } from './ScoreMatchRow';
 const CHEVRON_DOWN = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
 const CHEVRON_UP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>`;
 
-const SLOT_TOTAL = 6;
-
 type Props = {
   playerName: string;
   matches: LiveMatch[];
   /** matchId → prediction for this player. */
   predictions: Record<number, PredictionChoice | null>;
-  /** Correct picks for this player (0–6) shown as n/6. */
+  /**
+   * Display numerator for n/X (X = slate size): set predictions while picking,
+   * correct picks once live/finished — same rules as the header strip.
+   */
   score: number;
-  slateDifficulty: MatchDifficulty | null;
   expanded: boolean;
   onToggleExpand: () => void;
   /** Wall clock for live score / badge timing (Matches shared clock). */
@@ -34,16 +29,16 @@ type Props = {
 
 /**
  * Collapsible player block for Scores.
- * Collapsed: name left; badges + n/6 + chevron on the right
- * (extra gap between last badge and n/6).
+ * Collapsed: name left; badges + n/X + chevron on the right
+ * (extra gap between last badge and n/X).
  * Expanded: per-match Home | badge | Away (badge-only centre).
+ * Slate difficulty lives in the under-header strip, not per player row.
  */
 export function PlayerScoreSection({
   playerName,
   matches,
   predictions,
   score,
-  slateDifficulty,
   expanded,
   onToggleExpand,
   now = new Date(),
@@ -52,7 +47,8 @@ export function PlayerScoreSection({
     'CURRENT',
     colors.textMuted,
   );
-  const countLabel = `${score}/${SLOT_TOTAL}`;
+  const slateSize = matches.length > 0 ? matches.length : 6;
+  const countLabel = `${score}/${slateSize}`;
   const pickSummary = matches
     .map((match) => {
       const prediction = predictions[match.id] ?? null;
@@ -65,12 +61,11 @@ export function PlayerScoreSection({
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded }}
-        accessibilityLabel={`${playerName}, picks ${pickSummary}, ${countLabel} correct${expanded ? ', expanded' : ''}`}
+        accessibilityLabel={`${playerName}, picks ${pickSummary}, ${countLabel}${expanded ? ', expanded' : ''}`}
         onPress={onToggleExpand}
         style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
       >
         <View style={styles.nameCol}>
-          <DifficultyPips difficulty={slateDifficulty} />
           <Text style={styles.name} numberOfLines={1}>
             {playerName}
           </Text>

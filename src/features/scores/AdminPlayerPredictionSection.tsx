@@ -1,29 +1,19 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 
-import type {
-  LiveMatch,
-  MatchDifficulty,
-  PredictionChoice,
-} from '@/api/superiorsix';
+import type { LiveMatch, PredictionChoice } from '@/api/superiorsix';
 import { colors } from '@/theme';
-
-import { DifficultyPips } from '@/features/matches/DifficultyPips';
 
 import { AdminPredictionMatchRow } from './AdminPredictionMatchRow';
 
 const CHEVRON_DOWN = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
 const CHEVRON_UP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>`;
 
-const SLOT_TOTAL = 6;
-
 type Props = {
   playerName: string;
   matches: LiveMatch[];
   /** matchId → prediction for this player. */
   predictions: Record<number, PredictionChoice | null>;
-  /** Overall slate difficulty (mean of selection scores) — collapsed row only. */
-  slateDifficulty: MatchDifficulty | null;
   expanded: boolean;
   onToggleExpand: () => void;
   /** Match id currently saving for this player, if any. */
@@ -35,14 +25,14 @@ type Props = {
 
 /**
  * Expandable player section for admin predictions (matches KickoffGroup chrome).
- * Collapsed: overall difficulty pips + name left, n/6 right, chevron.
+ * Collapsed: name left, n/X right, chevron (X = current slate size).
  * Expanded: match rows with H/D/A (no per-match difficulty).
+ * Slate difficulty lives in the under-header strip, not per player row.
  */
 export function AdminPlayerPredictionSection({
   playerName,
   matches,
   predictions,
-  slateDifficulty,
   expanded,
   onToggleExpand,
   busyMatchId,
@@ -59,7 +49,8 @@ export function AdminPlayerPredictionSection({
       picked += 1;
     }
   }
-  const countLabel = `${picked}/${SLOT_TOTAL}`;
+  const slateSize = matches.length > 0 ? matches.length : 6;
+  const countLabel = `${picked}/${slateSize}`;
 
   return (
     <View style={styles.card}>
@@ -71,7 +62,6 @@ export function AdminPlayerPredictionSection({
         style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
       >
         <View style={styles.headerLeft}>
-          <DifficultyPips difficulty={slateDifficulty} />
           <Text style={styles.name} numberOfLines={1}>
             {playerName}
           </Text>

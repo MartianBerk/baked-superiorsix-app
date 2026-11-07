@@ -10,9 +10,9 @@ import {
 import type { RoundStatus } from './roundStatus';
 
 export type GamedayHeaderChrome = {
-  /** Latest subround sequence — header “Round N”. */
+  /** Latest subround sequence — header value (`# n`). */
   roundLabel: string;
-  /** Pot = buy_in × full_roster × subround — header “Prize pot”. */
+  /** Pot = buy_in × full_roster × subround — header value (`£…`). */
   prizeLabel: string;
 };
 
@@ -23,13 +23,13 @@ type RoundStatusContextValue = {
    */
   playerPickingStatus: RoundStatus | null;
   setPlayerPickingStatus: (status: RoundStatus | null) => void;
-  /** Shell header Round / Prize pot (SS-26). */
+  /** Shell header round / pot values (SS-26). */
   gamedayHeader: GamedayHeaderChrome;
   setGamedayHeader: (chrome: GamedayHeaderChrome) => void;
 };
 
 const DEFAULT_HEADER: GamedayHeaderChrome = {
-  roundLabel: 'N',
+  roundLabel: '# N',
   prizeLabel: '£X',
 };
 
@@ -42,7 +42,16 @@ export function RoundStatusProvider({ children }: { children: ReactNode }) {
     useState<GamedayHeaderChrome>(DEFAULT_HEADER);
 
   const setPlayerPickingStatus = useCallback((status: RoundStatus | null) => {
-    setPlayerPickingStatusState(status);
+    setPlayerPickingStatusState((prev) => {
+      if (status == null) {
+        return null;
+      }
+      // Publishers without difficulty data omit the field — keep prior pips.
+      if (status.slateDifficulty !== undefined || prev?.slateDifficulty == null) {
+        return status;
+      }
+      return { ...status, slateDifficulty: prev.slateDifficulty };
+    });
   }, []);
 
   const setGamedayHeader = useCallback((chrome: GamedayHeaderChrome) => {
