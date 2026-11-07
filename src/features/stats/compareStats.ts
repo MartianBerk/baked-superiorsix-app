@@ -9,7 +9,7 @@ export type StatsCompareRow = {
   name: string;
   correct: number;
   matches: number;
-  /** Current round (n) success rate — FE renders; backend/mock precomputes. */
+  /** Current round (n) success rate — FE renders; backend precomputes. */
   success_rate: number;
   /** Previous closed round (n−1) success rate, when known. */
   previous_success_rate: number | null;

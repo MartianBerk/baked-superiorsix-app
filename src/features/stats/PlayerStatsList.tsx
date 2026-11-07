@@ -19,7 +19,9 @@ export function PlayerStatsList({ stats, viewerAuthId }: Props) {
   if (stats.length === 0) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyText}>No player rates yet.</Text>
+        <Text style={styles.emptyText}>
+          No player rates yet. Rates appear after a round closes.
+        </Text>
       </View>
     );
   }
