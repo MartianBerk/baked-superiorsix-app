@@ -2,9 +2,11 @@ export { apiFetch, getApiBases, readApiJson } from './client';
 export type { ApiBases, ApiFetchInit } from './client';
 export { ApiError, formatApiDetail } from './errors';
 export {
+  INVITE_PERMISSION_ROLE_LABELS,
   INVITE_PERMISSION_ROLES,
   SUPERIORSIX_AUDIENCE,
   fetchAuthMe,
+  formatPermissionRoleLabel,
   loginWithPassword,
   setPasswordAuthUser,
 } from './auth';
@@ -23,6 +25,7 @@ export {
   fetchMatchDetail,
   getCurrentRound,
   getCurrentSubround,
+  getPlayerRoles,
   getPrediction,
   invitePlayer,
   isNoRoundInProgressError,
@@ -33,6 +36,7 @@ export {
   listPlayers,
   openSubround,
   smokeSuperSixBff,
+  updatePlayerRoles,
   updateProfileDetails,
 } from './superiorsix';
 export type {
@@ -44,6 +48,7 @@ export type {
   LiveMatch,
   PendingInvite,
   PlayerProfile,
+  PlayerRolesResult,
   PredictionChoice,
   RoundInfo,
   Subround,

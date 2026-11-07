@@ -10,10 +10,14 @@ import {
 
 import {
   ApiError,
+  INVITE_PERMISSION_ROLE_LABELS,
   INVITE_PERMISSION_ROLES,
+  formatPermissionRoleLabel,
+  getPlayerRoles,
   invitePlayer,
   listInvites,
   listPlayers,
+  updatePlayerRoles,
   type InvitePermissionRole,
   type PendingInvite,
   type PlayerProfile,
@@ -21,28 +25,84 @@ import {
 import { useAuth } from '@/auth';
 import { colors } from '@/theme';
 
-const ROLE_LABELS: Record<InvitePermissionRole, string> = {
-  player: 'Player',
-  worldcup: 'World Cup',
-  euros: 'Euros',
-};
-
 type RoleFlags = Record<InvitePermissionRole, boolean>;
 
 const DEFAULT_ROLES: RoleFlags = {
   player: true,
   worldcup: false,
   euros: false,
+  admin: false,
 };
+
+function emptyRoleFlags(): RoleFlags {
+  return {
+    player: false,
+    worldcup: false,
+    euros: false,
+    admin: false,
+  };
+}
 
 function selectedRoles(flags: RoleFlags): InvitePermissionRole[] {
   return INVITE_PERMISSION_ROLES.filter((role) => flags[role]);
+}
+
+function flagsFromRoles(roles: string[]): RoleFlags {
+  const flags = emptyRoleFlags();
+  for (const role of roles) {
+    const key = role.trim().toLowerCase();
+    if ((INVITE_PERMISSION_ROLES as readonly string[]).includes(key)) {
+      flags[key as InvitePermissionRole] = true;
+    }
+  }
+  return flags;
+}
+
+function formatRolesList(roles: string[]): string {
+  const labeled = roles.map(formatPermissionRoleLabel);
+  return labeled.length ? labeled.join(', ') : '(no roles)';
+}
+
+type RoleChipsProps = {
+  value: RoleFlags;
+  disabled?: boolean;
+  onToggle: (role: InvitePermissionRole) => void;
+};
+
+function RoleChips({ value, disabled, onToggle }: RoleChipsProps) {
+  return (
+    <View style={styles.roleRow}>
+      {INVITE_PERMISSION_ROLES.map((role) => {
+        const on = value[role];
+        return (
+          <Pressable
+            key={role}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: on }}
+            disabled={disabled}
+            onPress={() => onToggle(role)}
+            style={({ pressed }) => [
+              styles.roleChip,
+              on && styles.roleChipOn,
+              (pressed || disabled) && styles.pressed,
+            ]}
+          >
+            <Text style={[styles.roleChipText, on && styles.roleChipTextOn]}>
+              {INVITE_PERMISSION_ROLE_LABELS[role]}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
 }
 
 /**
  * Admin invite form: email + name/nickname seed + role chips.
  * Invite-only — creates passwordless auth user + membership; invitee claims
  * password on first login, then accepts the roster.
+ * Roster rows open an in-place role editor (same chips). Any superiorsix
+ * admin can grant the app-scoped `admin` role via these chips (SS-98).
  */
 export function AdminInviteForm() {
   const { token } = useAuth();
@@ -60,6 +120,14 @@ export function AdminInviteForm() {
   const [roster, setRoster] = useState<PlayerProfile[]>([]);
   const [rosterError, setRosterError] = useState<string | null>(null);
   const [rosterLoading, setRosterLoading] = useState(false);
+
+  const [editingAuthId, setEditingAuthId] = useState<string | null>(null);
+  const [editEmail, setEditEmail] = useState('');
+  const [editRoles, setEditRoles] = useState<RoleFlags>(emptyRoleFlags());
+  const [editLoading, setEditLoading] = useState(false);
+  const [editBusy, setEditBusy] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editNote, setEditNote] = useState<string | null>(null);
 
   const refreshInvites = useCallback(async () => {
     if (!token) {
@@ -111,6 +179,96 @@ export function AdminInviteForm() {
     setError(null);
   };
 
+  const toggleEditRole = (role: InvitePermissionRole) => {
+    setEditRoles((prev) => ({ ...prev, [role]: !prev[role] }));
+    setEditNote(null);
+    setEditError(null);
+  };
+
+  const closeEditor = () => {
+    setEditingAuthId(null);
+    setEditEmail('');
+    setEditRoles(emptyRoleFlags());
+    setEditError(null);
+    setEditNote(null);
+    setEditLoading(false);
+    setEditBusy(false);
+  };
+
+  const openEditor = async (player: PlayerProfile) => {
+    if (!token) {
+      setEditError('Not signed in.');
+      return;
+    }
+    const mail = (player.email ?? '').trim().toLowerCase();
+    if (!mail) {
+      setEditError('This roster row has no email; roles cannot be edited.');
+      setEditingAuthId(player.auth_id);
+      setEditEmail('');
+      setEditRoles(emptyRoleFlags());
+      return;
+    }
+
+    setEditingAuthId(player.auth_id);
+    setEditEmail(mail);
+    setEditError(null);
+    setEditNote(null);
+    setEditLoading(true);
+    try {
+      const result = await getPlayerRoles(token, mail);
+      setEditRoles(flagsFromRoles(result.roles));
+    } catch (err) {
+      setEditRoles(emptyRoleFlags());
+      if (err instanceof ApiError) {
+        setEditError(err.message);
+      } else if (err instanceof Error) {
+        setEditError(err.message);
+      } else {
+        setEditError('Could not load roles.');
+      }
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const onSaveRoles = async () => {
+    setEditError(null);
+    setEditNote(null);
+    if (!token) {
+      setEditError('Not signed in.');
+      return;
+    }
+    if (!editEmail) {
+      setEditError('Email is required to update roles.');
+      return;
+    }
+    const permissionRoles = selectedRoles(editRoles);
+    if (permissionRoles.length === 0) {
+      setEditError('Select at least one role (player is typical).');
+      return;
+    }
+
+    setEditBusy(true);
+    try {
+      const result = await updatePlayerRoles(token, {
+        email: editEmail,
+        roles: permissionRoles,
+      });
+      setEditRoles(flagsFromRoles(result.roles));
+      setEditNote(`Updated roles · ${formatRolesList(result.roles)}.`);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setEditError(err.message);
+      } else if (err instanceof Error) {
+        setEditError(err.message);
+      } else {
+        setEditError('Role update failed.');
+      }
+    } finally {
+      setEditBusy(false);
+    }
+  };
+
   const onSubmit = async () => {
     setError(null);
     setNote(null);
@@ -147,9 +305,9 @@ export function AdminInviteForm() {
         ...(nick ? { nickname: nick } : {}),
         roles: permissionRoles,
       });
-      const roleList =
-        (invite.roles.length ? invite.roles : permissionRoles).join(', ') ||
-        'none';
+      const roleList = formatRolesList(
+        invite.roles.length ? invite.roles : permissionRoles,
+      );
       setNote(
         `Invited ${invite.email} (${invite.status}) · roles ${roleList}. They set a password on first login (claim), then join.`,
       );
@@ -180,7 +338,8 @@ export function AdminInviteForm() {
       <Text style={styles.lede}>
         Reserve an email, profile seed, and roles. Profile edit access is always
         granted. Auth user + membership are created now; the invitee sets a
-        password on first login, then joins the roster.
+        password on first login, then joins the roster. Toggle Admin to grant
+        app-scoped superiorsix admin (match day, rounds, invites).
       </Text>
 
       <Text style={styles.label}>Email</Text>
@@ -233,29 +392,7 @@ export function AdminInviteForm() {
       />
 
       <Text style={styles.label}>Roles</Text>
-      <View style={styles.roleRow}>
-        {INVITE_PERMISSION_ROLES.map((role) => {
-          const on = roles[role];
-          return (
-            <Pressable
-              key={role}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: on }}
-              disabled={busy}
-              onPress={() => toggleRole(role)}
-              style={({ pressed }) => [
-                styles.roleChip,
-                on && styles.roleChipOn,
-                (pressed || busy) && styles.pressed,
-              ]}
-            >
-              <Text style={[styles.roleChipText, on && styles.roleChipTextOn]}>
-                {ROLE_LABELS[role]}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <RoleChips value={roles} disabled={busy} onToggle={toggleRole} />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {note ? <Text style={styles.saved}>{note}</Text> : null}
@@ -301,7 +438,7 @@ export function AdminInviteForm() {
           <View key={invite.email} style={styles.listRow}>
             <Text style={styles.listName}>{invite.email}</Text>
             <Text style={styles.listMeta}>
-              {(invite.roles.length ? invite.roles : ['(no roles)']).join(', ')}
+              {formatRolesList(invite.roles.length ? invite.roles : [])}
             </Text>
           </View>
         ))}
@@ -312,7 +449,7 @@ export function AdminInviteForm() {
           <Text style={styles.listTitle}>Roster</Text>
           <Pressable
             accessibilityRole="button"
-            disabled={rosterLoading || busy}
+            disabled={rosterLoading || busy || editBusy}
             onPress={() => {
               void refreshRoster();
             }}
@@ -322,22 +459,102 @@ export function AdminInviteForm() {
             </Text>
           </Pressable>
         </View>
+        <Text style={styles.listHint}>Tap a player to edit roles.</Text>
         {rosterError ? <Text style={styles.error}>{rosterError}</Text> : null}
         {roster.length === 0 && !rosterLoading && !rosterError ? (
           <Text style={styles.emptyList}>No players yet.</Text>
         ) : null}
-        {roster.map((player) => (
-          <View key={player.auth_id} style={styles.listRow}>
-            <Text style={styles.listName}>
-              {player.first_name} {player.last_name}
-              {player.nickname ? ` · ${player.nickname}` : ''}
-            </Text>
-            <Text style={styles.listMeta}>
-              {player.email ? `${player.email} · ` : ''}
-              {player.active ? 'active' : 'inactive'}
-            </Text>
-          </View>
-        ))}
+        {roster.map((player) => {
+          const isEditing = editingAuthId === player.auth_id;
+          return (
+            <View key={player.auth_id} style={styles.listRow}>
+              <Pressable
+                accessibilityRole="button"
+                disabled={busy || editBusy || editLoading}
+                onPress={() => {
+                  if (isEditing) {
+                    closeEditor();
+                    return;
+                  }
+                  void openEditor(player);
+                }}
+              >
+                <Text style={styles.listName}>
+                  {player.first_name} {player.last_name}
+                  {player.nickname ? ` · ${player.nickname}` : ''}
+                </Text>
+                <Text style={styles.listMeta}>
+                  {player.email ? `${player.email} · ` : ''}
+                  {player.active ? 'active' : 'inactive'}
+                  {isEditing ? ' · editing' : ''}
+                </Text>
+              </Pressable>
+
+              {isEditing ? (
+                <View style={styles.editPanel}>
+                  <Text style={styles.label}>Email</Text>
+                  <Text style={styles.emailReadonly}>
+                    {editEmail || '(no email)'}
+                  </Text>
+
+                  <Text style={styles.label}>Roles</Text>
+                  {editLoading ? (
+                    <ActivityIndicator
+                      color={colors.textMuted}
+                      style={styles.editSpinner}
+                    />
+                  ) : (
+                    <RoleChips
+                      value={editRoles}
+                      disabled={editBusy || !editEmail}
+                      onToggle={toggleEditRole}
+                    />
+                  )}
+
+                  {editError ? (
+                    <Text style={styles.error}>{editError}</Text>
+                  ) : null}
+                  {editNote ? (
+                    <Text style={styles.saved}>{editNote}</Text>
+                  ) : null}
+
+                  <View style={styles.editActions}>
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={editBusy || editLoading || !editEmail}
+                      onPress={() => {
+                        void onSaveRoles();
+                      }}
+                      style={({ pressed }) => [
+                        styles.button,
+                        styles.editSave,
+                        (pressed || editBusy || editLoading || !editEmail) &&
+                          styles.pressed,
+                      ]}
+                    >
+                      {editBusy ? (
+                        <ActivityIndicator color={colors.text} />
+                      ) : (
+                        <Text style={styles.buttonText}>Save roles</Text>
+                      )}
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={editBusy}
+                      onPress={closeEditor}
+                      style={({ pressed }) => [
+                        styles.cancelButton,
+                        (pressed || editBusy) && styles.pressed,
+                      ]}
+                    >
+                      <Text style={styles.cancelText}>Close</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          );
+        })}
       </View>
     </View>
   );
@@ -376,6 +593,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
+    marginBottom: 14,
+  },
+  emailReadonly: {
+    color: colors.text,
+    fontSize: 16,
     marginBottom: 14,
   },
   roleRow: {
@@ -442,12 +664,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   listTitle: {
     color: colors.text,
     fontSize: 18,
     fontWeight: '600',
+  },
+  listHint: {
+    color: colors.textMuted,
+    fontSize: 13,
+    marginBottom: 12,
   },
   reload: {
     color: colors.accentBright,
@@ -470,5 +697,30 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 12,
     marginTop: 2,
+  },
+  editPanel: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  editSpinner: {
+    marginBottom: 16,
+    alignSelf: 'flex-start',
+  },
+  editActions: {
+    gap: 10,
+  },
+  editSave: {
+    marginTop: 0,
+  },
+  cancelButton: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  cancelText: {
+    color: colors.accentBright,
+    fontSize: 15,
+    fontWeight: '500',
   },
 });

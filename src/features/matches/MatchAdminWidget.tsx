@@ -48,7 +48,6 @@ import {
 } from './matchGrouping';
 import { SubroundScrubber } from './SubroundScrubber';
 
-const GAME_MASTER_ROLE = 'game-master';
 const ADMIN_ROLE = 'admin';
 /** Soft capacity — game_number slots stay 1..6; full six is not required. */
 const MAX_SLOTS = 6;
@@ -134,8 +133,7 @@ export function MatchAdminWidget() {
   const [needsRound, setNeedsRound] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canSelect =
-    isAuthenticated && (hasRole(GAME_MASTER_ROLE) || hasRole(ADMIN_ROLE));
+  const canSelect = isAuthenticated && hasRole(ADMIN_ROLE);
 
   const selectedSubround = useMemo(
     () => subrounds.find((row) => row.id === selectedSubroundId) ?? null,
@@ -516,9 +514,9 @@ export function MatchAdminWidget() {
     return (
       <View style={styles.center}>
         <View style={styles.wrap}>
-          <Text style={styles.heading}>Game master required</Text>
+          <Text style={styles.heading}>Admin required</Text>
           <Text style={styles.lede}>
-            Match selection needs the superiorsix game-master (or admin) role.
+            Match selection needs the superiorsix admin role.
           </Text>
           <Text
             accessibilityRole="link"

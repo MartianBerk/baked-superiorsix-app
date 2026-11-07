@@ -31,8 +31,6 @@ import {
 import { colors } from '@/theme';
 
 const ADMIN_ROLE = 'admin';
-/** Round open/close routes require `game-master` on the BE. */
-const GAME_MASTER_ROLE = 'game-master';
 
 type PendingConfirm =
   | {
@@ -76,7 +74,7 @@ function parseStakePounds(raw: string): number | null {
 function formatRoundApiError(err: unknown, fallback: string): string {
   if (err instanceof ApiError) {
     if (err.status === 403) {
-      return `${err.message} Round start/close needs the game-master role.`;
+      return `${err.message} Round start/close needs the superiorsix admin role.`;
     }
     return err.message;
   }
@@ -112,9 +110,7 @@ export function RoundAdminWidget() {
     null,
   );
 
-  const canManage =
-    isAuthenticated && (hasRole(GAME_MASTER_ROLE) || hasRole(ADMIN_ROLE));
-  const hasGameMaster = hasRole(GAME_MASTER_ROLE);
+  const canManage = isAuthenticated && hasRole(ADMIN_ROLE);
 
   const activePlayers = useMemo(
     () => players.filter((player) => player.active && !player.retired),
@@ -201,10 +197,8 @@ export function RoundAdminWidget() {
       setError('Not signed in.');
       return;
     }
-    if (!hasGameMaster) {
-      setError(
-        'Starting a round needs the game-master role (admin alone is not enough).',
-      );
+    if (!canManage) {
+      setError('Starting a round needs the superiorsix admin role.');
       return;
     }
     if (round != null) {
@@ -266,10 +260,8 @@ export function RoundAdminWidget() {
       setError('Not signed in.');
       return;
     }
-    if (!hasGameMaster) {
-      setError(
-        'Closing a round needs the game-master role (admin alone is not enough).',
-      );
+    if (!canManage) {
+      setError('Closing a round needs the superiorsix admin role.');
       return;
     }
     if (round == null) {
@@ -355,8 +347,7 @@ export function RoundAdminWidget() {
         <View style={styles.wrap}>
           <Text style={styles.heading}>Admin required</Text>
           <Text style={styles.lede}>
-            Starting and closing rounds needs the superiorsix admin or
-            game-master role.
+            Starting and closing rounds needs the superiorsix admin role.
           </Text>
           <Text
             accessibilityRole="link"
@@ -403,13 +394,6 @@ export function RoundAdminWidget() {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {note ? <Text style={styles.saved}>{note}</Text> : null}
-        {!hasGameMaster ? (
-          <Text style={styles.gapNote}>
-            Your token is missing game-master. Round start/close will be
-            rejected by the API until that role is granted (bootstrap ops has
-            both admin and game-master).
-          </Text>
-        ) : null}
 
         {pendingConfirm ? (
           <View style={styles.confirmBox}>
@@ -689,12 +673,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: -8,
     marginBottom: 14,
-  },
-  gapNote: {
-    color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 12,
   },
   confirmBox: {
     marginBottom: 16,
