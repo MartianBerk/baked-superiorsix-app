@@ -175,10 +175,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
-    backgroundColor: colors.accent,
   },
   potBannerText: {
-    color: colors.text,
+    color: colors.amber,
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.3,

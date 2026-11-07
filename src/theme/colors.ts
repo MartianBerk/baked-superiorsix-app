@@ -27,6 +27,8 @@ export const colors = {
   resultLose: '#6B2A2A',
   /** Muted gold for mid difficulty (same family as result greens/reds). */
   difficultyMedium: '#7A6230',
+  /** Amber callout text (e.g. 6/6 pot banner). */
+  amber: '#E6B84D',
   /** Subtle borders */
   border: '#1A3352',
   /** Floating user button background */
