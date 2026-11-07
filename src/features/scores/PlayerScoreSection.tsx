@@ -34,7 +34,8 @@ type Props = {
 
 /**
  * Collapsible player block for Scores.
- * Collapsed: name left, badges centered, n/6 (+ chevron) right.
+ * Collapsed: name left; badges + n/6 + chevron on the right
+ * (extra gap between last badge and n/6).
  * Expanded: per-match Home | badge | Away (badge-only centre).
  */
 export function PlayerScoreSection({
@@ -74,27 +75,27 @@ export function PlayerScoreSection({
             {playerName}
           </Text>
         </View>
-        <View style={styles.badges} pointerEvents="none">
-          {matches.map((match) => {
-            const prediction = predictions[match.id] ?? null;
-            if (prediction == null) {
-              return (
-                <Text key={match.id} style={styles.pickNone}>
-                  —
-                </Text>
-              );
-            }
-            return (
-              <PickOutcomeBadge
-                key={match.id}
-                prediction={prediction}
-                correct={isPickCurrentlyCorrect(prediction, match, now)}
-                compact
-              />
-            );
-          })}
-        </View>
         <View style={styles.rightCol}>
+          <View style={styles.badges}>
+            {matches.map((match) => {
+              const prediction = predictions[match.id] ?? null;
+              if (prediction == null) {
+                return (
+                  <Text key={match.id} style={styles.pickNone}>
+                    —
+                  </Text>
+                );
+              }
+              return (
+                <PickOutcomeBadge
+                  key={match.id}
+                  prediction={prediction}
+                  correct={isPickCurrentlyCorrect(prediction, match, now)}
+                  compact
+                />
+              );
+            })}
+          </View>
           <Text style={styles.count}>{countLabel}</Text>
           <View style={styles.chevronSlot}>
             <SvgXml xml={chevron} width={18} height={18} />
@@ -125,9 +126,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   header: {
-    position: 'relative',
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 10,
     paddingVertical: 10,
     backgroundColor: colors.menuBar,
@@ -141,8 +142,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    zIndex: 1,
-    paddingRight: 8,
   },
   name: {
     flexShrink: 1,
@@ -152,12 +151,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.2,
   },
-  badges: {
-    ...StyleSheet.absoluteFillObject,
+  rightCol: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    flexShrink: 0,
     gap: 4,
+  },
+  badges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    // Extra space between the last badge and n/6.
+    marginRight: 10,
   },
   pickNone: {
     width: 22,
@@ -167,16 +172,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     lineHeight: 22,
-  },
-  rightCol: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 4,
-    zIndex: 1,
-    paddingLeft: 8,
   },
   count: {
     color: colors.text,
