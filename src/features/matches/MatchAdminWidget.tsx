@@ -1,3 +1,4 @@
+import { usePathname } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -57,6 +58,18 @@ const ADMIN_ROLE = 'admin';
  * Fewer than 6 is allowed on submit; selecting more than 6 is blocked.
  */
 const MAX_SLOTS = 6;
+
+/** Fixtures tab routes only — tabs keep this widget mounted off-tab. */
+function isFixturesPath(pathname: string): boolean {
+  if (
+    pathname.includes('/scores') ||
+    pathname.includes('/leaders') ||
+    pathname.includes('/profile')
+  ) {
+    return false;
+  }
+  return true;
+}
 /**
  * Client-only id for the open “current” slate before BE creates it on Submit.
  * First / next subround is created by `addmatches`, not `currentsubround?create`.
@@ -122,6 +135,8 @@ export function MatchAdminWidget() {
   const { status, isAuthenticated, token, hasRole } = useAuth();
   const { setMode } = useFixturesTabMode();
   const { setPlayerPickingStatus } = useRoundStatus();
+  const pathname = usePathname();
+  const ownsHeaderStrip = isFixturesPath(pathname);
 
   const [matches, setMatches] = useState<AdminMatch[]>([]);
   const [leagues, setLeagues] = useState<LeagueInfo[]>([]);
@@ -219,8 +234,9 @@ export function MatchAdminWidget() {
   const canSubmit = dirty && !submitting;
 
   useEffect(() => {
-    // Header strip: n/6 always (target slate), never current pick count as denom.
-    if (!isAuthenticated) {
+    // Header strip: n/6 while this admin surface owns the fixtures tab.
+    // Clear on leave/unmount so player Scores/Matches can republish submitted size.
+    if (!isAuthenticated || !ownsHeaderStrip) {
       setPlayerPickingStatus(null);
       return;
     }
@@ -230,8 +246,12 @@ export function MatchAdminWidget() {
       selectedCount,
       slateDifficulty: selectedSlateDifficulty,
     });
+    return () => {
+      setPlayerPickingStatus(null);
+    };
   }, [
     isAuthenticated,
+    ownsHeaderStrip,
     selectedCount,
     selectedSlateDifficulty,
     setPlayerPickingStatus,

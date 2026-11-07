@@ -327,6 +327,8 @@ export function ScoresPlayerWidget() {
       return;
     }
     if (slateSize <= 0 && rankedBoards.length === 0) {
+      // Drop stale admin /6 (or prior slate) until this board loads.
+      setPlayerPickingStatus(null);
       return;
     }
     const authId = session?.userId;

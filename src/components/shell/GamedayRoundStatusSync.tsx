@@ -1,3 +1,4 @@
+import { usePathname } from 'expo-router';
 import { useEffect } from 'react';
 
 import {
@@ -109,25 +110,39 @@ function selectedCountForViewer(
   );
 }
 
+function isFixturesPath(pathname: string): boolean {
+  if (
+    pathname.includes('/scores') ||
+    pathname.includes('/leaders') ||
+    pathname.includes('/profile')
+  ) {
+    return false;
+  }
+  return true;
+}
+
 /**
  * Single publisher for the shell n/X strip on every player tab.
  * Derives picking vs live/finished + counts from `/game/meta` + `/game/livescores`.
  * Matches may still push optimistic picking counts while the draft is open.
- * Skips while fixtures admin is open so the strip keeps target slate size 6.
+ * Skips only while fixtures admin owns the fixtures tab (target slate /6).
  */
 export function GamedayRoundStatusSync() {
   const { isAuthenticated, session } = useAuth();
   const { mode: fixturesMode } = useFixturesTabMode();
+  const pathname = usePathname();
   const { setPlayerPickingStatus } = useRoundStatus();
   const viewerAuthId = session?.userId ?? null;
+  const fixturesAdminOwnsStrip =
+    fixturesMode === 'admin' && isFixturesPath(pathname);
 
   useEffect(() => {
     if (!isAuthenticated) {
       setPlayerPickingStatus(null);
       return;
     }
-    // Fixtures admin owns the strip (n/6 draft selections + live difficulty).
-    if (fixturesMode === 'admin') {
+    // Fixtures admin owns the strip only on the fixtures tab itself.
+    if (fixturesAdminOwnsStrip) {
       return;
     }
 
@@ -220,7 +235,12 @@ export function GamedayRoundStatusSync() {
         clearTimeout(timer);
       }
     };
-  }, [isAuthenticated, fixturesMode, viewerAuthId, setPlayerPickingStatus]);
+  }, [
+    isAuthenticated,
+    fixturesAdminOwnsStrip,
+    viewerAuthId,
+    setPlayerPickingStatus,
+  ]);
 
   return null;
 }
