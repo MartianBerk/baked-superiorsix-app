@@ -1,3 +1,5 @@
+import type { PerfectSixHolder } from './potBanner';
+
 /** Round lifecycle for the thin header status strip. */
 export type RoundPhase = 'picking' | 'live' | 'finished';
 
@@ -18,6 +20,8 @@ export type RoundStatus = {
   rivalPerfect?: {
     displayName: string;
   } | null;
+  /** Everyone currently on 6/6 (drives the pot banner). */
+  perfectSix?: PerfectSixHolder[];
 };
 
 /** SS-8 placeholder until round/selection APIs are wired. */

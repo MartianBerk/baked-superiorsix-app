@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { usePathname } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,7 +11,11 @@ import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
 import { useScoresTabMode } from '@/features/scores/ScoresTabModeContext';
 import { colors } from '@/theme';
 
-import { FORCE_SIX_CORRECT_POT_BANNER } from './devPotBanner';
+import {
+  FORCE_VIEWER_AND_OTHER_SIX_CORRECT,
+  withDevOtherPlayerSixCorrect,
+} from './devPotBanner';
+import { formatPotBannerLine } from './potBanner';
 import { useRoundStatus } from './RoundStatusContext';
 import { RoundStatusStrip } from './RoundStatusStrip';
 import {
@@ -81,27 +86,20 @@ export function AppHeader({
     (leadersMode === 'admin' && isLeadersPath(pathname)) ||
     (profileMode === 'admin' && isProfilePath(pathname));
 
-  const baseStatus: RoundStatus | null =
+  const status: RoundStatus | null =
     roundStatus ??
     (isAuthenticated && !hideStatusStrip
       ? (playerPickingStatus ?? PLACEHOLDER_ROUND_STATUS)
       : null);
 
-  // TEMP: force 6/6 strip + pot banner for Martin preview (see devPotBanner.ts).
-  const status: RoundStatus | null =
-    baseStatus != null && FORCE_SIX_CORRECT_POT_BANNER
-      ? {
-          ...baseStatus,
-          phase: baseStatus.phase === 'picking' ? 'live' : baseStatus.phase,
-          correctCount: 6,
-        }
-      : baseStatus;
+  const potHolders = useMemo(() => {
+    const real = status?.perfectSix ?? [];
+    return withDevOtherPlayerSixCorrect(real);
+  }, [status?.perfectSix]);
 
+  const potLine = useMemo(() => formatPotBannerLine(potHolders), [potHolders]);
   const showPotBanner =
-    isAuthenticated &&
-    !hideStatusStrip &&
-    status != null &&
-    ((status.correctCount ?? 0) === 6 || FORCE_SIX_CORRECT_POT_BANNER);
+    isAuthenticated && !hideStatusStrip && potLine != null;
 
   return (
     <View
@@ -127,15 +125,15 @@ export function AppHeader({
           </View>
         </View>
 
-        {showPotBanner ? (
+        {showPotBanner && potLine ? (
           <View
             style={styles.potBanner}
             accessibilityRole="summary"
-            accessibilityLabel="Six from six — on to win the pot"
+            accessibilityLabel={potLine}
           >
             <Text style={styles.potBannerText}>
-              6/6 — on to win the pot
-              {FORCE_SIX_CORRECT_POT_BANNER ? ' (dev)' : ''}
+              {potLine}
+              {FORCE_VIEWER_AND_OTHER_SIX_CORRECT ? ' (dev)' : ''}
             </Text>
           </View>
         ) : null}
@@ -184,6 +182,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.3,
+    textAlign: 'center',
   },
   side: {
     flex: 1,

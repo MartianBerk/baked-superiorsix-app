@@ -22,6 +22,9 @@ import {
   type Subround,
 } from '@/api/superiorsix';
 import { ApiError } from '@/api/errors';
+import { useAuth } from '@/auth';
+import type { PerfectSixHolder } from '@/components/shell/potBanner';
+import { useRoundStatus } from '@/components/shell/RoundStatusContext';
 import {
   discoveryDayKeys,
   toLegacyDateParam,
@@ -105,12 +108,37 @@ function boardsFromLiveScores(scores: LiveScorePlayer[]): PlayerBoard[] {
     }
     return {
       authId: player.auth_id,
-      name: player.name,
+      name: displayNameFromLiveScore(player),
       // Placeholder — display score is recomputed from live slate + picks.
       score: player.score,
       predictions,
     };
   });
+}
+
+function displayNameFromLiveScore(row: LiveScorePlayer): string {
+  if (typeof row.nickname === 'string' && row.nickname.trim()) {
+    return row.nickname.trim();
+  }
+  if (typeof row.first_name === 'string' && row.first_name.trim()) {
+    return row.first_name.trim();
+  }
+  if (row.name.trim()) {
+    return row.name.trim();
+  }
+  return 'Player';
+}
+
+function perfectSixFromRanked(
+  ranked: PlayerBoard[],
+  viewerAuthId: string | null | undefined,
+): PerfectSixHolder[] {
+  return ranked
+    .filter((row) => row.score >= 6)
+    .map((row) => ({
+      displayName: row.name,
+      isViewer: viewerAuthId != null && row.authId === viewerAuthId,
+    }));
 }
 
 /** Correct picks for this player against the live slate (0–6). */
@@ -180,6 +208,9 @@ function mergeBoardFixtures(
  * stay in sync with Matches.
  */
 export function ScoresPlayerWidget() {
+  const { isAuthenticated, session } = useAuth();
+  const { setPlayerPickingStatus } = useRoundStatus();
+
   const [subrounds, setSubrounds] = useState<Subround[]>([]);
   const [matchesBySubround, setMatchesBySubround] = useState<
     Record<number, SlateMatch[]>
@@ -232,6 +263,35 @@ export function ScoresPlayerWidget() {
       ),
     [boards, matches, now],
   );
+
+  useEffect(() => {
+    // Keep header strip + pot holders in sync while Scores is mounted.
+    if (!isAuthenticated) {
+      setPlayerPickingStatus(null);
+      return;
+    }
+    const authId = session?.userId;
+    const viewer =
+      authId != null
+        ? rankedBoards.find((row) => row.authId === authId)
+        : undefined;
+    const perfectSix = perfectSixFromRanked(rankedBoards, authId);
+    const subroundLocked = selectedSubround?.is_over === true;
+    if (subroundLocked || boardLive || rankedBoards.length > 0) {
+      setPlayerPickingStatus({
+        phase: boardLive ? 'live' : subroundLocked ? 'finished' : 'live',
+        correctCount: viewer?.score ?? 0,
+        perfectSix,
+      });
+    }
+  }, [
+    isAuthenticated,
+    session?.userId,
+    rankedBoards,
+    boardLive,
+    selectedSubround?.is_over,
+    setPlayerPickingStatus,
+  ]);
 
   const applyLiveBoard = useCallback(
     (subroundId: number, board: Awaited<ReturnType<typeof getLiveScores>>) => {

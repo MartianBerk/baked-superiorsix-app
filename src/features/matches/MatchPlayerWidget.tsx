@@ -23,6 +23,7 @@ import {
 } from '@/api/superiorsix';
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
+import type { PerfectSixHolder } from '@/components/shell/potBanner';
 import { useRoundStatus } from '@/components/shell/RoundStatusContext';
 import { KickoffDateDisplay } from '@/features/scores/KickoffDateDisplay';
 import { LIVE_POLL_MS } from '@/features/scores/liveScoreDisplay';
@@ -146,6 +147,35 @@ function mergeBoardFixtures(
   );
 }
 
+function displayNameFromLiveScore(row: {
+  name: string;
+  nickname?: string | null;
+  first_name?: string;
+}): string {
+  if (typeof row.nickname === 'string' && row.nickname.trim()) {
+    return row.nickname.trim();
+  }
+  if (typeof row.first_name === 'string' && row.first_name.trim()) {
+    return row.first_name.trim();
+  }
+  if (row.name.trim()) {
+    return row.name.trim();
+  }
+  return 'Player';
+}
+
+function perfectSixFromBoard(
+  board: LiveScoresBoard,
+  viewerAuthId: string | null | undefined,
+): PerfectSixHolder[] {
+  return board.scores
+    .filter((row) => row.score >= 6)
+    .map((row) => ({
+      displayName: displayNameFromLiveScore(row),
+      isViewer: viewerAuthId != null && row.auth_id === viewerAuthId,
+    }));
+}
+
 /**
  * Player fixtures: Super Six slate with Home/Draw/Away, plus gameday live
  * behaviour (10m lock, collapse expands, score lines, 2m livescores poll,
@@ -178,6 +208,7 @@ export function MatchPlayerWidget() {
   const [boardLive, setBoardLive] = useState(false);
   const [nextKickoff, setNextKickoff] = useState<string | null>(null);
   const [viewerCorrect, setViewerCorrect] = useState<number | null>(null);
+  const [perfectSix, setPerfectSix] = useState<PerfectSixHolder[]>([]);
 
   const canPredict = isAuthenticated && hasRole('player');
 
@@ -231,11 +262,13 @@ export function MatchPlayerWidget() {
       setPlayerPickingStatus({
         phase: boardLive ? 'live' : 'finished',
         correctCount: viewerCorrect ?? 0,
+        perfectSix,
       });
     } else {
       setPlayerPickingStatus({
         phase: 'picking',
         selectedCount: pickedCount,
+        perfectSix,
       });
     }
   }, [
@@ -244,6 +277,7 @@ export function MatchPlayerWidget() {
     boardLive,
     viewerCorrect,
     pickedCount,
+    perfectSix,
     setPlayerPickingStatus,
   ]);
 
@@ -252,6 +286,7 @@ export function MatchPlayerWidget() {
       setBoardLive(board.live);
       setNextKickoff(board.next_kickoff);
       const authId = session?.userId;
+      setPerfectSix(perfectSixFromBoard(board, authId));
       if (authId) {
         const mine = board.scores.find((row) => row.auth_id === authId);
         setViewerCorrect(mine != null ? mine.score : null);
@@ -277,6 +312,7 @@ export function MatchPlayerWidget() {
         setBoardLive(false);
         setNextKickoff(null);
         setViewerCorrect(null);
+        setPerfectSix([]);
         return;
       }
       try {
