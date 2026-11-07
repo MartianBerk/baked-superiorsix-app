@@ -98,7 +98,7 @@ app/
   (euro-wizard)/     # empty stub
   (qatar-hero)/      # empty stub
 src/
-  components/shell/  # AppHeader, BottomMenu, EmptyScreen, LongPressMenu
+  components/shell/  # AppHeader, BottomMenu, EmptyScreen
   components/icons/  # Menu icons from legacy supersixapp SVGs
   theme/
   platform/notifications/  # .ts + .web.ts stubs
