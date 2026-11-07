@@ -122,8 +122,9 @@ function boardsFromLiveScores(scores: LiveScorePlayer[]): PlayerBoard[] {
 }
 
 /**
- * Player Scores: admin-predictions layout without expand/predict.
- * Picks/board only — no live score chrome (that owns Matches player).
+ * Player Scores: admin-predictions layout without H/D/A submit.
+ * Players collapsed by default; expand shows read-only picks.
+ * No live score chrome (that owns Matches player).
  */
 export function ScoresPlayerWidget() {
   const [subrounds, setSubrounds] = useState<Subround[]>([]);
@@ -136,6 +137,8 @@ export function ScoresPlayerWidget() {
   const selectedSubroundIdRef = useRef<number | null>(null);
 
   const [boards, setBoards] = useState<PlayerBoard[]>([]);
+  /** authId → expanded; default collapsed. */
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [scoresLoading, setScoresLoading] = useState(false);
@@ -291,6 +294,7 @@ export function ScoresPlayerWidget() {
   const onSelectSubround = useCallback(
     (next: Subround) => {
       setSelectedSubroundId(next.id);
+      setExpanded({});
       setError(null);
       void loadScores(next.id);
     },
@@ -370,6 +374,13 @@ export function ScoresPlayerWidget() {
               correctByMatch={board.correctByMatch}
               score={board.score}
               slateDifficulty={slateDifficulty}
+              expanded={!!expanded[board.authId]}
+              onToggleExpand={() =>
+                setExpanded((prev) => ({
+                  ...prev,
+                  [board.authId]: !prev[board.authId],
+                }))
+              }
             />
           ))
         )}
