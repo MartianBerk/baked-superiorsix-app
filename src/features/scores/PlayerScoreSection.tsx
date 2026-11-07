@@ -9,6 +9,8 @@ import type {
 import { DifficultyPips } from '@/features/matches/DifficultyPips';
 import { colors } from '@/theme';
 
+import { PickOutcomeBadge } from './PickOutcomeBadge';
+import { isPickCurrentlyCorrect, PICK_BADGE_LABEL } from './pickOutcome';
 import { ScoreMatchRow } from './ScoreMatchRow';
 
 const CHEVRON_DOWN = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
@@ -21,7 +23,7 @@ type Props = {
   matches: LiveMatch[];
   /** matchId → prediction for this player. */
   predictions: Record<number, PredictionChoice | null>;
-  /** Overall correct / pick count for the header. */
+  /** Correct picks for this player (0–6) shown as n/6. */
   score: number;
   slateDifficulty: MatchDifficulty | null;
   expanded: boolean;
@@ -31,8 +33,9 @@ type Props = {
 };
 
 /**
- * Collapsible player block for Scores (admin chrome, no H/D/A submit).
- * Collapsed by default; expand shows read-only predictions.
+ * Collapsible player block for Scores.
+ * Collapsed: `Name  H H D A D D  n/6` (inline badges + correct count).
+ * Expanded: per-match Home | badge | Away (badge-only centre).
  */
 export function PlayerScoreSection({
   playerName,
@@ -42,34 +45,58 @@ export function PlayerScoreSection({
   slateDifficulty,
   expanded,
   onToggleExpand,
-  now,
+  now = new Date(),
 }: Props) {
   const chevron = (expanded ? CHEVRON_UP : CHEVRON_DOWN).replaceAll(
     'CURRENT',
     colors.textMuted,
   );
   const countLabel = `${score}/${SLOT_TOTAL}`;
+  const pickSummary = matches
+    .map((match) => {
+      const prediction = predictions[match.id] ?? null;
+      return prediction != null ? PICK_BADGE_LABEL[prediction] : '—';
+    })
+    .join(' ');
 
   return (
     <View style={styles.card}>
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded }}
-        accessibilityLabel={`${playerName}, ${countLabel}${expanded ? ', expanded' : ''}`}
+        accessibilityLabel={`${playerName}, picks ${pickSummary}, ${countLabel} correct${expanded ? ', expanded' : ''}`}
         onPress={onToggleExpand}
         style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
       >
-        <View style={styles.headerLeft}>
+        <View style={styles.nameCol}>
           <DifficultyPips difficulty={slateDifficulty} />
           <Text style={styles.name} numberOfLines={1}>
             {playerName}
           </Text>
         </View>
-        <View style={styles.headerRight}>
-          <Text style={styles.count}>{countLabel}</Text>
-          <View style={styles.chevronSlot}>
-            <SvgXml xml={chevron} width={18} height={18} />
-          </View>
+        <View style={styles.badges}>
+          {matches.map((match) => {
+            const prediction = predictions[match.id] ?? null;
+            if (prediction == null) {
+              return (
+                <Text key={match.id} style={styles.pickNone}>
+                  —
+                </Text>
+              );
+            }
+            return (
+              <PickOutcomeBadge
+                key={match.id}
+                prediction={prediction}
+                correct={isPickCurrentlyCorrect(prediction, match, now)}
+                compact
+              />
+            );
+          })}
+        </View>
+        <Text style={styles.count}>{countLabel}</Text>
+        <View style={styles.chevronSlot}>
+          <SvgXml xml={chevron} width={18} height={18} />
         </View>
       </Pressable>
       {expanded
@@ -98,48 +125,60 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
     backgroundColor: colors.menuBar,
   },
   headerPressed: {
     backgroundColor: colors.menuActive,
   },
-  headerLeft: {
-    flex: 1,
-    minWidth: 0,
+  nameCol: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 72,
+    minWidth: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   name: {
-    flex: 1,
+    flexShrink: 1,
     minWidth: 0,
     color: colors.text,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     letterSpacing: 0.2,
   },
-  headerRight: {
+  badges: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 4,
     flexShrink: 0,
+  },
+  pickNone: {
+    width: 22,
+    height: 22,
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 22,
   },
   count: {
     color: colors.text,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     letterSpacing: 0.2,
-    minWidth: 36,
+    minWidth: 32,
     textAlign: 'right',
+    flexShrink: 0,
   },
   chevronSlot: {
-    width: 36,
-    height: 36,
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
 });

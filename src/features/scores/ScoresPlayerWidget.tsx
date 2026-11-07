@@ -39,6 +39,7 @@ import { colors } from '@/theme';
 
 import { KickoffDateDisplay } from './KickoffDateDisplay';
 import { LIVE_POLL_MS } from './liveScoreDisplay';
+import { isPickCurrentlyCorrect } from './pickOutcome';
 import { PlayerScoreSection } from './PlayerScoreSection';
 
 type SlateMatch = LiveMatch & {
@@ -103,7 +104,7 @@ function pickScoresSubround(
 }
 
 function boardsFromLiveScores(scores: LiveScorePlayer[]): PlayerBoard[] {
-  const boards: PlayerBoard[] = scores.map((player) => {
+  return scores.map((player) => {
     const predictions: Record<number, PredictionChoice | null> = {};
     for (const row of player.matches) {
       predictions[row.match_id] = row.prediction;
@@ -111,18 +112,35 @@ function boardsFromLiveScores(scores: LiveScorePlayer[]): PlayerBoard[] {
     return {
       authId: player.auth_id,
       name: player.name,
+      // Placeholder — display score is recomputed from live slate + picks.
       score: player.score,
       predictions,
     };
   });
+}
 
-  boards.sort((a, b) => {
+/** Correct picks for this player against the live/mock slate (0–6). */
+function countCorrectPicks(
+  predictions: Record<number, PredictionChoice | null>,
+  slate: SlateMatch[],
+  now: Date,
+): number {
+  let correct = 0;
+  for (const match of slate) {
+    if (isPickCurrentlyCorrect(predictions[match.id] ?? null, match, now)) {
+      correct += 1;
+    }
+  }
+  return correct;
+}
+
+function sortBoardsByCorrect(boards: PlayerBoard[]): PlayerBoard[] {
+  return [...boards].sort((a, b) => {
     if (b.score !== a.score) {
       return b.score - a.score;
     }
     return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
   });
-  return boards;
 }
 
 function fixtureToSlateMatch(
@@ -163,9 +181,9 @@ function mergeBoardFixtures(
 
 /**
  * Player Scores: admin-predictions layout without H/D/A submit.
- * Players collapsed by default; expand shows read-only picks.
- * Live score lines come from the same `/game/livescores` (+ FE mock) path
- * as Matches so badges / scores stay in sync.
+ * Players collapsed by default; expand shows read-only pick badges only.
+ * Slate fixtures still merge `/game/livescores` (+ FE mock) so badges / n/6
+ * correct counts stay in sync with Matches.
  */
 export function ScoresPlayerWidget() {
   const [subrounds, setSubrounds] = useState<Subround[]>([]);
@@ -212,6 +230,18 @@ export function ScoresPlayerWidget() {
   const slateDifficulty = useMemo(
     () => aggregateSelectionDifficulty(matches.map((m) => m.difficulty)),
     [matches],
+  );
+
+  /** Header n/6 is correct-picks count from live/mock slate, not raw API score. */
+  const rankedBoards = useMemo(
+    () =>
+      sortBoardsByCorrect(
+        boards.map((board) => ({
+          ...board,
+          score: countCorrectPicks(board.predictions, matches, now),
+        })),
+      ),
+    [boards, matches, now],
   );
 
   const applyLiveBoard = useCallback(
@@ -375,7 +405,7 @@ export function ScoresPlayerWidget() {
     };
   }, [loadCatalog]);
 
-  // Keep Scores score lines in step with Matches while the board is live.
+  // Keep live/mock slate (for badge green + n/6 correct) in step with Matches.
   useEffect(() => {
     if (!boardLive || selectedSubroundId == null) {
       return;
@@ -457,10 +487,10 @@ export function ScoresPlayerWidget() {
           <Text style={styles.lede}>
             No Super Six selections for this slate yet.
           </Text>
-        ) : boards.length === 0 ? (
+        ) : rankedBoards.length === 0 ? (
           <Text style={styles.lede}>No player scores for this slate yet.</Text>
         ) : (
-          boards.map((board) => (
+          rankedBoards.map((board) => (
             <PlayerScoreSection
               key={board.authId}
               playerName={board.name}

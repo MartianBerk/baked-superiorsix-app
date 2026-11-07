@@ -10,6 +10,8 @@ type Props = {
   correct: boolean;
   /** Optional a11y override; defaults to “Pick H/D/A” / “Correct pick …”. */
   accessibilityLabel?: string;
+  /** Tighter 22px badge for collapsed Scores strip. */
+  compact?: boolean;
 };
 
 /**
@@ -20,17 +22,28 @@ export function PickOutcomeBadge({
   prediction,
   correct,
   accessibilityLabel,
+  compact = false,
 }: Props) {
   const label = PICK_BADGE_LABEL[prediction];
   return (
     <View
-      style={[styles.badge, correct && styles.badgeCorrect]}
+      style={[
+        styles.badge,
+        compact && styles.badgeCompact,
+        correct && styles.badgeCorrect,
+      ]}
       accessibilityLabel={
         accessibilityLabel ??
         (correct ? `Correct pick ${label}` : `Pick ${label}`)
       }
     >
-      <Text style={[styles.badgeLabel, correct && styles.badgeLabelCorrect]}>
+      <Text
+        style={[
+          styles.badgeLabel,
+          compact && styles.badgeLabelCompact,
+          correct && styles.badgeLabelCorrect,
+        ]}
+      >
         {label}
       </Text>
     </View>
@@ -49,6 +62,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
+  badgeCompact: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+  },
   badgeCorrect: {
     backgroundColor: colors.accent,
     borderColor: colors.accentBright,
@@ -59,6 +77,10 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.2,
     lineHeight: 14,
+  },
+  badgeLabelCompact: {
+    fontSize: 11,
+    lineHeight: 13,
   },
   badgeLabelCorrect: {
     color: colors.text,
