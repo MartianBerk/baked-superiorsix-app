@@ -1455,3 +1455,144 @@ export async function smokeSuperSixBff(token: string): Promise<SuperSixSmokeResu
 
   return { healthOk, tokenAccepted, probeStatus: probe.status, message };
 }
+
+/** One match-day score point from `GET /stats/aggregate` (SS-18). */
+export type AggregateScorePoint = {
+  name: string;
+  /** ISO date `yyyy-mm-dd`. */
+  date: string;
+  /** Correct predictions that day. */
+  score: number;
+  matches: number;
+};
+
+/**
+ * Player success-rate row for the previous closed round only (n−1).
+ * `playerid` is roster `auth_id`. Rates are precomputed — FE renders as-is.
+ */
+export type AggregatePlayerStats = {
+  playerid: string;
+  name: string;
+  correct: number;
+  matches: number;
+  success_rate: number;
+  scores: AggregateScorePoint[];
+};
+
+export type AggregateStatsResponse = {
+  stats: AggregatePlayerStats[];
+};
+
+/** One closed round in the full winners archive (`GET /stats/winners`). */
+export type HistoricRound = {
+  round_id: number;
+  start_date: string;
+  end_date: string;
+  matches: number;
+  players: number;
+  /** Pot won, pence. */
+  jackpot: number;
+  winner: string;
+  winner_ids: string[];
+};
+
+export type HistoricRoundsResponse = {
+  rounds: HistoricRound[];
+};
+
+function asStatsString(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback;
+}
+
+function normalizeAggregateScorePoint(
+  raw: Record<string, unknown>,
+): AggregateScorePoint {
+  return {
+    name: asStatsString(raw.name),
+    date: asStatsString(raw.date),
+    score: asFiniteNumber(raw.score) ?? 0,
+    matches: asFiniteNumber(raw.matches) ?? 0,
+  };
+}
+
+function normalizeAggregatePlayerStats(
+  raw: Record<string, unknown>,
+): AggregatePlayerStats {
+  const scoresRaw = Array.isArray(raw.scores) ? raw.scores : [];
+  return {
+    playerid:
+      raw.playerid == null ? '' : asStatsString(raw.playerid, String(raw.playerid)),
+    name: asStatsString(raw.name),
+    correct: asFiniteNumber(raw.correct) ?? 0,
+    matches: asFiniteNumber(raw.matches) ?? 0,
+    success_rate: asFiniteNumber(raw.success_rate) ?? 0,
+    scores: scoresRaw
+      .filter((row): row is Record<string, unknown> => !!row && typeof row === 'object')
+      .map(normalizeAggregateScorePoint),
+  };
+}
+
+function normalizeHistoricRound(raw: Record<string, unknown>): HistoricRound {
+  const winnerIds = Array.isArray(raw.winner_ids) ? raw.winner_ids : [];
+  return {
+    round_id: asFiniteNumber(raw.round_id) ?? 0,
+    start_date: asStatsString(raw.start_date),
+    end_date: asStatsString(raw.end_date),
+    matches: asFiniteNumber(raw.matches) ?? 0,
+    players: asFiniteNumber(raw.players) ?? 0,
+    jackpot: asFiniteNumber(raw.jackpot) ?? 0,
+    winner: asStatsString(raw.winner),
+    winner_ids: winnerIds.map((id) => String(id)),
+  };
+}
+
+/**
+ * SS-18 `GET /stats/aggregate` — success rates for the previous closed round
+ * only (n−1). Optional legacy `dd-mm-yyyy` day filters.
+ */
+export async function getStatsAggregate(opts?: {
+  startDate?: string | null;
+  endDate?: string | null;
+}): Promise<AggregateStatsResponse> {
+  const params = new URLSearchParams();
+  if (opts?.startDate) {
+    params.set('start_date', opts.startDate);
+  }
+  if (opts?.endDate) {
+    params.set('end_date', opts.endDate);
+  }
+  const query = params.toString();
+  let response: Response;
+  try {
+    response = await apiFetch(
+      'game',
+      `/stats/aggregate${query ? `?${query}` : ''}`,
+    );
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<Record<string, unknown>>(response);
+  const rows = Array.isArray(body?.stats) ? body.stats : [];
+  return {
+    stats: rows
+      .filter((row): row is Record<string, unknown> => !!row && typeof row === 'object')
+      .map(normalizeAggregatePlayerStats),
+  };
+}
+
+/** SS-18 `GET /stats/winners` — full closed-round winners archive. */
+export async function getStatsWinners(): Promise<HistoricRoundsResponse> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/stats/winners');
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<Record<string, unknown>>(response);
+  const rows = Array.isArray(body?.rounds) ? body.rounds : [];
+  return {
+    rounds: rows
+      .filter((row): row is Record<string, unknown> => !!row && typeof row === 'object')
+      .map(normalizeHistoricRound),
+  };
+}
