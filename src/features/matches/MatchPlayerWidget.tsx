@@ -221,12 +221,11 @@ export function MatchPlayerWidget() {
   }, [matches, draft]);
 
   useEffect(() => {
-    // Header n/6 strip is for signed-in players only (redundant logged out).
+    // Header n/6 + pot banner: signed-in only. Persist across tabs (do not
+    // clear on unmount) so Scores / Leaders / Profile keep the same strip.
     if (!isAuthenticated) {
       setPlayerPickingStatus(null);
-      return () => {
-        setPlayerPickingStatus(null);
-      };
+      return;
     }
     if (subroundLocked || boardLive) {
       setPlayerPickingStatus({
@@ -239,9 +238,6 @@ export function MatchPlayerWidget() {
         selectedCount: pickedCount,
       });
     }
-    return () => {
-      setPlayerPickingStatus(null);
-    };
   }, [
     isAuthenticated,
     subroundLocked,
@@ -645,13 +641,15 @@ const styles = StyleSheet.create({
   },
   wrap: {
     paddingHorizontal: '3%',
-    paddingTop: 12,
+    // Header already owns the top gap (AppHeader paddingBottom 12).
+    paddingTop: 0,
   },
   scrubberRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    marginBottom: 6,
+    // Same 12px rhythm as header → scrubber.
+    marginBottom: 12,
   },
   subroundCol: {
     flexGrow: 1,

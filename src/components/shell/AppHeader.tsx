@@ -4,15 +4,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth';
 import { SuperiorSixLogo } from '@/components/icons/SuperiorSixLogo';
+import { useUserTabMode } from '@/features/auth/UserTabModeContext';
 import { useLeadersTabMode } from '@/features/leaders/LeadersTabModeContext';
 import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
 import { useScoresTabMode } from '@/features/scores/ScoresTabModeContext';
 import { colors } from '@/theme';
 
+import { FORCE_SIX_CORRECT_POT_BANNER } from './devPotBanner';
 import { useRoundStatus } from './RoundStatusContext';
 import { RoundStatusStrip } from './RoundStatusStrip';
 import {
-  demoRoundStatusForPath,
+  PLACEHOLDER_ROUND_STATUS,
   type RoundStatus,
 } from './roundStatus';
 
@@ -23,9 +25,8 @@ type Props = {
   prizeLabel?: string;
   /**
    * Thin status strip under the logo row.
-   * Omit to use live player picking count on fixtures, else SS-8 tab demos
-   * (Scores → live correct; Leaders → + rival all 6).
-   * Hidden in fixtures / scores / leaders admin modes.
+   * Omit to use live player picking / correct count on every player tab.
+   * Hidden in fixtures / scores / leaders / profile admin modes.
    */
   roundStatus?: RoundStatus;
 };
@@ -48,9 +49,14 @@ function isLeadersPath(pathname: string): boolean {
   return pathname.includes('/leaders');
 }
 
+function isProfilePath(pathname: string): boolean {
+  return pathname.includes('/profile');
+}
+
 /**
  * Top shell: round left, logo center, prize pot right,
- * plus thin round-status strip at the bottom of the header card.
+ * optional 6/6 pot banner, plus thin round-status strip.
+ * Player strip + pot banner show on all four non-admin tabs when logged in.
  */
 export function AppHeader({
   roundLabel,
@@ -63,33 +69,40 @@ export function AppHeader({
   const { mode: fixturesMode } = useFixturesTabMode();
   const { mode: scoresMode } = useScoresTabMode();
   const { mode: leadersMode } = useLeadersTabMode();
+  const { mode: profileMode } = useUserTabMode();
   const { playerPickingStatus, gamedayHeader } = useRoundStatus();
   const resolvedRound = roundLabel ?? gamedayHeader.roundLabel;
   const resolvedPrize = prizeLabel ?? gamedayHeader.prizeLabel;
-  // Selections / correct strip is player-only; hide when logged out.
+  // Player-only chrome; hide when logged out or any dual-mode tab is admin.
   const hideStatusStrip =
     !isAuthenticated ||
     (fixturesMode === 'admin' && isFixturesPath(pathname)) ||
     (scoresMode === 'admin' && isScoresPath(pathname)) ||
-    (leadersMode === 'admin' && isLeadersPath(pathname));
-  const status =
+    (leadersMode === 'admin' && isLeadersPath(pathname)) ||
+    (profileMode === 'admin' && isProfilePath(pathname));
+
+  const baseStatus: RoundStatus | null =
     roundStatus ??
-    (fixturesMode === 'normal' &&
-    isFixturesPath(pathname) &&
-    playerPickingStatus
-      ? playerPickingStatus
-      : null) ??
-    (scoresMode === 'normal' &&
-    isScoresPath(pathname) &&
-    playerPickingStatus
-      ? playerPickingStatus
-      : null) ??
-    (isAuthenticated ? demoRoundStatusForPath(pathname) : null);
+    (isAuthenticated && !hideStatusStrip
+      ? (playerPickingStatus ?? PLACEHOLDER_ROUND_STATUS)
+      : null);
+
+  // TEMP: force 6/6 strip + pot banner for Martin preview (see devPotBanner.ts).
+  const status: RoundStatus | null =
+    baseStatus != null && FORCE_SIX_CORRECT_POT_BANNER
+      ? {
+          ...baseStatus,
+          phase: baseStatus.phase === 'picking' ? 'live' : baseStatus.phase,
+          correctCount: 6,
+        }
+      : baseStatus;
+
   const showPotBanner =
     isAuthenticated &&
     !hideStatusStrip &&
     status != null &&
-    (status.correctCount ?? 0) === 6;
+    ((status.correctCount ?? 0) === 6 || FORCE_SIX_CORRECT_POT_BANNER);
+
   return (
     <View
       style={[
@@ -122,6 +135,7 @@ export function AppHeader({
           >
             <Text style={styles.potBannerText}>
               6/6 — on to win the pot
+              {FORCE_SIX_CORRECT_POT_BANNER ? ' (dev)' : ''}
             </Text>
           </View>
         ) : null}
@@ -137,7 +151,8 @@ export function AppHeader({
 const styles = StyleSheet.create({
   outer: {
     paddingHorizontal: '3%',
-    paddingBottom: 8,
+    // Match wrap/scrubber vertical rhythm on Matches + Scores (12).
+    paddingBottom: 12,
     backgroundColor: colors.background,
   },
   card: {

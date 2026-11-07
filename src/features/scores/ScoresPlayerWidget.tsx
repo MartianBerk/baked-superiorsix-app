@@ -511,13 +511,15 @@ const styles = StyleSheet.create({
   },
   wrap: {
     paddingHorizontal: '3%',
-    paddingTop: 12,
+    // Header already owns the top gap (AppHeader paddingBottom 12).
+    paddingTop: 0,
   },
   scrubberRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    marginBottom: 6,
+    // Same 12px rhythm as header → scrubber.
+    marginBottom: 12,
   },
   subroundCol: {
     flexGrow: 1,
