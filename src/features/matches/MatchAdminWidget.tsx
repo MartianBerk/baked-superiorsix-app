@@ -51,7 +51,11 @@ import {
 import { SubroundScrubber } from './SubroundScrubber';
 
 const ADMIN_ROLE = 'admin';
-/** Soft capacity — game_number slots stay 1..6; full six is not required. */
+/**
+ * Target slate size for admin Matches.
+ * Banner denominator is always this (e.g. 4/6 while picking).
+ * Fewer than 6 is allowed on submit; selecting more than 6 is blocked.
+ */
 const MAX_SLOTS = 6;
 /**
  * Client-only id for the open “current” slate before BE creates it on Submit.
@@ -215,7 +219,7 @@ export function MatchAdminWidget() {
   const canSubmit = dirty && !submitting;
 
   useEffect(() => {
-    // Header strip: selection count + mean difficulty of the draft slate.
+    // Header strip: n/6 always (target slate), never current pick count as denom.
     if (!isAuthenticated) {
       setPlayerPickingStatus(null);
       return;
@@ -393,6 +397,13 @@ export function MatchAdminWidget() {
         if (prev.includes(match.id)) {
           queueMicrotask(() => setError(null));
           return dropFromSlots(prev, match.id);
+        }
+        // Hard cap at MAX_SLOTS — banner stays n/6; never allow a 7th pick.
+        if (occupiedCount(prev) >= MAX_SLOTS) {
+          queueMicrotask(() =>
+            setError('All 6 selection slots are full. Drop one first.'),
+          );
+          return prev;
         }
         const next = addToLowestSlot(prev, match.id);
         if (next == null) {

@@ -10,6 +10,7 @@ import {
 } from '@/api/superiorsix';
 import { useAuth } from '@/auth';
 import type { PerfectSixHolder } from '@/components/shell/potBanner';
+import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
 import { isPickCurrentlyCorrect } from '@/features/scores/pickOutcome';
 import { LIVE_POLL_MS, LOCK_BEFORE_KICKOFF_MS } from '@/features/scores/liveScoreDisplay';
 
@@ -112,15 +113,21 @@ function selectedCountForViewer(
  * Single publisher for the shell n/X strip on every player tab.
  * Derives picking vs live/finished + counts from `/game/meta` + `/game/livescores`.
  * Matches may still push optimistic picking counts while the draft is open.
+ * Skips while fixtures admin is open so the strip keeps target slate size 6.
  */
 export function GamedayRoundStatusSync() {
   const { isAuthenticated, session } = useAuth();
+  const { mode: fixturesMode } = useFixturesTabMode();
   const { setPlayerPickingStatus } = useRoundStatus();
   const viewerAuthId = session?.userId ?? null;
 
   useEffect(() => {
     if (!isAuthenticated) {
       setPlayerPickingStatus(null);
+      return;
+    }
+    // Fixtures admin owns the strip (n/6 draft selections + live difficulty).
+    if (fixturesMode === 'admin') {
       return;
     }
 
@@ -213,7 +220,7 @@ export function GamedayRoundStatusSync() {
         clearTimeout(timer);
       }
     };
-  }, [isAuthenticated, viewerAuthId, setPlayerPickingStatus]);
+  }, [isAuthenticated, fixturesMode, viewerAuthId, setPlayerPickingStatus]);
 
   return null;
 }
