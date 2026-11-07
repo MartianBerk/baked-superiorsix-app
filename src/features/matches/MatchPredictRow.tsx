@@ -86,7 +86,8 @@ export function MatchPredictRow({
     'CURRENT',
     colors.textMuted,
   );
-  const showPick = canPredict && prediction != null;
+  // Show H/D/A whenever this player has a pick (incl. locked live slate).
+  const showPick = prediction != null;
   const pickCorrect =
     showPick && isPickCurrentlyCorrect(prediction, match, now);
   const pickLabel =
@@ -123,7 +124,7 @@ export function MatchPredictRow({
             )}
             <DifficultyPips difficulty={match.difficulty} />
           </View>
-          <View style={[styles.teams, { width: teamColumnWidth }]}>
+          <View style={[styles.teams, { maxWidth: teamColumnWidth }]}>
             <Text style={styles.team} numberOfLines={1}>
               {match.home_team}
             </Text>
@@ -230,11 +231,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   leading: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     // Extra air only between pips and team names (#n↔pips stay tighter).
     gap: 16,
-    flexShrink: 0,
+    minWidth: 0,
   },
   gameAndPips: {
     flexDirection: 'row',
@@ -255,7 +257,8 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   teams: {
-    flexShrink: 0,
+    flexShrink: 1,
+    minWidth: 0,
     gap: 2,
     justifyContent: 'center',
   },
@@ -273,12 +276,13 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   actions: {
-    flex: 1,
+    // Keep pick badge + score + minute from being squeezed off by long names.
+    flexGrow: 0,
+    flexShrink: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 14,
-    minWidth: 0,
   },
   minute: {
     color: colors.text,
