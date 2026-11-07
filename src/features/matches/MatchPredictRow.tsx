@@ -88,9 +88,6 @@ export function MatchPredictRow({
         </View>
 
         <View style={styles.actions}>
-          {match.game_number != null ? (
-            <Text style={styles.slot}>#{match.game_number}</Text>
-          ) : null}
           {scoreLine ? (
             <Text
               style={styles.score}
@@ -98,6 +95,9 @@ export function MatchPredictRow({
             >
               {scoreLine}
             </Text>
+          ) : null}
+          {match.game_number != null ? (
+            <Text style={styles.slot}>#{match.game_number}</Text>
           ) : null}
           {prediction != null ? (
             <Text
