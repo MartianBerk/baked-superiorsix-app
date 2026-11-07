@@ -33,7 +33,7 @@ export function GamedayHeaderSync() {
       }
 
       if (!meta || meta.round_number < 1) {
-        setGamedayHeader({ roundLabel: '#N', prizeLabel: '£X' });
+        setGamedayHeader({ roundLabel: '# N', prizeLabel: '£X' });
         return;
       }
 
