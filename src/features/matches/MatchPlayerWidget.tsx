@@ -409,6 +409,8 @@ export function MatchPlayerWidget() {
           .sort((a, b) => a.sequence - b.sequence);
 
         setSubrounds(navigable);
+        // Keep ref in sync before await loadLiveBoard (effect would be one tick late).
+        matchesBySubroundRef.current = bySubround;
         setMatchesBySubround(bySubround);
 
         if (noRound) {
