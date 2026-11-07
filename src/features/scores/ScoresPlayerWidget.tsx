@@ -42,7 +42,6 @@ type PlayerBoard = {
   name: string;
   score: number;
   predictions: Record<number, PredictionChoice | null>;
-  correctByMatch: Record<number, boolean | null>;
 };
 
 function sortMatches(matches: SlateMatch[]): SlateMatch[] {
@@ -98,17 +97,14 @@ function pickScoresSubround(
 function boardsFromLiveScores(scores: LiveScorePlayer[]): PlayerBoard[] {
   const boards: PlayerBoard[] = scores.map((player) => {
     const predictions: Record<number, PredictionChoice | null> = {};
-    const correctByMatch: Record<number, boolean | null> = {};
     for (const row of player.matches) {
       predictions[row.match_id] = row.prediction;
-      correctByMatch[row.match_id] = row.correct;
     }
     return {
       authId: player.auth_id,
       name: player.name,
       score: player.score,
       predictions,
-      correctByMatch,
     };
   });
 
@@ -371,7 +367,6 @@ export function ScoresPlayerWidget() {
               playerName={board.name}
               matches={matches}
               predictions={board.predictions}
-              correctByMatch={board.correctByMatch}
               score={board.score}
               slateDifficulty={slateDifficulty}
               expanded={!!expanded[board.authId]}

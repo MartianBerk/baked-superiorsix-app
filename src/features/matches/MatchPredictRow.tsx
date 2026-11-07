@@ -13,12 +13,12 @@ import type {
   MatchDifficulty,
   PredictionChoice,
 } from '@/api/superiorsix';
+import { PickOutcomeBadge } from '@/features/scores/PickOutcomeBadge';
+import { formatAlignedScore } from '@/features/scores/liveScoreDisplay';
 import {
-  formatAlignedScore,
-  hasKickedOff,
-  isFinishedStatus,
-  isPlayingStatus,
-} from '@/features/scores/liveScoreDisplay';
+  isPickCurrentlyCorrect,
+  PICK_BADGE_LABEL,
+} from '@/features/scores/pickOutcome';
 import { colors } from '@/theme';
 
 import { DifficultyPips } from './DifficultyPips';
@@ -27,41 +27,6 @@ import { PredictionPicker } from './PredictionPicker';
 
 const CHEVRON_DOWN = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
 const CHEVRON_UP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>`;
-
-const BADGE_LABEL: Record<PredictionChoice, string> = {
-  home: 'H',
-  draw: 'D',
-  away: 'A',
-};
-
-function outcomeFromScores(
-  homeScore: number,
-  awayScore: number,
-): PredictionChoice {
-  if (homeScore > awayScore) {
-    return 'home';
-  }
-  if (homeScore < awayScore) {
-    return 'away';
-  }
-  return 'draw';
-}
-
-/** True once the score line leaves `- : -` (kickoff / in-play / finished). */
-function scoresHaveStarted(
-  match: Pick<LiveMatch, 'match_date' | 'status'>,
-  now: Date,
-  postponed: boolean,
-): boolean {
-  if (postponed) {
-    return false;
-  }
-  return (
-    hasKickedOff(match.match_date, now) ||
-    isPlayingStatus(match.status) ||
-    isFinishedStatus(match.status)
-  );
-}
 
 /** Approx width for team column from longest label (fontSize 12 semibold). */
 export function teamColumnWidthForMatches(matches: LiveMatch[]): number {
@@ -119,14 +84,10 @@ export function MatchPredictRow({
     'CURRENT',
     colors.textMuted,
   );
-  const pickLabel =
-    canPredict && prediction != null ? BADGE_LABEL[prediction] : null;
+  const showPick = canPredict && prediction != null;
   const pickCorrect =
-    pickLabel != null &&
-    prediction != null &&
-    scoresHaveStarted(match, now, postponed) &&
-    prediction ===
-      outcomeFromScores(match.home_score ?? 0, match.away_score ?? 0);
+    showPick && isPickCurrentlyCorrect(prediction, match, now);
+  const pickLabel = showPick && prediction != null ? PICK_BADGE_LABEL[prediction] : null;
 
   const scoreLine = locked
     ? formatAlignedScore(
@@ -155,31 +116,25 @@ export function MatchPredictRow({
         </View>
 
         <View style={styles.actions}>
-          {pickLabel != null ? (
-            <View
-              style={[styles.badge, pickCorrect && styles.badgeCorrect]}
-              accessibilityLabel={
-                pickCorrect
-                  ? `Correct pick ${pickLabel} for ${match.home_team} vs ${match.away_team}`
-                  : `Pick ${pickLabel} for ${match.home_team} vs ${match.away_team}`
-              }
-            >
-              {busy ? (
+          {showPick && prediction != null ? (
+            busy ? (
+              <View style={styles.badgeBusy}>
                 <ActivityIndicator
                   size="small"
                   color={pickCorrect ? colors.text : colors.textMuted}
                 />
-              ) : (
-                <Text
-                  style={[
-                    styles.badgeLabel,
-                    pickCorrect && styles.badgeLabelCorrect,
-                  ]}
-                >
-                  {pickLabel}
-                </Text>
-              )}
-            </View>
+              </View>
+            ) : (
+              <PickOutcomeBadge
+                prediction={prediction}
+                correct={pickCorrect}
+                accessibilityLabel={
+                  pickCorrect
+                    ? `Correct pick ${pickLabel} for ${match.home_team} vs ${match.away_team}`
+                    : `Pick ${pickLabel} for ${match.home_team} vs ${match.away_team}`
+                }
+              />
+            )
           ) : null}
           {scoreLine ? (
             <Text
@@ -261,30 +216,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 16,
   },
-  badge: {
+  badgeBusy: {
     width: 27,
     height: 27,
-    borderRadius: 8,
-    backgroundColor: colors.menuBar,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-  },
-  badgeCorrect: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accentBright,
-  },
-  badgeLabel: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.2,
-    lineHeight: 14,
-  },
-  badgeLabelCorrect: {
-    color: colors.text,
   },
   actions: {
     flex: 1,

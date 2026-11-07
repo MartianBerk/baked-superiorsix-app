@@ -3,59 +3,45 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { LiveMatch, PredictionChoice } from '@/api/superiorsix';
 import { colors } from '@/theme';
 
-const CHOICE_LABEL: Record<PredictionChoice, string> = {
-  home: 'H',
-  draw: 'D',
-  away: 'A',
-};
+import { PickOutcomeBadge } from './PickOutcomeBadge';
+import { isPickCurrentlyCorrect, PICK_BADGE_LABEL } from './pickOutcome';
 
 type Props = {
   match: LiveMatch;
   prediction: PredictionChoice | null;
-  correct: boolean | null;
+  /** Wall clock for grey→green timing (defaults to now). */
+  now?: Date;
 };
 
 /**
- * Read-only picks row (Scores player): Home | H/D/A | Away + tick.
- * No live score chrome — that lives on Matches (player).
+ * Read-only picks row (Scores player): Home | H/D/A badge | Away.
+ * Same grey/green pick badge as Matches; no font-colour correct/wrong cues.
  */
-export function ScoreMatchRow({ match, prediction, correct }: Props) {
+export function ScoreMatchRow({ match, prediction, now = new Date() }: Props) {
   const postponed = match.status === 'POSTPONED';
-  const homePicked = prediction === 'home';
-  const awayPicked = prediction === 'away';
-  const drawPicked = prediction === 'draw';
+  const pickCorrect = isPickCurrentlyCorrect(prediction, match, now);
 
   return (
     <View style={[styles.row, prediction != null && styles.rowPicked]}>
-      <Text
-        style={[styles.team, styles.teamHome, homePicked && styles.teamPick]}
-        numberOfLines={2}
-      >
+      <Text style={[styles.team, styles.teamHome]} numberOfLines={2}>
         {match.home_team}
       </Text>
       <View style={styles.centre}>
         {prediction != null ? (
-          <Text
-            style={[styles.pickLetter, drawPicked && styles.pickDraw]}
-            accessibilityLabel={`Predicted ${CHOICE_LABEL[prediction]}`}
-          >
-            {CHOICE_LABEL[prediction]}
-          </Text>
+          <PickOutcomeBadge
+            prediction={prediction}
+            correct={pickCorrect}
+            accessibilityLabel={
+              pickCorrect
+                ? `Correct pick ${PICK_BADGE_LABEL[prediction]} for ${match.home_team} vs ${match.away_team}`
+                : `Pick ${PICK_BADGE_LABEL[prediction]} for ${match.home_team} vs ${match.away_team}`
+            }
+          />
         ) : (
-          <Text style={styles.pickLetterMuted}>—</Text>
-        )}
-        {correct === true ? (
-          <Text style={styles.tick} accessibilityLabel="Correct">
-            ✓
-          </Text>
-        ) : (
-          <Text style={styles.tickPlaceholder}> </Text>
+          <Text style={styles.pickNone}>—</Text>
         )}
       </View>
-      <Text
-        style={[styles.team, styles.teamAway, awayPicked && styles.teamPick]}
-        numberOfLines={2}
-      >
+      <Text style={[styles.team, styles.teamAway]} numberOfLines={2}>
         {match.away_team}
         {postponed ? ' (P)' : ''}
       </Text>
@@ -90,43 +76,18 @@ const styles = StyleSheet.create({
   teamAway: {
     textAlign: 'right',
   },
-  teamPick: {
-    color: colors.accentBright,
-    fontWeight: '800',
-  },
   centre: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
     flexShrink: 0,
-    minWidth: 56,
+    minWidth: 32,
   },
-  pickLetter: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '800',
-    minWidth: 20,
-    textAlign: 'center',
-  },
-  pickDraw: {
-    color: colors.accentBright,
-  },
-  pickLetterMuted: {
+  pickNone: {
     color: colors.textMuted,
     fontSize: 13,
     fontWeight: '600',
-    minWidth: 20,
+    minWidth: 27,
     textAlign: 'center',
-  },
-  tick: {
-    color: colors.accentBright,
-    fontSize: 14,
-    fontWeight: '800',
-    minWidth: 14,
-    textAlign: 'center',
-  },
-  tickPlaceholder: {
-    minWidth: 14,
   },
 });

@@ -21,8 +21,6 @@ type Props = {
   matches: LiveMatch[];
   /** matchId → prediction for this player. */
   predictions: Record<number, PredictionChoice | null>;
-  /** matchId → correct flag when known from livescores. */
-  correctByMatch: Record<number, boolean | null>;
   /** Overall correct / pick count for the header. */
   score: number;
   slateDifficulty: MatchDifficulty | null;
@@ -38,7 +36,6 @@ export function PlayerScoreSection({
   playerName,
   matches,
   predictions,
-  correctByMatch,
   score,
   slateDifficulty,
   expanded,
@@ -78,7 +75,6 @@ export function PlayerScoreSection({
               key={match.id}
               match={match}
               prediction={predictions[match.id] ?? null}
-              correct={correctByMatch[match.id] ?? null}
             />
           ))
         : null}
