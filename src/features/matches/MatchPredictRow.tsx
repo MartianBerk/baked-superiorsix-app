@@ -89,19 +89,17 @@ type Props = {
   locked: boolean;
   canPredict: boolean;
   onPredict: (choice: PredictionChoice) => void;
-  /** Shared team-name column width so pick badges align across rows. */
+  /** Shared team-name column width (longest name across the slate). */
   teamColumnWidth: number;
   /** Wall clock for `- : -` → `0 : 0` (defaults to now). */
   now?: Date;
 };
 
 /**
- * Player fixture row: home/away stack, difficulty pips, single chosen H/D/A
- * badge to the right of teams when signed in with a pick (aligned across rows),
- * expand for detail / PredictionPicker. Past the 10m lock, expands collapse,
- * chevron is hidden, and the header shows an aligned score line. Pick badge is
- * grey until scores start, then green accent when the pick matches the scoreline.
- * Logged out or no prediction → no badge.
+ * Player fixture row: home/away stack, difficulty pips, expand for detail /
+ * PredictionPicker. Trailing meta is pick badge (if any) + score + #N (+ chevron
+ * when unlocked). Pick badge sits left of the score/game # cluster; grey until
+ * scores start, green accent when the pick matches. Logged out / no pick → none.
  */
 export function MatchPredictRow({
   match,
@@ -156,34 +154,33 @@ export function MatchPredictRow({
           </Text>
         </View>
 
-        {pickLabel != null ? (
-          <View
-            style={[styles.badge, pickCorrect && styles.badgeCorrect]}
-            accessibilityLabel={
-              pickCorrect
-                ? `Correct pick ${pickLabel} for ${match.home_team} vs ${match.away_team}`
-                : `Pick ${pickLabel} for ${match.home_team} vs ${match.away_team}`
-            }
-          >
-            {busy ? (
-              <ActivityIndicator
-                size="small"
-                color={pickCorrect ? colors.text : colors.textMuted}
-              />
-            ) : (
-              <Text
-                style={[
-                  styles.badgeLabel,
-                  pickCorrect && styles.badgeLabelCorrect,
-                ]}
-              >
-                {pickLabel}
-              </Text>
-            )}
-          </View>
-        ) : null}
-
         <View style={styles.actions}>
+          {pickLabel != null ? (
+            <View
+              style={[styles.badge, pickCorrect && styles.badgeCorrect]}
+              accessibilityLabel={
+                pickCorrect
+                  ? `Correct pick ${pickLabel} for ${match.home_team} vs ${match.away_team}`
+                  : `Pick ${pickLabel} for ${match.home_team} vs ${match.away_team}`
+              }
+            >
+              {busy ? (
+                <ActivityIndicator
+                  size="small"
+                  color={pickCorrect ? colors.text : colors.textMuted}
+                />
+              ) : (
+                <Text
+                  style={[
+                    styles.badgeLabel,
+                    pickCorrect && styles.badgeLabelCorrect,
+                  ]}
+                >
+                  {pickLabel}
+                </Text>
+              )}
+            </View>
+          ) : null}
           {scoreLine ? (
             <Text
               style={styles.score}
