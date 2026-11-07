@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SvgXml } from 'react-native-svg';
 
 import type {
@@ -17,11 +23,26 @@ import { PredictionPicker } from './PredictionPicker';
 const CHEVRON_DOWN = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
 const CHEVRON_UP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>`;
 
-const CHOICE_LABEL: Record<PredictionChoice, string> = {
+const BADGE_LABEL: Record<PredictionChoice, string> = {
   home: 'H',
   draw: 'D',
   away: 'A',
 };
+
+/** Approx width for team column from longest label (fontSize 12 semibold). */
+export function teamColumnWidthForMatches(matches: LiveMatch[]): number {
+  let maxChars = 0;
+  for (const match of matches) {
+    const awayExtra = match.status === 'POSTPONED' ? 4 : 0;
+    maxChars = Math.max(
+      maxChars,
+      match.home_team.length,
+      match.away_team.length + awayExtra,
+    );
+  }
+  // Clamp so short slates still leave room for pick badge / score / #N.
+  return Math.min(160, Math.max(72, Math.ceil(maxChars * 7.2)));
+}
 
 export type PlayerMatch = LiveMatch & {
   difficulty?: MatchDifficulty | null;
@@ -34,14 +55,18 @@ type Props = {
   locked: boolean;
   canPredict: boolean;
   onPredict: (choice: PredictionChoice) => void;
+  /** Shared team-name column width so pick badges align across rows. */
+  teamColumnWidth: number;
   /** Wall clock for `- : -` → `0 : 0` (defaults to now). */
   now?: Date;
 };
 
 /**
- * Player fixture row: home/away stack, difficulty pips, expand for detail +
- * Home/Draw/Away. Past the 10m lock, expands collapse, chevron is hidden, and
- * the header shows an aligned score line (`- : -` / `0 : 0` / live).
+ * Player fixture row: home/away stack, difficulty pips, single chosen H/D/A
+ * badge to the right of teams when signed in with a pick (aligned across rows),
+ * expand for detail / PredictionPicker. Past the 10m lock, expands collapse,
+ * chevron is hidden, and the header shows an aligned score line. The pick badge
+ * stays visible in live mode. Logged out or no prediction → no badge.
  */
 export function MatchPredictRow({
   match,
@@ -50,6 +75,7 @@ export function MatchPredictRow({
   locked,
   canPredict,
   onPredict,
+  teamColumnWidth,
   now = new Date(),
 }: Props) {
   const [expanded, setExpanded] = useState(false);
@@ -60,6 +86,8 @@ export function MatchPredictRow({
     'CURRENT',
     colors.textMuted,
   );
+  const pickLabel =
+    canPredict && prediction != null ? BADGE_LABEL[prediction] : null;
 
   const scoreLine = locked
     ? formatAlignedScore(
@@ -77,7 +105,7 @@ export function MatchPredictRow({
     <View style={[styles.block, prediction != null && styles.blockPicked]}>
       <View style={styles.row}>
         <DifficultyPips difficulty={match.difficulty} />
-        <View style={styles.teams}>
+        <View style={[styles.teams, { width: teamColumnWidth }]}>
           <Text style={styles.team} numberOfLines={1}>
             {match.home_team}
           </Text>
@@ -86,6 +114,19 @@ export function MatchPredictRow({
             {postponed ? ' (P)' : ''}
           </Text>
         </View>
+
+        {pickLabel != null ? (
+          <View
+            style={styles.badge}
+            accessibilityLabel={`Pick ${pickLabel} for ${match.home_team} vs ${match.away_team}`}
+          >
+            {busy ? (
+              <ActivityIndicator size="small" color={colors.text} />
+            ) : (
+              <Text style={styles.badgeLabel}>{pickLabel}</Text>
+            )}
+          </View>
+        ) : null}
 
         <View style={styles.actions}>
           {scoreLine ? (
@@ -98,14 +139,6 @@ export function MatchPredictRow({
           ) : null}
           {match.game_number != null ? (
             <Text style={styles.slot}>#{match.game_number}</Text>
-          ) : null}
-          {prediction != null ? (
-            <Text
-              style={styles.pick}
-              accessibilityLabel={`Predicted ${prediction}`}
-            >
-              {CHOICE_LABEL[prediction]}
-            </Text>
           ) : null}
           {!locked ? (
             <Pressable
@@ -166,8 +199,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   teams: {
-    flex: 1,
-    minWidth: 0,
+    flexShrink: 0,
     gap: 2,
     justifyContent: 'center',
   },
@@ -177,10 +209,30 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 16,
   },
+  badge: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: colors.accent,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.accentBright,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  badgeLabel: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
   actions: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-end',
     gap: 14,
+    minWidth: 0,
   },
   slot: {
     color: colors.accentBright,
@@ -197,13 +249,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     fontVariant: ['tabular-nums'],
     minWidth: 48,
-    textAlign: 'center',
-  },
-  pick: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '800',
-    minWidth: 16,
     textAlign: 'center',
   },
   actionHit: {

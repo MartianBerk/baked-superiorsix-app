@@ -40,6 +40,7 @@ import {
 } from './formatMatchDate';
 import {
   MatchPredictRow,
+  teamColumnWidthForMatches,
   type PlayerMatch,
 } from './MatchPredictRow';
 import { SubroundScrubber } from './SubroundScrubber';
@@ -196,6 +197,12 @@ export function MatchPlayerWidget() {
         ? (matchesBySubround[selectedSubroundId] ?? [])
         : [],
     [selectedSubroundId, matchesBySubround],
+  );
+
+  /** Shared team-name column so H/D/A badges line up across rows. */
+  const teamColumnWidth = useMemo(
+    () => teamColumnWidthForMatches(matches),
+    [matches],
   );
 
   /** Lock every Home/Draw/Away once earliest kickoff in this subround hits cutoff. */
@@ -619,6 +626,7 @@ export function MatchPlayerWidget() {
                 busy={busyId === match.id}
                 locked={subroundLocked}
                 canPredict={canPredict}
+                teamColumnWidth={teamColumnWidth}
                 now={now}
                 onPredict={(choice) => {
                   void onPredict(match, choice);
