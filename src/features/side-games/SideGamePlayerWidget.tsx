@@ -24,6 +24,8 @@ import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
 import { ChevronIcon } from '@/components/icons/ChevronIcon';
 import { MenuIcon } from '@/components/icons/MenuIcon';
+import { buildPlayerRoundStatus } from '@/components/shell/playerRoundStatus';
+import { useRoundStatus } from '@/components/shell/RoundStatusContext';
 import { DateScrubber } from '@/features/matches/DateScrubber';
 import { utcDayKey } from '@/features/matches/formatMatchDate';
 import {
@@ -92,12 +94,14 @@ function pickInitialDay(dayKeys: string[], now: Date): string | null {
 }
 
 /**
- * Player Euros / World Cup surface: greyscale trophy + tournament pot on the
- * Matches ↔ Table scrubber row; date scrubber; inline H/D/A (+ knockout
- * 90/ET/P); scores board. App header stays on Super Six round / pot.
+ * Player Euros / World Cup surface (shared `kind` — same chrome for both):
+ * SVG+pot chip + Matches↔Table scrubber; date scrubber; inline H/D/A
+ * (+ knockout 90/ET/P); scores board. App header keeps Super Six round/pot;
+ * under-header strip shows tournament n / total Selections.
  */
 export function SideGamePlayerWidget({ kind }: Props) {
   const { isAuthenticated, token, hasRole, session } = useAuth();
+  const { setPlayerPickingStatus } = useRoundStatus();
   const { eurosMeta, worldcupMeta, refresh: refreshOpen } = useSideGamesOpen();
 
   const [view, setView] = useState<ViewMode>('matches');
@@ -215,18 +219,43 @@ export function SideGamePlayerWidget({ kind }: Props) {
     [dayMatches],
   );
 
-  const selectionCount = useMemo(() => {
+  /** All pickable fixtures across every date (denominator for under-header n/X). */
+  const pickableMatches = useMemo(
+    () => matches.filter((m) => m.status !== 'POSTPONED'),
+    [matches],
+  );
+
+  const tournamentPickedCount = useMemo(() => {
     let count = 0;
-    for (const match of dayMatches) {
+    for (const match of pickableMatches) {
       if (localPicks[match.id]?.prediction) {
         count += 1;
       }
     }
     return count;
-  }, [dayMatches, localPicks]);
+  }, [pickableMatches, localPicks]);
 
-  const selectionsComplete =
-    dayMatches.length > 0 && selectionCount >= dayMatches.length;
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setPlayerPickingStatus(null);
+      return;
+    }
+    setPlayerPickingStatus(
+      buildPlayerRoundStatus({
+        phase: 'picking',
+        slateSize: pickableMatches.length,
+        selectedCount: tournamentPickedCount,
+        correctCount: 0,
+        // Hide Super Six difficulty pips on tournament tabs.
+        slateDifficulty: null,
+      }),
+    );
+  }, [
+    isAuthenticated,
+    pickableMatches.length,
+    tournamentPickedCount,
+    setPlayerPickingStatus,
+  ]);
 
   const submitPrediction = async (
     match: SideGameMatch,
@@ -390,18 +419,6 @@ export function SideGamePlayerWidget({ kind }: Props) {
               style={styles.scrubberFlush}
             />
           </View>
-          {dayMatches.length > 0 ? (
-            <Text
-              style={[
-                styles.selectionBanner,
-                selectionsComplete && styles.selectionBannerComplete,
-              ]}
-            >
-              {selectionsComplete
-                ? 'Selections complete'
-                : 'Missing selections'}
-            </Text>
-          ) : null}
           <ScrollView
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
@@ -439,12 +456,6 @@ export function SideGamePlayerWidget({ kind }: Props) {
                 );
               })
             )}
-            {!canSubmit ? (
-              <Text style={styles.readOnlyNote}>
-                Anyone can browse {titleFor(kind)}. Submitting picks needs the{' '}
-                {roleFor(kind)} role on the active roster.
-              </Text>
-            ) : null}
           </ScrollView>
         </>
       ) : (
@@ -546,16 +557,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontSize: 13,
   },
-  selectionBanner: {
-    textAlign: 'center',
-    color: colors.amber,
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  selectionBannerComplete: {
-    color: colors.accentBright,
-  },
   scroll: {
     flex: 1,
   },
@@ -567,11 +568,5 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
     marginTop: 24,
-  },
-  readOnlyNote: {
-    color: colors.textMuted,
-    fontSize: 12,
-    marginTop: 16,
-    lineHeight: 18,
   },
 });

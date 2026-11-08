@@ -66,14 +66,17 @@ export function AppHeader({
   const { playerPickingStatus, gamedayHeader } = useRoundStatus();
   const resolvedRound = roundLabel ?? gamedayHeader.roundLabel;
   const resolvedPrize = prizeLabel ?? gamedayHeader.prizeLabel;
-  // Hide when logged out, on side-game tabs, or Scores / Leaders / Profile admin.
+  // Hide when logged out or Scores / Leaders / Profile admin.
+  // Euros / World Cup keep the strip (tournament n / total Selections).
   // Fixtures admin keeps the strip (selection count + slate difficulty pips).
   const hideStatusStrip =
     !isAuthenticated ||
-    isSideGamePath(pathname) ||
     (scoresMode === 'admin' && isScoresPath(pathname)) ||
     (leadersMode === 'admin' && isLeadersPath(pathname)) ||
     (profileMode === 'admin' && isProfilePath(pathname));
+
+  // Pot banner stays Super Six–only (not tournament perfect-slate).
+  const hidePotBanner = hideStatusStrip || isSideGamePath(pathname);
 
   const status: RoundStatus | null =
     roundStatus ??
@@ -88,7 +91,7 @@ export function AppHeader({
   );
   const viewerHasPot = (potHolders ?? []).some((h) => h.isViewer);
   const showPotBanner =
-    isAuthenticated && !hideStatusStrip && potLine != null;
+    isAuthenticated && !hidePotBanner && potLine != null;
 
   return (
     <View
