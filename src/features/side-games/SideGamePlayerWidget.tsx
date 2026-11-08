@@ -320,65 +320,66 @@ export function SideGamePlayerWidget({ kind }: Props) {
 
   return (
     <View style={styles.root}>
-      <View
-        style={styles.potStrip}
-        accessibilityRole="summary"
-        accessibilityLabel={`${titleFor(kind)} pot ${potLabel}`}
-      >
-        <MenuIcon
-          name={kind === 'euros' ? 'euros' : 'worldcup'}
-          size={28}
-          color={colors.accentBright}
-          active
-        />
-        <Text style={styles.potLabel}>{potLabel}</Text>
-      </View>
-
       <View style={styles.viewScrubberWrap}>
-        <View
-          style={scrubberChrome.row}
-          accessibilityRole="adjustable"
-          accessibilityLabel={`${titleFor(kind)} ${view}`}
-        >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Show Matches"
-            disabled={viewIndex <= 0}
-            onPress={() => setView('matches')}
-            style={({ pressed }) => [
-              scrubberChrome.chevronHit,
-              viewIndex <= 0 && scrubberChrome.chevronDisabled,
-              pressed && viewIndex > 0 && scrubberChrome.pressed,
-            ]}
+        <View style={styles.scrubberLine}>
+          <View
+            style={styles.potCluster}
+            accessibilityRole="summary"
+            accessibilityLabel={`${titleFor(kind)} pot ${potLabel}`}
           >
-            {viewIndex > 0 ? (
-              <ChevronIcon direction="left" size={SCRUBBER_CHEVRON_SIZE} />
-            ) : (
-              <View style={scrubberChrome.chevronSpacer} />
-            )}
-          </Pressable>
-          <Text style={styles.viewLabel}>
-            {view === 'matches' ? 'Matches' : 'Table'}
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Show Table"
-            disabled={viewIndex >= VIEWS.length - 1}
-            onPress={() => setView('table')}
-            style={({ pressed }) => [
-              scrubberChrome.chevronHit,
-              viewIndex >= VIEWS.length - 1 && scrubberChrome.chevronDisabled,
-              pressed &&
-                viewIndex < VIEWS.length - 1 &&
-                scrubberChrome.pressed,
-            ]}
+            <MenuIcon
+              name={kind === 'euros' ? 'euros' : 'worldcup'}
+              size={22}
+              color={colors.textMuted}
+            />
+            <Text style={styles.potLabel}>{potLabel}</Text>
+          </View>
+
+          <View
+            style={[scrubberChrome.row, styles.viewScrubber]}
+            accessibilityRole="adjustable"
+            accessibilityLabel={`${titleFor(kind)} ${view}`}
           >
-            {viewIndex < VIEWS.length - 1 ? (
-              <ChevronIcon direction="right" size={SCRUBBER_CHEVRON_SIZE} />
-            ) : (
-              <View style={scrubberChrome.chevronSpacer} />
-            )}
-          </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Show Matches"
+              disabled={viewIndex <= 0}
+              onPress={() => setView('matches')}
+              style={({ pressed }) => [
+                scrubberChrome.chevronHit,
+                viewIndex <= 0 && scrubberChrome.chevronDisabled,
+                pressed && viewIndex > 0 && scrubberChrome.pressed,
+              ]}
+            >
+              {viewIndex > 0 ? (
+                <ChevronIcon direction="left" size={SCRUBBER_CHEVRON_SIZE} />
+              ) : (
+                <View style={scrubberChrome.chevronSpacer} />
+              )}
+            </Pressable>
+            <Text style={styles.viewLabel}>
+              {view === 'matches' ? 'Matches' : 'Table'}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Show Table"
+              disabled={viewIndex >= VIEWS.length - 1}
+              onPress={() => setView('table')}
+              style={({ pressed }) => [
+                scrubberChrome.chevronHit,
+                viewIndex >= VIEWS.length - 1 && scrubberChrome.chevronDisabled,
+                pressed &&
+                  viewIndex < VIEWS.length - 1 &&
+                  scrubberChrome.pressed,
+              ]}
+            >
+              {viewIndex < VIEWS.length - 1 ? (
+                <ChevronIcon direction="right" size={SCRUBBER_CHEVRON_SIZE} />
+              ) : (
+                <View style={scrubberChrome.chevronSpacer} />
+              )}
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -480,28 +481,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.background,
   },
-  potStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingHorizontal: '3%',
-    paddingTop: 4,
-    paddingBottom: 10,
-  },
-  potLabel: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: 0.2,
-  },
   viewScrubberWrap: {
     paddingHorizontal: '3%',
     marginBottom: 8,
   },
+  scrubberLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  potCluster: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 0,
+  },
+  potLabel: {
+    color: colors.textMuted,
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  viewScrubber: {
+    flex: 1,
+    minWidth: 0,
+    marginBottom: 0,
+  },
   viewLabel: {
     color: colors.text,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     letterSpacing: 0.3,
   },
