@@ -30,11 +30,7 @@ export function LoginForm({ heading }: Props) {
   const [busy, setBusy] = useState(false);
 
   const title =
-    heading ?? (mode === 'firstLogin' ? 'First login' : 'Sign in');
-  const lede =
-    mode === 'firstLogin'
-      ? 'Invited? Set a password for your email, then join the roster. Roles were granted when you were invited.'
-      : 'baked-auth token with audience superiorsix. Session is stored on this device.';
+    mode === 'firstLogin' ? 'Invited' : (heading ?? 'Sign in');
 
   const passwordsMatch =
     mode !== 'firstLogin' ||
@@ -82,7 +78,6 @@ export function LoginForm({ heading }: Props) {
   return (
     <View style={styles.wrap}>
       <Text style={styles.heading}>{title}</Text>
-      <Text style={styles.lede}>{lede}</Text>
 
       <View style={styles.modeRow}>
         <Pressable
@@ -237,12 +232,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '600',
     letterSpacing: 0.3,
-    marginBottom: 8,
-  },
-  lede: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
     marginBottom: 16,
   },
   modeRow: {
