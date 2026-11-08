@@ -26,14 +26,17 @@ export const scrubberChrome = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  /** Fixed side slot for mini destination labels (or empty spacer at range ends). */
+  /**
+   * Fixed side slot for mini destination labels (or empty spacer at range ends).
+   * `overflow: 'visible'` so mini labels can shoot into the slot from off-chip.
+   */
   sideHit: {
     width: SCRUBBER_SIDE_COMPACT,
     height: 33,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 16.5,
-    overflow: 'hidden',
+    overflow: 'visible',
     paddingHorizontal: 2,
   },
   /** Full-width scrubbers that need longer mini labels (Performance / Winners). */
@@ -43,7 +46,7 @@ export const scrubberChrome = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 16.5,
-    overflow: 'hidden',
+    overflow: 'visible',
     paddingHorizontal: 2,
   },
   sideDisabled: {
