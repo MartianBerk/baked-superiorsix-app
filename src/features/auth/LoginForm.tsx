@@ -202,7 +202,7 @@ export function LoginForm() {
           <ActivityIndicator color={colors.text} />
         ) : (
           <Text style={styles.buttonText}>
-            {mode === 'firstLogin' ? 'Set password & join' : 'Sign in'}
+            {mode === 'firstLogin' ? 'Join' : 'Sign in'}
           </Text>
         )}
       </Pressable>
