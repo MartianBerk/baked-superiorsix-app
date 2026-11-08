@@ -43,6 +43,7 @@ export function StatsViewScrubber({ mode, onChange }: Props) {
         accessibilityLabel="Show Performance"
         disabled={!canLeft}
         direction={direction}
+        density="wide"
         onPress={() => {
           if (!canLeft) {
             return;
@@ -61,6 +62,7 @@ export function StatsViewScrubber({ mode, onChange }: Props) {
         accessibilityLabel="Show Winners"
         disabled={!canRight}
         direction={direction}
+        density="wide"
         onPress={() => {
           if (!canRight) {
             return;

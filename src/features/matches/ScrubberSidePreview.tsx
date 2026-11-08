@@ -4,6 +4,8 @@ import { ScrubberSlidingText } from './ScrubberSlidingText';
 import { scrubberChrome } from './scrubberChrome';
 import type { ScrubDirection } from './scrubberSlide';
 
+export type ScrubberSideDensity = 'compact' | 'wide';
+
 type Props = {
   /** Mini destination label; null/empty → empty spacer (end of range). */
   label: string | null;
@@ -12,6 +14,11 @@ type Props = {
   onPress: () => void;
   /** Same scrub direction as the centre header so side previews keep pace. */
   direction: ScrubDirection | null;
+  /**
+   * `compact` (default): `# n` / short labels in narrow Matches/Scores chips.
+   * `wide`: longer Leaders minis (`Performance`).
+   */
+  density?: ScrubberSideDensity;
 };
 
 /**
@@ -23,8 +30,11 @@ export function ScrubberSidePreview({
   disabled,
   onPress,
   direction,
+  density = 'compact',
 }: Props) {
   const show = Boolean(label) && !disabled;
+  const hitStyle =
+    density === 'wide' ? scrubberChrome.sideHitWide : scrubberChrome.sideHit;
 
   return (
     <Pressable
@@ -33,7 +43,7 @@ export function ScrubberSidePreview({
       disabled={!show}
       onPress={onPress}
       style={({ pressed }) => [
-        scrubberChrome.sideHit,
+        hitStyle,
         !show && scrubberChrome.sideDisabled,
         pressed && show && scrubberChrome.pressed,
       ]}
