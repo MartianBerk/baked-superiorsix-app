@@ -29,7 +29,13 @@ type Props = {
    * `kickoff` (player): earliest kickoff date/time in the slate.
    */
   labelMode?: SubroundLabelMode;
-  /** Optional trailing control (e.g. admin “New slate”). */
+  /**
+   * Matches Admin only: when selected is the last row, the right side preview
+   * shows “+” and this fires (same press as scrubbing to a side mini).
+   * Omit on player / Scores scrubbers.
+   */
+  onStartNew?: () => void;
+  /** @deprecated Unused — prefer `onStartNew` for admin force-next. */
   trailing?: ReactNode;
   /** Outer wrap style (e.g. clear margin when nested in a side-by-side row). */
   style?: StyleProp<ViewStyle>;
@@ -65,6 +71,7 @@ export function SubroundScrubber({
   selectedId,
   onChange,
   labelMode = 'sequence',
+  onStartNew,
   trailing,
   style,
 }: Props) {
@@ -82,13 +89,16 @@ export function SubroundScrubber({
 
   const canLeft = index > 0;
   const canRight = index >= 0 && index < subrounds.length - 1;
+  const showStartNew = !canRight && onStartNew != null;
   const label = subroundLabel(selected, labelMode);
   const leftLabel = canLeft
     ? subroundLabel(subrounds[index - 1], labelMode)
     : null;
   const rightLabel = canRight
     ? subroundLabel(subrounds[index + 1], labelMode)
-    : null;
+    : showStartNew
+      ? '+'
+      : null;
 
   return (
     <View style={[styles.wrap, style]}>
@@ -129,16 +139,24 @@ export function SubroundScrubber({
         <ScrubberSidePreview
           label={rightLabel}
           accessibilityLabel={
-            rightLabel ? `Next subround, ${rightLabel}` : 'Next subround'
+            showStartNew
+              ? 'Start new subround'
+              : rightLabel
+                ? `Next subround, ${rightLabel}`
+                : 'Next subround'
           }
-          disabled={!canRight}
+          disabled={!canRight && !showStartNew}
           direction={direction}
           onPress={() => {
-            if (!canRight) {
+            if (canRight) {
+              setDirection('right');
+              onChange(subrounds[index + 1]);
               return;
             }
-            setDirection('right');
-            onChange(subrounds[index + 1]);
+            if (showStartNew && onStartNew) {
+              setDirection('right');
+              onStartNew();
+            }
           }}
         />
       </View>
