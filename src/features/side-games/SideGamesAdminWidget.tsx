@@ -132,8 +132,29 @@ export function SideGamesAdminWidget() {
 
   const eurosIsOpen = isEurosOpen(eurosMeta);
   const worldcupIsOpen = isWorldcupOpen(worldcupMeta);
-  const currentOpen =
+  /** Only one side game may be open at a time (product rule). */
+  const anyOpen = eurosIsOpen || worldcupIsOpen;
+  const selectedIsOpen =
     tournament === 'euros' ? eurosIsOpen : worldcupIsOpen;
+  const otherOpenKind: SideGameKind | null = (() => {
+    if (tournament === 'euros' && worldcupIsOpen) {
+      return 'worldcup';
+    }
+    if (tournament === 'worldcup' && eurosIsOpen) {
+      return 'euros';
+    }
+    return null;
+  })();
+  const openKinds = useMemo(() => {
+    const kinds: SideGameKind[] = [];
+    if (eurosIsOpen) {
+      kinds.push('euros');
+    }
+    if (worldcupIsOpen) {
+      kinds.push('worldcup');
+    }
+    return kinds;
+  }, [eurosIsOpen, worldcupIsOpen]);
 
   const load = useCallback(
     async (mode: 'initial' | 'refresh' = 'initial') => {
@@ -208,11 +229,14 @@ export function SideGamesAdminWidget() {
       setError('Opening a side game needs the superiorsix admin role.');
       return;
     }
-    if (currentOpen) {
+    if (anyOpen) {
+      const openLabel = eurosIsOpen
+        ? 'Euro Wizard'
+        : worldcupIsOpen
+          ? 'World Cup'
+          : 'A tournament';
       setError(
-        tournament === 'euros'
-          ? 'An Euros tournament is already open. End it first.'
-          : 'World Cup is already open. End it first.',
+        `${openLabel} is already open. End it before opening another.`,
       );
       return;
     }
@@ -286,7 +310,7 @@ export function SideGamesAdminWidget() {
     }
   };
 
-  const requestEnd = () => {
+  const requestEnd = (kind: SideGameKind) => {
     setError(null);
     setNote(null);
     setPendingConfirm(null);
@@ -298,21 +322,26 @@ export function SideGamesAdminWidget() {
       setError('Ending a side game needs the superiorsix admin role.');
       return;
     }
-    if (!currentOpen) {
-      setError('No open tournament for this side game.');
+    const isOpen = kind === 'euros' ? eurosIsOpen : worldcupIsOpen;
+    if (!isOpen) {
+      setError(
+        kind === 'euros'
+          ? 'Euro Wizard is not open.'
+          : 'World Cup is not open.',
+      );
       return;
     }
     const day = endDate.trim();
-    if (tournament === 'euros' && !/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+    if (kind === 'euros' && !/^\d{4}-\d{2}-\d{2}$/.test(day)) {
       setError('End date must be YYYY-MM-DD.');
       return;
     }
     setPendingConfirm({
       kind: 'end',
-      tournament,
+      tournament: kind,
       endDate: day,
       message:
-        tournament === 'euros'
+        kind === 'euros'
           ? `End Euro Wizard on ${formatScrubberDate(day)}. Proceed?`
           : 'End World Cup (clears open for nav). Proceed?',
     });
@@ -469,6 +498,42 @@ export function SideGamesAdminWidget() {
           </View>
         ) : null}
 
+        <View
+          style={styles.statusBox}
+          accessibilityRole="summary"
+          accessibilityLabel={
+            anyOpen
+              ? `Open tournament: ${openKinds
+                  .map((k) => (k === 'euros' ? 'Euros' : 'World Cup'))
+                  .join(' and ')}`
+              : 'No tournament open'
+          }
+        >
+          <Text style={styles.statusLabel}>Status</Text>
+          {eurosIsOpen ? (
+            <Text style={styles.statusOpen}>
+              Open: Euros · {eurosMeta?.entrant_count ?? 0} entrants · pot{' '}
+              {formatPounds(eurosMeta?.prize_pot_pence ?? 0)}
+            </Text>
+          ) : (
+            <Text style={styles.statusClosed}>Euros: closed</Text>
+          )}
+          {worldcupIsOpen ? (
+            <Text style={styles.statusOpen}>
+              Open: World Cup · {worldcupMeta?.participant_count ?? 0}{' '}
+              entrants · pot {formatPounds(worldcupMeta?.pot_pence ?? 0)}
+            </Text>
+          ) : (
+            <Text style={styles.statusClosed}>World Cup: closed</Text>
+          )}
+          {anyOpen ? (
+            <Text style={styles.statusHint}>
+              Only one tournament can be open. End the open one before
+              activating the other.
+            </Text>
+          ) : null}
+        </View>
+
         <Text style={styles.sectionTitle}>Tournament</Text>
         <View style={styles.pickerRow}>
           {(
@@ -478,12 +543,14 @@ export function SideGamesAdminWidget() {
             ] as const
           ).map(([value, label]) => {
             const on = tournament === value;
+            const isOpen =
+              value === 'euros' ? eurosIsOpen : worldcupIsOpen;
             return (
               <Pressable
                 key={value}
                 accessibilityRole="button"
                 accessibilityState={{ selected: on }}
-                accessibilityLabel={`Select ${label}`}
+                accessibilityLabel={`Select ${label}${isOpen ? ', currently open' : ''}`}
                 disabled={busy}
                 onPress={() => {
                   setTournament(value);
@@ -499,23 +566,77 @@ export function SideGamesAdminWidget() {
               >
                 <Text style={[styles.pickerText, on && styles.pickerTextOn]}>
                   {label}
+                  {isOpen ? ' · open' : ''}
                 </Text>
               </Pressable>
             );
           })}
         </View>
 
-        <Text style={styles.meta}>
-          {tournament === 'euros'
-            ? eurosIsOpen
-              ? `Open · ${eurosMeta?.entrant_count ?? 0} entrants · pot ${formatPounds(eurosMeta?.prize_pot_pence ?? 0)}`
-              : 'Closed'
-            : worldcupIsOpen
-              ? `Open · ${worldcupMeta?.participant_count ?? 0} entrants · pot ${formatPounds(worldcupMeta?.pot_pence ?? 0)}`
-              : 'Closed'}
-        </Text>
-
-        {!currentOpen ? (
+        {anyOpen ? (
+          <View style={styles.block}>
+            <Text style={styles.sectionTitle}>End open tournament</Text>
+            {otherOpenKind && !selectedIsOpen ? (
+              <Text style={styles.blockHint}>
+                {otherOpenKind === 'euros' ? 'Euro Wizard' : 'World Cup'} is
+                open. Open is blocked until you end it.
+              </Text>
+            ) : (
+              <Text style={styles.blockHint}>
+                Bottom-nav trophy shows while open. End to hide it and allow
+                opening the other tournament.
+              </Text>
+            )}
+            {openKinds.map((kind) => {
+              const label = kind === 'euros' ? 'Euro Wizard' : 'World Cup';
+              return (
+                <View key={kind} style={styles.endCard}>
+                  <Text style={styles.endCardTitle}>{label}</Text>
+                  {kind === 'euros' ? (
+                    <>
+                      <Text style={styles.label}>End date (UTC)</Text>
+                      <TextInput
+                        style={styles.input}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        editable={!busy}
+                        value={endDate}
+                        onChangeText={setEndDate}
+                        placeholder="YYYY-MM-DD"
+                        placeholderTextColor={colors.textMuted}
+                        accessibilityLabel="Tournament end date"
+                      />
+                    </>
+                  ) : null}
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`End ${label}`}
+                    disabled={busy || pendingConfirm != null}
+                    onPress={() => requestEnd(kind)}
+                    style={({ pressed }) => [
+                      styles.button,
+                      styles.buttonDanger,
+                      (busy || pendingConfirm != null) &&
+                        styles.buttonDisabled,
+                      pressed &&
+                        !busy &&
+                        pendingConfirm == null &&
+                        styles.pressed,
+                    ]}
+                  >
+                    {busy &&
+                    pendingConfirm?.kind === 'end' &&
+                    pendingConfirm.tournament === kind ? (
+                      <ActivityIndicator color={colors.text} />
+                    ) : (
+                      <Text style={styles.buttonText}>End {label}</Text>
+                    )}
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
+        ) : (
           <View style={styles.block}>
             <Text style={styles.sectionTitle}>Open tournament</Text>
             <Text style={styles.label}>Buy-in (£)</Text>
@@ -602,51 +723,9 @@ export function SideGamesAdminWidget() {
               {busy && pendingConfirm?.kind === 'open' ? (
                 <ActivityIndicator color={colors.text} />
               ) : (
-                <Text style={styles.buttonText}>Open tournament</Text>
-              )}
-            </Pressable>
-          </View>
-        ) : (
-          <View style={styles.block}>
-            <Text style={styles.sectionTitle}>Active tournament</Text>
-            <Text style={styles.hint}>
-              Bottom-nav trophy shows while open. End to hide it.
-            </Text>
-            {tournament === 'euros' ? (
-              <>
-                <Text style={styles.label}>End date (UTC)</Text>
-                <TextInput
-                  style={styles.input}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!busy}
-                  value={endDate}
-                  onChangeText={setEndDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.textMuted}
-                  accessibilityLabel="Tournament end date"
-                />
-              </>
-            ) : null}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="End tournament"
-              disabled={busy || pendingConfirm != null}
-              onPress={requestEnd}
-              style={({ pressed }) => [
-                styles.button,
-                styles.buttonDanger,
-                (busy || pendingConfirm != null) && styles.buttonDisabled,
-                pressed &&
-                  !busy &&
-                  pendingConfirm == null &&
-                  styles.pressed,
-              ]}
-            >
-              {busy && pendingConfirm?.kind === 'end' ? (
-                <ActivityIndicator color={colors.text} />
-              ) : (
-                <Text style={styles.buttonText}>End tournament</Text>
+                <Text style={styles.buttonText}>
+                  Open {tournament === 'euros' ? 'Euros' : 'World Cup'}
+                </Text>
               )}
             </Pressable>
           </View>
@@ -702,12 +781,64 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     fontSize: 13,
   },
+  statusBox: {
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    gap: 4,
+  },
+  statusLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  statusOpen: {
+    color: colors.accentBright,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  statusClosed: {
+    color: colors.textMuted,
+    fontSize: 13,
+  },
+  statusHint: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 6,
+    lineHeight: 17,
+  },
   sectionTitle: {
     color: colors.text,
     fontSize: 16,
     fontWeight: '700',
     marginTop: 8,
     marginBottom: 8,
+  },
+  blockHint: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  endCard: {
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    backgroundColor: colors.menuBar,
+  },
+  endCardTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 4,
   },
   pickerRow: {
     flexDirection: 'row',
