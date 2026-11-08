@@ -22,7 +22,6 @@ import {
 } from '@/api/sideGames';
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
-import { useRoundStatus } from '@/components/shell/RoundStatusContext';
 import { ChevronIcon } from '@/components/icons/ChevronIcon';
 import { MenuIcon } from '@/components/icons/MenuIcon';
 import { DateScrubber } from '@/features/matches/DateScrubber';
@@ -60,10 +59,6 @@ function titleFor(kind: SideGameKind): string {
   return kind === 'euros' ? 'Euros' : 'World Cup';
 }
 
-function shortLabelFor(kind: SideGameKind): string {
-  return kind === 'euros' ? 'EU' : 'WC';
-}
-
 function teamColumnWidthFor(matches: SideGameMatch[]): number {
   let maxChars = 0;
   for (const match of matches) {
@@ -97,12 +92,12 @@ function pickInitialDay(dayKeys: string[], now: Date): string | null {
 }
 
 /**
- * Player Euros / World Cup surface: pot strip, Matches ↔ Table scrubber,
- * date scrubber, inline H/D/A rows (+ knockout 90/ET/P), scores board.
+ * Player Euros / World Cup surface: greyscale trophy + tournament pot on the
+ * Matches ↔ Table scrubber row; date scrubber; inline H/D/A (+ knockout
+ * 90/ET/P); scores board. App header stays on Super Six round / pot.
  */
 export function SideGamePlayerWidget({ kind }: Props) {
   const { isAuthenticated, token, hasRole, session } = useAuth();
-  const { setGamedayHeader } = useRoundStatus();
   const { eurosMeta, worldcupMeta, refresh: refreshOpen } = useSideGamesOpen();
 
   const [view, setView] = useState<ViewMode>('matches');
@@ -124,13 +119,6 @@ export function SideGamePlayerWidget({ kind }: Props) {
     kind === 'euros'
       ? (eurosMeta?.prize_pot_pence ?? 0)
       : (worldcupMeta?.pot_pence ?? 0);
-
-  useEffect(() => {
-    setGamedayHeader({
-      roundLabel: shortLabelFor(kind),
-      prizeLabel: formatPrizePounds(potPence),
-    });
-  }, [kind, potPence, setGamedayHeader]);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 30_000);
@@ -387,11 +375,13 @@ export function SideGamePlayerWidget({ kind }: Props) {
 
       {view === 'matches' ? (
         <>
-          <DateScrubber
-            dates={dayKeys}
-            selectedDate={effectiveDay}
-            onChange={setSelectedDay}
-          />
+          <View style={styles.dateScrubberWrap}>
+            <DateScrubber
+              dates={dayKeys}
+              selectedDate={effectiveDay}
+              onChange={setSelectedDay}
+            />
+          </View>
           {dayMatches.length > 0 ? (
             <Text
               style={[
@@ -484,6 +474,10 @@ const styles = StyleSheet.create({
   viewScrubberWrap: {
     paddingHorizontal: '3%',
     marginBottom: 8,
+  },
+  /** Same 3% inset as AppHeader / Matches↔Table scrubber / Super Six screens. */
+  dateScrubberWrap: {
+    paddingHorizontal: '3%',
   },
   scrubberLine: {
     flexDirection: 'row',

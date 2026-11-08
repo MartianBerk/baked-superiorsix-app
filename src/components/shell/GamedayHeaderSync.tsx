@@ -1,4 +1,3 @@
-import { usePathname } from 'expo-router';
 import { useEffect } from 'react';
 
 import { getGameMeta, type GameMeta } from '@/api/superiorsix';
@@ -11,25 +10,17 @@ import {
 
 import { useRoundStatus } from './RoundStatusContext';
 
-function isSideGamePath(pathname: string): boolean {
-  return pathname.includes('/euros') || pathname.includes('/worldcup');
-}
-
 /**
  * Keeps shell Round / Prize pot labels in sync with SS-16 `GET /game/meta`.
  * Prefers BE `prize_pot_pence` / `round_number`; falls back to FE formula
  * buy_in × full_roster × slate (14×£2 → £28 / £56 / £84…).
- * Skips while on Euros / World Cup tabs (those publish their own pot).
+ * Runs on all Super Six tabs (including Euros / World Cup) — tournament pot
+ * lives on the scrubber row only, not the app header.
  */
 export function GamedayHeaderSync() {
-  const pathname = usePathname();
   const { setGamedayHeader } = useRoundStatus();
 
   useEffect(() => {
-    if (isSideGamePath(pathname)) {
-      return;
-    }
-
     let cancelled = false;
 
     async function refresh() {
@@ -76,7 +67,7 @@ export function GamedayHeaderSync() {
       cancelled = true;
       clearInterval(id);
     };
-  }, [pathname, setGamedayHeader]);
+  }, [setGamedayHeader]);
 
   return null;
 }
