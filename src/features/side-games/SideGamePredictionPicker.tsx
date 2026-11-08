@@ -103,6 +103,7 @@ export function SideGamePredictionPicker({
             onPress={() => onSelect(value)}
             style={({ pressed }) => [
               styles.button,
+              styles.choiceButton,
               active && styles.buttonActive,
               pressed && !locked && styles.buttonPressed,
               locked && styles.buttonDisabled,
@@ -138,7 +139,6 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   button: {
-    width: 36,
     height: 36,
     borderRadius: 10,
     backgroundColor: colors.menuBar,
@@ -147,9 +147,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  /** H / A stay fixed — do not grow or shift. */
+  choiceButton: {
+    width: 36,
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  /** Middle 90/ET/P fills remaining space between H and A. */
   knockoutButton: {
-    width: 44,
-    paddingHorizontal: 2,
+    flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 80,
+    paddingHorizontal: 8,
   },
   buttonActive: {
     backgroundColor: colors.accent,
