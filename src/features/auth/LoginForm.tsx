@@ -133,9 +133,9 @@ export function LoginForm({ heading }: Props) {
         </Pressable>
       </View>
 
-      <Text style={styles.label}>Email</Text>
       <TextInput
         style={styles.input}
+        accessibilityLabel="Email"
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="email-address"
@@ -144,18 +144,18 @@ export function LoginForm({ heading }: Props) {
         editable={!busy}
         value={email}
         onChangeText={setEmail}
-        placeholder="you@example.com"
+        placeholder="Email"
         placeholderTextColor={colors.textMuted}
         onSubmitEditing={() => {
           if (canSubmit) void onSubmit();
         }}
       />
 
-      <Text style={styles.label}>
-        {mode === 'firstLogin' ? 'Choose password' : 'Password'}
-      </Text>
       <TextInput
         style={styles.input}
+        accessibilityLabel={
+          mode === 'firstLogin' ? 'Choose Password' : 'Password'
+        }
         secureTextEntry
         autoComplete={mode === 'firstLogin' ? 'new-password' : 'current-password'}
         textContentType={mode === 'firstLogin' ? 'newPassword' : 'password'}
@@ -165,7 +165,7 @@ export function LoginForm({ heading }: Props) {
           setPassword(value);
           if (error) setError(null);
         }}
-        placeholder={mode === 'firstLogin' ? 'min 8 characters' : 'password'}
+        placeholder={mode === 'firstLogin' ? 'Choose Password' : 'Password'}
         placeholderTextColor={colors.textMuted}
         onSubmitEditing={() => {
           if (canSubmit) void onSubmit();
@@ -173,26 +173,24 @@ export function LoginForm({ heading }: Props) {
       />
 
       {mode === 'firstLogin' ? (
-        <>
-          <Text style={styles.label}>Confirm password</Text>
-          <TextInput
-            style={styles.input}
-            secureTextEntry
-            autoComplete="new-password"
-            textContentType="newPassword"
-            editable={!busy}
-            value={confirmPassword}
-            onChangeText={(value) => {
-              setConfirmPassword(value);
-              if (error) setError(null);
-            }}
-            placeholder="re-enter password"
-            placeholderTextColor={colors.textMuted}
-            onSubmitEditing={() => {
-              if (canSubmit) void onSubmit();
-            }}
-          />
-        </>
+        <TextInput
+          style={styles.input}
+          accessibilityLabel="Confirm Password"
+          secureTextEntry
+          autoComplete="new-password"
+          textContentType="newPassword"
+          editable={!busy}
+          value={confirmPassword}
+          onChangeText={(value) => {
+            setConfirmPassword(value);
+            if (error) setError(null);
+          }}
+          placeholder="Confirm Password"
+          placeholderTextColor={colors.textMuted}
+          onSubmitEditing={() => {
+            if (canSubmit) void onSubmit();
+          }}
+        />
       ) : null}
 
       {mode === 'firstLogin' &&
@@ -272,13 +270,6 @@ const styles = StyleSheet.create({
   modeChipTextOn: {
     color: colors.text,
     fontWeight: '600',
-  },
-  label: {
-    color: colors.textMuted,
-    fontSize: 12,
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-    marginBottom: 6,
   },
   input: {
     backgroundColor: colors.surface,
