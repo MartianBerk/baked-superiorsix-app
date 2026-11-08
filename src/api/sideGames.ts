@@ -5,8 +5,8 @@
  * (`cursor/ss29-side-game-activate-apis-ce1d`) — see
  * `/cursor/stores/self/internal/ss29-activate-apis.md`.
  *
- * Close: FE posts `{ winner_ids }` (no end_date). BE may still only accept
- * optional `end_date` until a parallel worker lands winners on endtournament.
+ * Close: `POST …/endtournament` body is `{ winner_ids }` only (required,
+ * non-empty). Server sets `end_date`; admin UI does not send it.
  */
 
 import {
@@ -63,10 +63,12 @@ export type EurosTournament = {
   competition_code: string;
   label: string;
   start_date: string;
+  /** Server-set on close; not sent by admin UI. */
   end_date: string | null;
   buy_in_pence: number;
   entrant_count: number;
   prize_pot_pence: number;
+  winner_ids: string[];
 };
 
 export type EurosMeta = {
@@ -82,8 +84,8 @@ export type WorldcupMeta = {
   buy_in_pence: number;
   participant_count: number;
   pot_pence: number;
-  /** SS-141 — false when absent (pre-merge) or closed. */
   open: boolean;
+  winner_ids: string[];
 };
 
 export type OpenEurosPayload = {
@@ -187,6 +189,13 @@ function normalizePrediction(raw: Record<string, unknown>): SideGamePrediction |
   };
 }
 
+function asIdList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map((id) => String(id));
+}
+
 function normalizeEurosTournament(
   raw: Record<string, unknown> | null | undefined,
 ): EurosTournament | null {
@@ -202,6 +211,7 @@ function normalizeEurosTournament(
     buy_in_pence: asNumber(raw.buy_in_pence),
     entrant_count: asNumber(raw.entrant_count),
     prize_pot_pence: asNumber(raw.prize_pot_pence),
+    winner_ids: asIdList(raw.winner_ids),
   };
 }
 
@@ -226,8 +236,8 @@ function normalizeWorldcupMeta(body: Record<string, unknown>): WorldcupMeta {
     buy_in_pence: asNumber(body.buy_in_pence),
     participant_count: asNumber(body.participant_count),
     pot_pence: asNumber(body.pot_pence),
-    // SS-141: show WC tab only when open === true (absent → closed).
     open: asBool(body.open, false),
+    winner_ids: asIdList(body.winner_ids),
   };
 }
 
@@ -458,10 +468,7 @@ export async function openEurosTournament(
   return tournament;
 }
 
-/**
- * `POST /admin/euros/endtournament` with `{ winner_ids }` (FE contract).
- * Current BE may ignore `winner_ids` / still accept optional `end_date` only.
- */
+/** `POST /admin/euros/endtournament` — body `{ winner_ids }` (required, min 1). */
 export async function endEurosTournament(
   token: string,
   payload: EndSideGamePayload,
@@ -517,10 +524,7 @@ export async function openWorldcupTournament(
   return normalizeWorldcupMeta(body ?? {});
 }
 
-/**
- * `POST /admin/worldcup/endtournament` with `{ winner_ids }` (FE contract).
- * Current BE may ignore `winner_ids` until a parallel worker lands.
- */
+/** `POST /admin/worldcup/endtournament` — body `{ winner_ids }` (required, min 1). */
 export async function endWorldcupTournament(
   token: string,
   payload: EndSideGamePayload,

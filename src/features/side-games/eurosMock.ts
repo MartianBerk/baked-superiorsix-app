@@ -51,6 +51,7 @@ export const MOCK_EUROS_META: EurosMeta = {
     buy_in_pence: 200,
     entrant_count: 4,
     prize_pot_pence: 800,
+    winner_ids: [],
   },
 };
 
