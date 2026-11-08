@@ -311,13 +311,13 @@ export function SideGamePlayerWidget({ kind }: Props) {
       <View style={styles.viewScrubberWrap}>
         <View style={styles.scrubberLine}>
           <View
-            style={styles.potCluster}
+            style={[scrubberChrome.row, styles.potChip]}
             accessibilityRole="summary"
             accessibilityLabel={`${titleFor(kind)} pot ${potLabel}`}
           >
             <MenuIcon
               name={kind === 'euros' ? 'euros' : 'worldcup'}
-              size={22}
+              size={20}
               color={colors.textMuted}
             />
             <Text style={styles.potLabel}>{potLabel}</Text>
@@ -482,13 +482,18 @@ const styles = StyleSheet.create({
   scrubberLine: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
-  potCluster: {
+  /** Same bordered scrubber chip as Super Six `# n` / slate scrubber. */
+  potChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
     flexShrink: 0,
+    marginBottom: 0,
+    paddingHorizontal: 10,
+    paddingVertical: 7.5,
   },
   potLabel: {
     color: colors.textMuted,
