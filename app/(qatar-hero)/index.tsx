@@ -1,10 +1,6 @@
-import { EmptyScreen } from '@/components/shell/EmptyScreen';
+import { Redirect } from 'expo-router';
 
-export default function QatarHeroScreen() {
-  return (
-    <EmptyScreen
-      title="Qatar Hero"
-      subtitle="Stub experience — no feature UI in SS-8."
-    />
-  );
+/** Deep-link / legacy group → Super Six World Cup tab. */
+export default function QatarHeroRedirect() {
+  return <Redirect href="/(super-six)/worldcup" />;
 }

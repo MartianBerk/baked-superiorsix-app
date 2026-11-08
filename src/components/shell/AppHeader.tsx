@@ -43,6 +43,10 @@ function isProfilePath(pathname: string): boolean {
   return pathname.includes('/profile');
 }
 
+function isSideGamePath(pathname: string): boolean {
+  return pathname.includes('/euros') || pathname.includes('/worldcup');
+}
+
 /**
  * Top shell: round value left (`# n`), logo center, pot value right (`£…`),
  * optional perfect-slate pot banner, plus thin round-status strip.
@@ -62,10 +66,11 @@ export function AppHeader({
   const { playerPickingStatus, gamedayHeader } = useRoundStatus();
   const resolvedRound = roundLabel ?? gamedayHeader.roundLabel;
   const resolvedPrize = prizeLabel ?? gamedayHeader.prizeLabel;
-  // Hide when logged out, or on Scores / Leaders / Profile admin.
+  // Hide when logged out, on side-game tabs, or Scores / Leaders / Profile admin.
   // Fixtures admin keeps the strip (selection count + slate difficulty pips).
   const hideStatusStrip =
     !isAuthenticated ||
+    isSideGamePath(pathname) ||
     (scoresMode === 'admin' && isScoresPath(pathname)) ||
     (leadersMode === 'admin' && isLeadersPath(pathname)) ||
     (profileMode === 'admin' && isProfilePath(pathname));

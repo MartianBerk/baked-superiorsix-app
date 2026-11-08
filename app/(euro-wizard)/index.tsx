@@ -1,10 +1,6 @@
-import { EmptyScreen } from '@/components/shell/EmptyScreen';
+import { Redirect } from 'expo-router';
 
-export default function EuroWizardScreen() {
-  return (
-    <EmptyScreen
-      title="Euro Wizard"
-      subtitle="Stub experience — no feature UI in SS-8."
-    />
-  );
+/** Deep-link / legacy group → Super Six Euro Wizard tab. */
+export default function EuroWizardRedirect() {
+  return <Redirect href="/(super-six)/euros" />;
 }

@@ -79,3 +79,33 @@ export {
   profileFieldsFromDocument,
 } from './user';
 export type { ProfileFields, UserProfileDocument } from './user';
+export {
+  addSideGamePrediction,
+  endEurosTournament,
+  endWorldcupTournament,
+  getAdminEurosMeta,
+  getAdminWorldcupSettings,
+  getEurosMeta,
+  getSideGamePrediction,
+  getWorldcupMeta,
+  isEurosOpen,
+  isKnockoutMatchday,
+  isWorldcupOpen,
+  listSideGameMatches,
+  listSideGamePredictions,
+  listSideGameScores,
+  openEurosTournament,
+  openWorldcupTournament,
+} from './sideGames';
+export type {
+  EurosMeta,
+  EurosTournament,
+  OpenEurosPayload,
+  OpenWorldcupPayload,
+  SideGameKind,
+  SideGameMatch,
+  SideGamePrediction,
+  SideGamePredictionChoice,
+  SideGameScoreRow,
+  WorldcupMeta,
+} from './sideGames';

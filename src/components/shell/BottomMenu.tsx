@@ -8,13 +8,19 @@ import { useUserTabMode } from '@/features/auth/UserTabModeContext';
 import { useLeadersTabMode } from '@/features/leaders/LeadersTabModeContext';
 import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
 import { useScoresTabMode } from '@/features/scores/ScoresTabModeContext';
+import { useSideGamesOpen } from '@/features/side-games/SideGamesOpenContext';
 import { colors } from '@/theme';
 
-/** Tab order: fixtures → scores → leaders → user (rightmost). */
+/**
+ * Tab order: fixtures → scores → leaders → [euros?] → [worldcup?] → user
+ * (rightmost). Side-game trophy tabs only when that tournament is open.
+ */
 const TAB_ICONS: Record<string, MenuIconName> = {
   index: 'fixtures',
   scores: 'scores',
   leaders: 'leaders',
+  euros: 'euros',
+  worldcup: 'worldcup',
   profile: 'users',
 };
 
@@ -38,6 +44,7 @@ type TabBarProps = {
       options: {
         title?: string;
         tabBarAccessibilityLabel?: string;
+        href?: string | null;
       };
     }
   >;
@@ -60,6 +67,7 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
   const { mode: fixturesMode, setMode: setFixturesMode } = useFixturesTabMode();
   const { mode: scoresMode, setMode: setScoresMode } = useScoresTabMode();
   const { mode: leadersMode, setMode: setLeadersMode } = useLeadersTabMode();
+  const { eurosOpen, worldcupOpen } = useSideGamesOpen();
   const canAdminToggle = isAuthenticated && hasRole(ADMIN_ROLE);
 
   const toggleDualMode = useCallback(
@@ -110,6 +118,18 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
             return null;
           }
 
+          // Hide closed side-game tabs (href: null from layout + open flags).
+          if (route.name === 'euros' && !eurosOpen) {
+            return null;
+          }
+          if (route.name === 'worldcup' && !worldcupOpen) {
+            return null;
+          }
+          const href = descriptors[route.key]?.options?.href;
+          if (href === null) {
+            return null;
+          }
+
           const focused = state.index === index;
           const { options } = descriptors[route.key];
           const label = options.title ?? route.name;
@@ -150,7 +170,7 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
               <View style={[styles.hit, focused && styles.hitActive]}>
                 <MenuIcon
                   name={iconName}
-                  size={28}
+                  size={route.name === 'euros' || route.name === 'worldcup' ? 30 : 28}
                   active={focused}
                   adminBadge={showAdminBadge}
                 />
