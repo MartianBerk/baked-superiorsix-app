@@ -20,7 +20,7 @@ export function UserWidget() {
 
   return (
     <View style={styles.center}>
-      {isAuthenticated ? <SessionPanel /> : <LoginForm heading="Sign in" />}
+      {isAuthenticated ? <SessionPanel /> : <LoginForm />}
     </View>
   );
 }

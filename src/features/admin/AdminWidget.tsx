@@ -28,7 +28,7 @@ export function AdminWidget() {
   if (!isAuthenticated) {
     return (
       <View style={styles.center}>
-        <LoginForm heading="Admin sign in" />
+        <LoginForm />
       </View>
     );
   }

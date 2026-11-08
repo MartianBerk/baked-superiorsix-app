@@ -14,13 +14,8 @@ import { colors } from '@/theme';
 
 type Mode = 'signIn' | 'firstLogin';
 
-type Props = {
-  /** Shown above the form (e.g. profile tab vs /auth route). */
-  heading?: string;
-};
-
 /** Email / password against baked-auth (`audience=superiorsix`). */
-export function LoginForm({ heading }: Props) {
+export function LoginForm() {
   const { signIn, claimAndAcceptInvite } = useAuth();
   const [mode, setMode] = useState<Mode>('signIn');
   const [email, setEmail] = useState('');
@@ -28,13 +23,6 @@ export function LoginForm({ heading }: Props) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  const title =
-    heading ?? (mode === 'firstLogin' ? 'First login' : 'Sign in');
-  const lede =
-    mode === 'firstLogin'
-      ? 'Invited? Set a password for your email, then join the roster. Roles were granted when you were invited.'
-      : 'baked-auth token with audience superiorsix. Session is stored on this device.';
 
   const passwordsMatch =
     mode !== 'firstLogin' ||
@@ -81,9 +69,6 @@ export function LoginForm({ heading }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.heading}>{title}</Text>
-      <Text style={styles.lede}>{lede}</Text>
-
       <View style={styles.modeRow}>
         <Pressable
           accessibilityRole="button"
@@ -133,9 +118,9 @@ export function LoginForm({ heading }: Props) {
         </Pressable>
       </View>
 
-      <Text style={styles.label}>Email</Text>
       <TextInput
         style={styles.input}
+        accessibilityLabel="Email"
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="email-address"
@@ -144,18 +129,18 @@ export function LoginForm({ heading }: Props) {
         editable={!busy}
         value={email}
         onChangeText={setEmail}
-        placeholder="you@example.com"
+        placeholder="Email"
         placeholderTextColor={colors.textMuted}
         onSubmitEditing={() => {
           if (canSubmit) void onSubmit();
         }}
       />
 
-      <Text style={styles.label}>
-        {mode === 'firstLogin' ? 'Choose password' : 'Password'}
-      </Text>
       <TextInput
         style={styles.input}
+        accessibilityLabel={
+          mode === 'firstLogin' ? 'Choose Password' : 'Password'
+        }
         secureTextEntry
         autoComplete={mode === 'firstLogin' ? 'new-password' : 'current-password'}
         textContentType={mode === 'firstLogin' ? 'newPassword' : 'password'}
@@ -165,7 +150,7 @@ export function LoginForm({ heading }: Props) {
           setPassword(value);
           if (error) setError(null);
         }}
-        placeholder={mode === 'firstLogin' ? 'min 8 characters' : 'password'}
+        placeholder={mode === 'firstLogin' ? 'Choose Password' : 'Password'}
         placeholderTextColor={colors.textMuted}
         onSubmitEditing={() => {
           if (canSubmit) void onSubmit();
@@ -173,26 +158,24 @@ export function LoginForm({ heading }: Props) {
       />
 
       {mode === 'firstLogin' ? (
-        <>
-          <Text style={styles.label}>Confirm password</Text>
-          <TextInput
-            style={styles.input}
-            secureTextEntry
-            autoComplete="new-password"
-            textContentType="newPassword"
-            editable={!busy}
-            value={confirmPassword}
-            onChangeText={(value) => {
-              setConfirmPassword(value);
-              if (error) setError(null);
-            }}
-            placeholder="re-enter password"
-            placeholderTextColor={colors.textMuted}
-            onSubmitEditing={() => {
-              if (canSubmit) void onSubmit();
-            }}
-          />
-        </>
+        <TextInput
+          style={styles.input}
+          accessibilityLabel="Confirm Password"
+          secureTextEntry
+          autoComplete="new-password"
+          textContentType="newPassword"
+          editable={!busy}
+          value={confirmPassword}
+          onChangeText={(value) => {
+            setConfirmPassword(value);
+            if (error) setError(null);
+          }}
+          placeholder="Confirm Password"
+          placeholderTextColor={colors.textMuted}
+          onSubmitEditing={() => {
+            if (canSubmit) void onSubmit();
+          }}
+        />
       ) : null}
 
       {mode === 'firstLogin' &&
@@ -234,19 +217,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: 24,
   },
-  heading: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-    marginBottom: 8,
-  },
-  lede: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 16,
-  },
   modeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -272,13 +242,6 @@ const styles = StyleSheet.create({
   modeChipTextOn: {
     color: colors.text,
     fontWeight: '600',
-  },
-  label: {
-    color: colors.textMuted,
-    fontSize: 12,
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-    marginBottom: 6,
   },
   input: {
     backgroundColor: colors.surface,
