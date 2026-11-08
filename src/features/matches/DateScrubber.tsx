@@ -1,17 +1,11 @@
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
+import { useState } from 'react';
+import { View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { ChevronIcon } from '@/components/icons/ChevronIcon';
-import { colors } from '@/theme';
-
+import { ScrubberSidePreview } from './ScrubberSidePreview';
+import { ScrubberSlidingText } from './ScrubberSlidingText';
 import { formatScrubberDate } from './formatMatchDate';
-import { SCRUBBER_CHEVRON_SIZE, scrubberChrome } from './scrubberChrome';
+import { scrubberChrome } from './scrubberChrome';
+import type { ScrubDirection } from './scrubberSlide';
 
 type Props = {
   dates: string[];
@@ -28,6 +22,8 @@ export function DateScrubber({
   onChange,
   style,
 }: Props) {
+  const [direction, setDirection] = useState<ScrubDirection | null>(null);
+
   if (!selectedDate || dates.length === 0) {
     return null;
   }
@@ -35,66 +31,50 @@ export function DateScrubber({
   const index = dates.indexOf(selectedDate);
   const canLeft = index > 0;
   const canRight = index >= 0 && index < dates.length - 1;
+  const label = formatScrubberDate(selectedDate);
+  const leftLabel = canLeft ? formatScrubberDate(dates[index - 1]) : null;
+  const rightLabel = canRight ? formatScrubberDate(dates[index + 1]) : null;
 
   return (
     <View
       style={[scrubberChrome.row, style]}
       accessibilityRole="adjustable"
     >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Previous match date"
+      <ScrubberSidePreview
+        label={leftLabel}
+        accessibilityLabel={
+          leftLabel ? `Previous match date, ${leftLabel}` : 'Previous match date'
+        }
         disabled={!canLeft}
+        direction={direction}
         onPress={() => {
-          if (canLeft) {
-            onChange(dates[index - 1]);
+          if (!canLeft) {
+            return;
           }
+          setDirection('left');
+          onChange(dates[index - 1]);
         }}
-        style={({ pressed }) => [
-          scrubberChrome.chevronHit,
-          !canLeft && scrubberChrome.chevronDisabled,
-          pressed && canLeft && scrubberChrome.pressed,
-        ]}
-      >
-        {canLeft ? (
-          <ChevronIcon direction="left" size={SCRUBBER_CHEVRON_SIZE} />
-        ) : (
-          <View style={scrubberChrome.chevronSpacer} />
-        )}
-      </Pressable>
+      />
 
-      <Text style={styles.dateLabel}>{formatScrubberDate(selectedDate)}</Text>
+      <View style={scrubberChrome.centerSlot}>
+        <ScrubberSlidingText label={label} direction={direction} />
+      </View>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Next match date"
+      <ScrubberSidePreview
+        label={rightLabel}
+        accessibilityLabel={
+          rightLabel ? `Next match date, ${rightLabel}` : 'Next match date'
+        }
         disabled={!canRight}
+        direction={direction}
         onPress={() => {
-          if (canRight) {
-            onChange(dates[index + 1]);
+          if (!canRight) {
+            return;
           }
+          setDirection('right');
+          onChange(dates[index + 1]);
         }}
-        style={({ pressed }) => [
-          scrubberChrome.chevronHit,
-          !canRight && scrubberChrome.chevronDisabled,
-          pressed && canRight && scrubberChrome.pressed,
-        ]}
-      >
-        {canRight ? (
-          <ChevronIcon direction="right" size={SCRUBBER_CHEVRON_SIZE} />
-        ) : (
-          <View style={scrubberChrome.chevronSpacer} />
-        )}
-      </Pressable>
+      />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  dateLabel: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-});

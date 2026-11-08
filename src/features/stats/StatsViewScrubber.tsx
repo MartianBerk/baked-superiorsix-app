@@ -1,11 +1,10 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
-import { ChevronIcon } from '@/components/icons/ChevronIcon';
-import {
-  SCRUBBER_CHEVRON_SIZE,
-  scrubberChrome,
-} from '@/features/matches/scrubberChrome';
-import { colors } from '@/theme';
+import { ScrubberSidePreview } from '@/features/matches/ScrubberSidePreview';
+import { ScrubberSlidingText } from '@/features/matches/ScrubberSlidingText';
+import { scrubberChrome } from '@/features/matches/scrubberChrome';
+import type { ScrubDirection } from '@/features/matches/scrubberSlide';
 
 export type StatsViewMode = 'stats' | 'winners';
 
@@ -22,63 +21,54 @@ function labelFor(mode: StatsViewMode): string {
 
 /**
  * Under-header scrubber: toggles Performance ↔ Winners (not round history).
+ * Side slots show the destination header in mini type instead of chevrons.
  */
 export function StatsViewScrubber({ mode, onChange }: Props) {
+  const [direction, setDirection] = useState<ScrubDirection | null>(null);
   const index = VIEWS.indexOf(mode);
   const canLeft = index > 0;
   const canRight = index >= 0 && index < VIEWS.length - 1;
+  const label = labelFor(mode);
+  const leftLabel = canLeft ? labelFor(VIEWS[index - 1]) : null;
+  const rightLabel = canRight ? labelFor(VIEWS[index + 1]) : null;
 
   return (
     <View
       style={[scrubberChrome.row, styles.row]}
       accessibilityRole="adjustable"
-      accessibilityLabel={`${labelFor(mode)} view`}
+      accessibilityLabel={`${label} view`}
     >
-      <Pressable
-        accessibilityRole="button"
+      <ScrubberSidePreview
+        label={leftLabel}
         accessibilityLabel="Show Performance"
         disabled={!canLeft}
+        direction={direction}
         onPress={() => {
-          if (canLeft) {
-            onChange(VIEWS[index - 1]);
+          if (!canLeft) {
+            return;
           }
+          setDirection('left');
+          onChange(VIEWS[index - 1]);
         }}
-        style={({ pressed }) => [
-          scrubberChrome.chevronHit,
-          !canLeft && scrubberChrome.chevronDisabled,
-          pressed && canLeft && scrubberChrome.pressed,
-        ]}
-      >
-        {canLeft ? (
-          <ChevronIcon direction="left" size={SCRUBBER_CHEVRON_SIZE} />
-        ) : (
-          <View style={scrubberChrome.chevronSpacer} />
-        )}
-      </Pressable>
+      />
 
-      <Text style={styles.label}>{labelFor(mode)}</Text>
+      <View style={scrubberChrome.centerSlot}>
+        <ScrubberSlidingText label={label} direction={direction} />
+      </View>
 
-      <Pressable
-        accessibilityRole="button"
+      <ScrubberSidePreview
+        label={rightLabel}
         accessibilityLabel="Show Winners"
         disabled={!canRight}
+        direction={direction}
         onPress={() => {
-          if (canRight) {
-            onChange(VIEWS[index + 1]);
+          if (!canRight) {
+            return;
           }
+          setDirection('right');
+          onChange(VIEWS[index + 1]);
         }}
-        style={({ pressed }) => [
-          scrubberChrome.chevronHit,
-          !canRight && scrubberChrome.chevronDisabled,
-          pressed && canRight && scrubberChrome.pressed,
-        ]}
-      >
-        {canRight ? (
-          <ChevronIcon direction="right" size={SCRUBBER_CHEVRON_SIZE} />
-        ) : (
-          <View style={scrubberChrome.chevronSpacer} />
-        )}
-      </Pressable>
+      />
     </View>
   );
 }
@@ -86,11 +76,5 @@ export function StatsViewScrubber({ mode, onChange }: Props) {
 const styles = StyleSheet.create({
   row: {
     marginBottom: 0,
-  },
-  label: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: 0.3,
   },
 });
