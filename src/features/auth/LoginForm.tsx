@@ -25,6 +25,7 @@ export function LoginForm({ heading }: Props) {
   const [mode, setMode] = useState<Mode>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -35,6 +36,15 @@ export function LoginForm({ heading }: Props) {
       ? 'Invited? Set a password for your email, then join the roster. Roles were granted when you were invited.'
       : 'baked-auth token with audience superiorsix. Session is stored on this device.';
 
+  const passwordsMatch =
+    mode !== 'firstLogin' ||
+    (password.length > 0 && password === confirmPassword);
+  const canSubmit =
+    !busy &&
+    email.trim().length > 0 &&
+    password.length > 0 &&
+    (mode !== 'firstLogin' || (password.length >= 8 && passwordsMatch));
+
   const onSubmit = async () => {
     setError(null);
     if (!email.trim() || !password) {
@@ -43,6 +53,10 @@ export function LoginForm({ heading }: Props) {
     }
     if (mode === 'firstLogin' && password.length < 8) {
       setError('Password must be at least 8 characters.');
+      return;
+    }
+    if (mode === 'firstLogin' && password !== confirmPassword) {
+      setError('Passwords do not match.');
       return;
     }
     setBusy(true);
@@ -76,6 +90,7 @@ export function LoginForm({ heading }: Props) {
           disabled={busy}
           onPress={() => {
             setMode('signIn');
+            setConfirmPassword('');
             setError(null);
           }}
           style={({ pressed }) => [
@@ -98,6 +113,7 @@ export function LoginForm({ heading }: Props) {
           disabled={busy}
           onPress={() => {
             setMode('firstLogin');
+            setConfirmPassword('');
             setError(null);
           }}
           style={({ pressed }) => [
@@ -131,7 +147,7 @@ export function LoginForm({ heading }: Props) {
         placeholder="you@example.com"
         placeholderTextColor={colors.textMuted}
         onSubmitEditing={() => {
-          void onSubmit();
+          if (canSubmit) void onSubmit();
         }}
       />
 
@@ -145,25 +161,58 @@ export function LoginForm({ heading }: Props) {
         textContentType={mode === 'firstLogin' ? 'newPassword' : 'password'}
         editable={!busy}
         value={password}
-        onChangeText={setPassword}
+        onChangeText={(value) => {
+          setPassword(value);
+          if (error) setError(null);
+        }}
         placeholder={mode === 'firstLogin' ? 'min 8 characters' : 'password'}
         placeholderTextColor={colors.textMuted}
         onSubmitEditing={() => {
-          void onSubmit();
+          if (canSubmit) void onSubmit();
         }}
       />
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {mode === 'firstLogin' ? (
+        <>
+          <Text style={styles.label}>Confirm password</Text>
+          <TextInput
+            style={styles.input}
+            secureTextEntry
+            autoComplete="new-password"
+            textContentType="newPassword"
+            editable={!busy}
+            value={confirmPassword}
+            onChangeText={(value) => {
+              setConfirmPassword(value);
+              if (error) setError(null);
+            }}
+            placeholder="re-enter password"
+            placeholderTextColor={colors.textMuted}
+            onSubmitEditing={() => {
+              if (canSubmit) void onSubmit();
+            }}
+          />
+        </>
+      ) : null}
+
+      {mode === 'firstLogin' &&
+      confirmPassword.length > 0 &&
+      password !== confirmPassword ? (
+        <Text style={styles.error}>Passwords do not match.</Text>
+      ) : error ? (
+        <Text style={styles.error}>{error}</Text>
+      ) : null}
 
       <Pressable
         accessibilityRole="button"
-        disabled={busy}
+        disabled={!canSubmit}
         onPress={() => {
           void onSubmit();
         }}
         style={({ pressed }) => [
           styles.button,
-          (pressed || busy) && styles.buttonPressed,
+          (!canSubmit || pressed) && styles.buttonPressed,
+          !canSubmit && styles.buttonDisabled,
         ]}
       >
         {busy ? (
@@ -258,6 +307,9 @@ const styles = StyleSheet.create({
   },
   buttonPressed: {
     opacity: 0.85,
+  },
+  buttonDisabled: {
+    opacity: 0.45,
   },
   pressed: {
     opacity: 0.85,
