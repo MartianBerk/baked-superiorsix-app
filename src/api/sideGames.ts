@@ -1,10 +1,21 @@
 /**
- * Euro Wizard + World Cup (Qatar Hero) API client (SS-29 / SS-141).
+ * Euros + World Cup API client (SS-29 / SS-141).
  *
  * Activate contracts: baked-superiorsix PR #40
  * (`cursor/ss29-side-game-activate-apis-ce1d`) — see
  * `/cursor/stores/self/internal/ss29-activate-apis.md`.
+ *
+ * Close: FE posts `{ winner_ids }` (no end_date). BE may still only accept
+ * optional `end_date` until a parallel worker lands winners on endtournament.
  */
+
+import {
+  isEurosMockEnabled,
+  MOCK_EUROS_MATCHES,
+  MOCK_EUROS_META,
+  MOCK_EUROS_PREDICTIONS,
+  MOCK_EUROS_SCORES,
+} from '@/features/side-games/eurosMock';
 
 import { apiFetch, readApiJson } from './client';
 import { ApiError } from './errors';
@@ -88,6 +99,16 @@ export type OpenWorldcupPayload = {
   /** Selected Super Six roster auth_id UUIDs (required, non-empty). */
   entrantIds: string[];
 };
+
+/** Close body — winners only (no end_date in the admin UI). */
+export type EndSideGamePayload = {
+  /** Roster auth_id UUIDs; at least one required by FE. */
+  winnerIds: string[];
+};
+
+export function sideGameLabel(kind: SideGameKind): string {
+  return kind === 'euros' ? 'Euros' : 'World Cup';
+}
 
 function gameUnreachable(): ApiError {
   return new ApiError(
@@ -220,6 +241,9 @@ export function isEurosOpen(meta: EurosMeta | null | undefined): boolean {
 }
 
 export async function getEurosMeta(): Promise<EurosMeta> {
+  if (isEurosMockEnabled()) {
+    return MOCK_EUROS_META;
+  }
   let response: Response;
   try {
     response = await apiFetch('game', '/euros/meta');
@@ -244,6 +268,9 @@ export async function getWorldcupMeta(): Promise<WorldcupMeta> {
 export async function listSideGameMatches(
   kind: SideGameKind,
 ): Promise<SideGameMatch[]> {
+  if (kind === 'euros' && isEurosMockEnabled()) {
+    return MOCK_EUROS_MATCHES.filter((m) => m.use_match);
+  }
   const path = kind === 'euros' ? '/euros/matches' : '/worldcup/matches';
   let response: Response;
   try {
@@ -263,6 +290,9 @@ export async function listSideGameScores(
   kind: SideGameKind,
   token?: string | null,
 ): Promise<SideGameScoreRow[]> {
+  if (kind === 'euros' && isEurosMockEnabled()) {
+    return MOCK_EUROS_SCORES;
+  }
   const path = kind === 'euros' ? '/euros/scores' : '/worldcup/scores';
   let response: Response;
   try {
@@ -280,6 +310,9 @@ export async function listSideGameScores(
 export async function listSideGamePredictions(
   kind: SideGameKind,
 ): Promise<SideGamePrediction[]> {
+  if (kind === 'euros' && isEurosMockEnabled()) {
+    return MOCK_EUROS_PREDICTIONS.filter((p) => !p.dropped);
+  }
   const path =
     kind === 'euros' ? '/euros/listpredictions' : '/worldcup/listpredictions';
   let response: Response;
@@ -425,18 +458,24 @@ export async function openEurosTournament(
   return tournament;
 }
 
-/** `POST /admin/euros/endtournament`. */
+/**
+ * `POST /admin/euros/endtournament` with `{ winner_ids }` (FE contract).
+ * Current BE may ignore `winner_ids` / still accept optional `end_date` only.
+ */
 export async function endEurosTournament(
   token: string,
-  endDate?: string | null,
+  payload: EndSideGamePayload,
 ): Promise<EurosTournament> {
+  if (payload.winnerIds.length === 0) {
+    throw new ApiError(422, 'Select at least one winner.');
+  }
   let response: Response;
   try {
     response = await apiFetch('game', '/admin/euros/endtournament', {
       method: 'POST',
       token,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(endDate ? { end_date: endDate } : {}),
+      body: JSON.stringify({ winner_ids: payload.winnerIds }),
     });
   } catch {
     throw gameUnreachable();
@@ -478,17 +517,24 @@ export async function openWorldcupTournament(
   return normalizeWorldcupMeta(body ?? {});
 }
 
-/** `POST /admin/worldcup/endtournament` — clears `open` for nav. */
+/**
+ * `POST /admin/worldcup/endtournament` with `{ winner_ids }` (FE contract).
+ * Current BE may ignore `winner_ids` until a parallel worker lands.
+ */
 export async function endWorldcupTournament(
   token: string,
+  payload: EndSideGamePayload,
 ): Promise<WorldcupMeta> {
+  if (payload.winnerIds.length === 0) {
+    throw new ApiError(422, 'Select at least one winner.');
+  }
   let response: Response;
   try {
     response = await apiFetch('game', '/admin/worldcup/endtournament', {
       method: 'POST',
       token,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ winner_ids: payload.winnerIds }),
     });
   } catch {
     throw gameUnreachable();

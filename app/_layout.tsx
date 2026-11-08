@@ -25,8 +25,8 @@ export default function RootLayout() {
         >
           <Stack.Screen name="(super-six)" />
           <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(euro-wizard)" />
-          <Stack.Screen name="(qatar-hero)" />
+          <Stack.Screen name="(euros)" />
+          <Stack.Screen name="(world-cup)" />
         </Stack>
       </View>
     </AuthProvider>

@@ -17,7 +17,7 @@ type Props = {
 };
 
 /**
- * Home / Draw|90-ET-P / Away — legacy Euro Wizard / Qatar Hero prediction row.
+ * Home / Draw|90-ET-P / Away — legacy Euros / World Cup prediction row.
  */
 export function SideGamePredictionPicker({
   selection,

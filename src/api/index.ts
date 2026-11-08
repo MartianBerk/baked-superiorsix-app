@@ -96,8 +96,10 @@ export {
   listSideGameScores,
   openEurosTournament,
   openWorldcupTournament,
+  sideGameLabel,
 } from './sideGames';
 export type {
+  EndSideGamePayload,
   EurosMeta,
   EurosTournament,
   OpenEurosPayload,

@@ -19,6 +19,7 @@ import {
   isWorldcupOpen,
   openEurosTournament,
   openWorldcupTournament,
+  sideGameLabel,
   type EurosMeta,
   type SideGameKind,
   type WorldcupMeta,
@@ -29,10 +30,7 @@ import { useAuth } from '@/auth';
 import { SelectionToggleIcon } from '@/components/icons/SelectionToggleIcon';
 import { LoginForm } from '@/features/auth/LoginForm';
 import { useLeadersTabMode } from '@/features/leaders/LeadersTabModeContext';
-import {
-  formatScrubberDate,
-  utcDayKey,
-} from '@/features/matches/formatMatchDate';
+import { utcDayKey } from '@/features/matches/formatMatchDate';
 import { colors } from '@/theme';
 
 import { useSideGamesOpen } from './SideGamesOpenContext';
@@ -51,7 +49,7 @@ type PendingConfirm =
       kind: 'end';
       tournament: SideGameKind;
       message: string;
-      endDate: string;
+      winnerIds: string[];
     };
 
 function playerLabel(player: PlayerProfile): string {
@@ -107,7 +105,8 @@ export function SideGamesAdminWidget() {
   const [worldcupMeta, setWorldcupMeta] = useState<WorldcupMeta | null>(null);
   const [players, setPlayers] = useState<PlayerProfile[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [endDate, setEndDate] = useState(utcDayKey(new Date()));
+  /** Winners for close (multi-select from active roster). */
+  const [winnerIds, setWinnerIds] = useState<string[]>([]);
   const [stakePounds, setStakePounds] = useState('2');
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -176,7 +175,7 @@ export function SideGamesAdminWidget() {
         setEurosMeta(euros);
         setWorldcupMeta(worldcup);
         setPlayers(roster);
-        setEndDate(utcDayKey(new Date()));
+        setWinnerIds([]);
       } catch (err) {
         setError(
           err instanceof ApiError
@@ -217,6 +216,16 @@ export function SideGamesAdminWidget() {
     setNote(null);
   };
 
+  const toggleWinner = (authId: string) => {
+    setWinnerIds((prev) =>
+      prev.includes(authId)
+        ? prev.filter((id) => id !== authId)
+        : [...prev, authId],
+    );
+    setError(null);
+    setNote(null);
+  };
+
   const requestOpen = () => {
     setError(null);
     setNote(null);
@@ -231,7 +240,7 @@ export function SideGamesAdminWidget() {
     }
     if (anyOpen) {
       const openLabel = eurosIsOpen
-        ? 'Euro Wizard'
+        ? 'Euros'
         : worldcupIsOpen
           ? 'World Cup'
           : 'A tournament';
@@ -252,15 +261,13 @@ export function SideGamesAdminWidget() {
 
     const pot = formatPounds(buyInPence * selectedIds.length);
     const names = selectedPlayers.map(playerLabel).join(', ');
+    const label = sideGameLabel(tournament);
     setPendingConfirm({
       kind: 'open',
       tournament,
       buyInPence,
       entrantIds: [...selectedIds],
-      message:
-        tournament === 'euros'
-          ? `Open Euro Wizard with buy-in ${formatPounds(buyInPence)} × ${selectedIds.length} = ${pot}. Entrants: ${names}. Proceed?`
-          : `Open World Cup with buy-in ${formatPounds(buyInPence)} × ${selectedIds.length} = ${pot}. Entrants: ${names}. Proceed?`,
+      message: `Open ${label} with buy-in ${formatPounds(buyInPence)} × ${selectedIds.length} = ${pot}. Entrants: ${names}. Proceed?`,
     });
   };
 
@@ -289,7 +296,7 @@ export function SideGamesAdminWidget() {
           tournament: created,
         });
         setNote(
-          `Euro Wizard open · ${created.entrant_count} entrants · pot ${formatPounds(created.prize_pot_pence)}.`,
+          `Euros open · ${created.entrant_count} entrants · pot ${formatPounds(created.prize_pot_pence)}.`,
         );
       } else {
         const meta = await openWorldcupTournament(token, {
@@ -324,26 +331,21 @@ export function SideGamesAdminWidget() {
     }
     const isOpen = kind === 'euros' ? eurosIsOpen : worldcupIsOpen;
     if (!isOpen) {
-      setError(
-        kind === 'euros'
-          ? 'Euro Wizard is not open.'
-          : 'World Cup is not open.',
-      );
+      setError(`${sideGameLabel(kind)} is not open.`);
       return;
     }
-    const day = endDate.trim();
-    if (kind === 'euros' && !/^\d{4}-\d{2}-\d{2}$/.test(day)) {
-      setError('End date must be YYYY-MM-DD.');
+    if (winnerIds.length === 0) {
+      setError('Select at least one winner.');
       return;
     }
+    const winnerNames = activePlayers
+      .filter((p) => winnerIds.includes(p.auth_id))
+      .map(playerLabel);
     setPendingConfirm({
       kind: 'end',
       tournament: kind,
-      endDate: day,
-      message:
-        kind === 'euros'
-          ? `End Euro Wizard on ${formatScrubberDate(day)}. Proceed?`
-          : 'End World Cup (clears open for nav). Proceed?',
+      winnerIds: [...winnerIds],
+      message: `End ${sideGameLabel(kind)}. Winners (${winnerNames.length}): ${winnerNames.join(', ')}. Proceed?`,
     });
   };
 
@@ -357,7 +359,9 @@ export function SideGamesAdminWidget() {
     setPendingConfirm(null);
     try {
       if (confirm.tournament === 'euros') {
-        const closed = await endEurosTournament(token, confirm.endDate);
+        const closed = await endEurosTournament(token, {
+          winnerIds: confirm.winnerIds,
+        });
         setEurosMeta({
           open: false,
           buy_in_pence: closed.buy_in_pence,
@@ -365,12 +369,19 @@ export function SideGamesAdminWidget() {
           prize_pot_pence: closed.prize_pot_pence,
           tournament: closed,
         });
-        setNote(`Euro Wizard ended on ${formatScrubberDate(confirm.endDate)}.`);
+        setNote(
+          `Euros ended with ${confirm.winnerIds.length} winner(s).`,
+        );
       } else {
-        const meta = await endWorldcupTournament(token);
+        const meta = await endWorldcupTournament(token, {
+          winnerIds: confirm.winnerIds,
+        });
         setWorldcupMeta(meta);
-        setNote('World Cup ended.');
+        setNote(
+          `World Cup ended with ${confirm.winnerIds.length} winner(s).`,
+        );
       }
+      setWinnerIds([]);
       await refreshOpen();
     } catch (err) {
       setError(formatApiError(err, 'Could not end the side game.'));
@@ -534,7 +545,6 @@ export function SideGamesAdminWidget() {
           ) : null}
         </View>
 
-        <Text style={styles.sectionTitle}>Tournament</Text>
         <View style={styles.pickerRow}>
           {(
             [
@@ -575,52 +585,77 @@ export function SideGamesAdminWidget() {
 
         {anyOpen ? (
           <View style={styles.block}>
-            <Text style={styles.sectionTitle}>End open tournament</Text>
             {otherOpenKind && !selectedIsOpen ? (
               <Text style={styles.blockHint}>
-                {otherOpenKind === 'euros' ? 'Euro Wizard' : 'World Cup'} is
-                open. Open is blocked until you end it.
+                {sideGameLabel(otherOpenKind)} is open. Open is blocked until
+                you end it.
               </Text>
-            ) : (
-              <Text style={styles.blockHint}>
-                Bottom-nav trophy shows while open. End to hide it and allow
-                opening the other tournament.
-              </Text>
-            )}
+            ) : null}
             {openKinds.map((kind) => {
-              const label = kind === 'euros' ? 'Euro Wizard' : 'World Cup';
+              const label = sideGameLabel(kind);
               return (
                 <View key={kind} style={styles.endCard}>
                   <Text style={styles.endCardTitle}>{label}</Text>
-                  {kind === 'euros' ? (
-                    <>
-                      <Text style={styles.label}>End date (UTC)</Text>
-                      <TextInput
-                        style={styles.input}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        editable={!busy}
-                        value={endDate}
-                        onChangeText={setEndDate}
-                        placeholder="YYYY-MM-DD"
-                        placeholderTextColor={colors.textMuted}
-                        accessibilityLabel="Tournament end date"
-                      />
-                    </>
-                  ) : null}
+                  <Text style={styles.label}>Winners</Text>
+                  <Text style={styles.hint}>
+                    Select at least one. Posted as winner_ids (auth_id).
+                  </Text>
+                  {activePlayers.length === 0 ? (
+                    <Text style={styles.emptyList}>
+                      No active players on the roster.
+                    </Text>
+                  ) : (
+                    activePlayers.map((player) => {
+                      const on = winnerIds.includes(player.auth_id);
+                      return (
+                        <Pressable
+                          key={player.auth_id}
+                          accessibilityRole="checkbox"
+                          accessibilityState={{ checked: on }}
+                          accessibilityLabel={`Toggle winner ${playerLabel(player)}`}
+                          disabled={busy}
+                          onPress={() => toggleWinner(player.auth_id)}
+                          style={({ pressed }) => [
+                            styles.playerRow,
+                            on && styles.playerRowOn,
+                            (pressed || busy) && styles.pressed,
+                          ]}
+                        >
+                          <View style={styles.playerText}>
+                            <Text style={styles.playerName}>
+                              {playerLabel(player)}
+                            </Text>
+                            {player.email ? (
+                              <Text style={styles.playerMeta}>
+                                {player.email}
+                              </Text>
+                            ) : null}
+                          </View>
+                          <SelectionToggleIcon selected={on} size={24} />
+                        </Pressable>
+                      );
+                    })
+                  )}
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={`End ${label}`}
-                    disabled={busy || pendingConfirm != null}
+                    disabled={
+                      busy ||
+                      pendingConfirm != null ||
+                      winnerIds.length === 0
+                    }
                     onPress={() => requestEnd(kind)}
                     style={({ pressed }) => [
                       styles.button,
                       styles.buttonDanger,
-                      (busy || pendingConfirm != null) &&
+                      (busy ||
+                        pendingConfirm != null ||
+                        winnerIds.length === 0) &&
                         styles.buttonDisabled,
                       pressed &&
                         !busy &&
                         pendingConfirm == null &&
+                        winnerIds.length > 0 &&
                         styles.pressed,
                     ]}
                   >
@@ -843,6 +878,7 @@ const styles = StyleSheet.create({
   pickerRow: {
     flexDirection: 'row',
     gap: 8,
+    marginTop: 4,
     marginBottom: 8,
   },
   pickerChip: {

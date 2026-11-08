@@ -56,7 +56,7 @@ function roleFor(kind: SideGameKind): string {
 }
 
 function titleFor(kind: SideGameKind): string {
-  return kind === 'euros' ? 'Euro Wizard' : 'World Cup';
+  return kind === 'euros' ? 'Euros' : 'World Cup';
 }
 
 function shortLabelFor(kind: SideGameKind): string {
@@ -96,8 +96,8 @@ function pickInitialDay(dayKeys: string[], now: Date): string | null {
 }
 
 /**
- * Player Euro Wizard / World Cup surface: Matches ↔ Table scrubber, date
- * scrubber, prediction rows (H/D/A + knockout ET/pens), scores board.
+ * Player Euros / World Cup surface: Matches ↔ Table scrubber, date scrubber,
+ * prediction rows (H/D/A + knockout ET/pens), scores board.
  */
 export function SideGamePlayerWidget({ kind }: Props) {
   const { isAuthenticated, token, hasRole, session } = useAuth();

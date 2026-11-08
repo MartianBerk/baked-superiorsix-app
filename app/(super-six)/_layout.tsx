@@ -21,7 +21,7 @@ import { colors } from '@/theme';
  * Core Super Six experience: header (round | logo | prize) + bottom menu.
  * Profile, fixtures, scores, and leaders admin modes swap in place via
  * tab-mode providers (header + nav stay visible).
- * Euros / World Cup tabs appear only while that tournament's meta.open.
+ * Euros / World Cup tabs appear only while that tournament meta.open.
  */
 function SuperSixTabs() {
   const { eurosOpen, worldcupOpen } = useSideGamesOpen();
@@ -65,8 +65,8 @@ function SuperSixTabs() {
         <Tabs.Screen
           name="euros"
           options={{
-            title: 'Euro Wizard',
-            tabBarAccessibilityLabel: 'Euro Wizard',
+            title: 'Euros',
+            tabBarAccessibilityLabel: 'Euros',
             href: eurosOpen ? undefined : null,
           }}
         />
