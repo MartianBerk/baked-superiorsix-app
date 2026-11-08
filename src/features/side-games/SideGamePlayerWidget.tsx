@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -456,6 +457,21 @@ export function SideGamePlayerWidget({ kind }: Props) {
                 );
               })
             )}
+            {!isAuthenticated ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Sign in"
+                onPress={() => {
+                  router.push('/profile');
+                }}
+                style={({ pressed }) => [
+                  styles.signInButton,
+                  pressed && styles.signInButtonPressed,
+                ]}
+              >
+                <Text style={styles.signInButtonLabel}>Sign in</Text>
+              </Pressable>
+            ) : null}
           </ScrollView>
         </>
       ) : (
@@ -568,5 +584,25 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
     marginTop: 24,
+  },
+  /** Same chrome as MatchPredictRow Sign in (routes to profile/login). */
+  signInButton: {
+    alignSelf: 'flex-start',
+    marginTop: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: colors.menuActive,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  signInButtonPressed: {
+    opacity: 0.85,
+  },
+  signInButtonLabel: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
 });
