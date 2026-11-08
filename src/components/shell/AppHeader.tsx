@@ -63,11 +63,16 @@ export function AppHeader({
   const { mode: scoresMode } = useScoresTabMode();
   const { mode: leadersMode } = useLeadersTabMode();
   const { mode: profileMode } = useUserTabMode();
-  const { playerPickingStatus, gamedayHeader } = useRoundStatus();
+  const {
+    playerPickingStatus,
+    sideGamePickingStatus,
+    gamedayHeader,
+  } = useRoundStatus();
   const resolvedRound = roundLabel ?? gamedayHeader.roundLabel;
   const resolvedPrize = prizeLabel ?? gamedayHeader.prizeLabel;
+  const onSideGame = isSideGamePath(pathname);
   // Hide when logged out or Scores / Leaders / Profile admin.
-  // Euros / World Cup keep the strip (tournament n / total Selections).
+  // Euros / World Cup keep the strip (tournament n / total — dedicated channel).
   // Fixtures admin keeps the strip (selection count + slate difficulty pips).
   const hideStatusStrip =
     !isAuthenticated ||
@@ -76,12 +81,19 @@ export function AppHeader({
     (profileMode === 'admin' && isProfilePath(pathname));
 
   // Pot banner stays Super Six–only (not tournament perfect-slate).
-  const hidePotBanner = hideStatusStrip || isSideGamePath(pathname);
+  const hidePotBanner = hideStatusStrip || onSideGame;
 
+  // Tournament tabs never read Super Six gameday banner counts.
   const status: RoundStatus | null =
     roundStatus ??
     (isAuthenticated && !hideStatusStrip
-      ? (playerPickingStatus ?? PLACEHOLDER_ROUND_STATUS)
+      ? onSideGame
+        ? (sideGamePickingStatus ?? {
+            phase: 'picking' as const,
+            selectedCount: 0,
+            slateSize: 0,
+          })
+        : (playerPickingStatus ?? PLACEHOLDER_ROUND_STATUS)
       : null);
 
   const potHolders = status?.perfectSix;

@@ -18,11 +18,17 @@ export type GamedayHeaderChrome = {
 
 type RoundStatusContextValue = {
   /**
-   * Live picking status from the player fixtures widget (prediction count).
-   * Null when the widget is not publishing (e.g. signed out / unloaded).
+   * Super Six picking / live strip (Matches, Scores, etc.).
+   * Null when signed out / not publishing.
    */
   playerPickingStatus: RoundStatus | null;
   setPlayerPickingStatus: (status: RoundStatus | null) => void;
+  /**
+   * Euros / World Cup under-header strip only — never reuse Super Six counts.
+   * Published by SideGamePlayerWidget while that tab is open.
+   */
+  sideGamePickingStatus: RoundStatus | null;
+  setSideGamePickingStatus: (status: RoundStatus | null) => void;
   /** Shell header round / pot values (SS-26). */
   gamedayHeader: GamedayHeaderChrome;
   setGamedayHeader: (chrome: GamedayHeaderChrome) => void;
@@ -35,23 +41,34 @@ const DEFAULT_HEADER: GamedayHeaderChrome = {
 
 const RoundStatusContext = createContext<RoundStatusContextValue | null>(null);
 
+function mergeStatus(
+  prev: RoundStatus | null,
+  status: RoundStatus | null,
+): RoundStatus | null {
+  if (status == null) {
+    return null;
+  }
+  // Publishers without difficulty data omit the field — keep prior pips.
+  if (status.slateDifficulty !== undefined || prev?.slateDifficulty == null) {
+    return status;
+  }
+  return { ...status, slateDifficulty: prev.slateDifficulty };
+}
+
 export function RoundStatusProvider({ children }: { children: ReactNode }) {
   const [playerPickingStatus, setPlayerPickingStatusState] =
+    useState<RoundStatus | null>(null);
+  const [sideGamePickingStatus, setSideGamePickingStatusState] =
     useState<RoundStatus | null>(null);
   const [gamedayHeader, setGamedayHeaderState] =
     useState<GamedayHeaderChrome>(DEFAULT_HEADER);
 
   const setPlayerPickingStatus = useCallback((status: RoundStatus | null) => {
-    setPlayerPickingStatusState((prev) => {
-      if (status == null) {
-        return null;
-      }
-      // Publishers without difficulty data omit the field — keep prior pips.
-      if (status.slateDifficulty !== undefined || prev?.slateDifficulty == null) {
-        return status;
-      }
-      return { ...status, slateDifficulty: prev.slateDifficulty };
-    });
+    setPlayerPickingStatusState((prev) => mergeStatus(prev, status));
+  }, []);
+
+  const setSideGamePickingStatus = useCallback((status: RoundStatus | null) => {
+    setSideGamePickingStatusState((prev) => mergeStatus(prev, status));
   }, []);
 
   const setGamedayHeader = useCallback((chrome: GamedayHeaderChrome) => {
@@ -67,12 +84,16 @@ export function RoundStatusProvider({ children }: { children: ReactNode }) {
     () => ({
       playerPickingStatus,
       setPlayerPickingStatus,
+      sideGamePickingStatus,
+      setSideGamePickingStatus,
       gamedayHeader,
       setGamedayHeader,
     }),
     [
       playerPickingStatus,
       setPlayerPickingStatus,
+      sideGamePickingStatus,
+      setSideGamePickingStatus,
       gamedayHeader,
       setGamedayHeader,
     ],

@@ -102,7 +102,7 @@ function pickInitialDay(dayKeys: string[], now: Date): string | null {
  */
 export function SideGamePlayerWidget({ kind }: Props) {
   const { isAuthenticated, token, hasRole, session } = useAuth();
-  const { setPlayerPickingStatus } = useRoundStatus();
+  const { setSideGamePickingStatus } = useRoundStatus();
   const { eurosMeta, worldcupMeta, refresh: refreshOpen } = useSideGamesOpen();
 
   const [view, setView] = useState<ViewMode>('matches');
@@ -238,16 +238,16 @@ export function SideGamePlayerWidget({ kind }: Props) {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setPlayerPickingStatus(null);
+      setSideGamePickingStatus(null);
       return;
     }
-    setPlayerPickingStatus(
+    // Dedicated channel — never write Super Six playerPickingStatus.
+    setSideGamePickingStatus(
       buildPlayerRoundStatus({
         phase: 'picking',
         slateSize: pickableMatches.length,
         selectedCount: tournamentPickedCount,
         correctCount: 0,
-        // Hide Super Six difficulty pips on tournament tabs.
         slateDifficulty: null,
       }),
     );
@@ -255,7 +255,7 @@ export function SideGamePlayerWidget({ kind }: Props) {
     isAuthenticated,
     pickableMatches.length,
     tournamentPickedCount,
-    setPlayerPickingStatus,
+    setSideGamePickingStatus,
   ]);
 
   const submitPrediction = async (
