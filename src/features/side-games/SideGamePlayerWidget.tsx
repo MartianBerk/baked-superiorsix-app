@@ -24,6 +24,7 @@ import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
 import { useRoundStatus } from '@/components/shell/RoundStatusContext';
 import { ChevronIcon } from '@/components/icons/ChevronIcon';
+import { MenuIcon } from '@/components/icons/MenuIcon';
 import { DateScrubber } from '@/features/matches/DateScrubber';
 import { utcDayKey } from '@/features/matches/formatMatchDate';
 import {
@@ -96,8 +97,8 @@ function pickInitialDay(dayKeys: string[], now: Date): string | null {
 }
 
 /**
- * Player Euros / World Cup surface: Matches ↔ Table scrubber, date scrubber,
- * prediction rows (H/D/A + knockout ET/pens), scores board.
+ * Player Euros / World Cup surface: pot strip, Matches ↔ Table scrubber,
+ * date scrubber, inline H/D/A rows (+ knockout 90/ET/P), scores board.
  */
 export function SideGamePlayerWidget({ kind }: Props) {
   const { isAuthenticated, token, hasRole, session } = useAuth();
@@ -315,8 +316,24 @@ export function SideGamePlayerWidget({ kind }: Props) {
     );
   }
 
+  const potLabel = formatPrizePounds(potPence);
+
   return (
     <View style={styles.root}>
+      <View
+        style={styles.potStrip}
+        accessibilityRole="summary"
+        accessibilityLabel={`${titleFor(kind)} pot ${potLabel}`}
+      >
+        <MenuIcon
+          name={kind === 'euros' ? 'euros' : 'worldcup'}
+          size={28}
+          color={colors.accentBright}
+          active
+        />
+        <Text style={styles.potLabel}>{potLabel}</Text>
+      </View>
+
       <View style={styles.viewScrubberWrap}>
         <View
           style={scrubberChrome.row}
@@ -462,6 +479,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.background,
+  },
+  potStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingHorizontal: '3%',
+    paddingTop: 4,
+    paddingBottom: 10,
+  },
+  potLabel: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   viewScrubberWrap: {
     paddingHorizontal: '3%',

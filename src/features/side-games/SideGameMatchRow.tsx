@@ -1,6 +1,4 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { SvgXml } from 'react-native-svg';
+import { StyleSheet, Text, View } from 'react-native';
 
 import type {
   SideGameMatch,
@@ -14,9 +12,6 @@ import {
 import { colors } from '@/theme';
 
 import { SideGamePredictionPicker } from './SideGamePredictionPicker';
-
-const CHEVRON_DOWN = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
-const CHEVRON_UP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>`;
 
 type Props = {
   match: SideGameMatch;
@@ -65,7 +60,8 @@ function pickCorrect(
 }
 
 /**
- * Side-game match row: teams, score/expand, minute, optional H/D/A + ET/pens.
+ * Side-game match row: teams, inline mid-row H/D/A (or knockout 90/ET/P),
+ * score when locked, kickoff/minute. No expander.
  */
 export function SideGameMatchRow({
   match,
@@ -80,14 +76,8 @@ export function SideGameMatchRow({
   teamColumnWidth,
   now = new Date(),
 }: Props) {
-  const [expanded, setExpanded] = useState(false);
-  const open = expanded && !locked;
   const postponed = match.status === 'POSTPONED';
   const knockout = isKnockoutMatchday(match.matchday);
-  const chevron = (open ? CHEVRON_UP : CHEVRON_DOWN).replaceAll(
-    'CURRENT',
-    colors.textMuted,
-  );
   const correct = pickCorrect(prediction, match);
 
   const scoreLine = locked
@@ -113,21 +103,7 @@ export function SideGameMatchRow({
 
   return (
     <View style={[styles.block, prediction != null && styles.blockPicked]}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ expanded: open }}
-        accessibilityLabel={`${match.home_team} versus ${match.away_team}`}
-        disabled={postponed}
-        onPress={() => {
-          if (!locked) {
-            setExpanded((v) => !v);
-          }
-        }}
-        style={({ pressed }) => [
-          styles.row,
-          pressed && !locked && styles.pressed,
-        ]}
-      >
+      <View style={styles.row}>
         <View style={styles.correctSlot}>
           {correct === true ? (
             <Text style={styles.correctMark}>✓</Text>
@@ -154,29 +130,24 @@ export function SideGameMatchRow({
             {postponed ? ' (P)' : ''}
           </Text>
         </View>
-        <View style={styles.scoreSlot}>
-          {locked ? (
-            <Text style={styles.score}>{scoreLine ?? '- : -'}</Text>
-          ) : (
-            <SvgXml xml={chevron} width={14} height={14} />
-          )}
+        <View style={styles.mid}>
+          <SideGamePredictionPicker
+            selection={prediction}
+            extraTime={extraTime}
+            penalties={penalties}
+            knockout={knockout}
+            busy={busy}
+            disabled={locked || postponed}
+            readOnly={!canSubmit}
+            onSelect={onPredict}
+            onCycleKnockout={onCycleKnockout}
+          />
         </View>
+        {locked && scoreLine ? (
+          <Text style={styles.score}>{scoreLine}</Text>
+        ) : null}
         <Text style={styles.minute}>{minuteLabel}</Text>
-      </Pressable>
-
-      {open ? (
-        <SideGamePredictionPicker
-          selection={prediction}
-          extraTime={extraTime}
-          penalties={penalties}
-          knockout={knockout}
-          busy={busy}
-          disabled={locked || postponed}
-          readOnly={!canSubmit}
-          onSelect={onPredict}
-          onCycleKnockout={onCycleKnockout}
-        />
-      ) : null}
+      </View>
     </View>
   );
 }
@@ -195,9 +166,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  pressed: {
-    opacity: 0.85,
   },
   correctSlot: {
     width: 16,
@@ -221,11 +189,11 @@ const styles = StyleSheet.create({
   teamPicked: {
     color: colors.accentBright,
   },
-  scoreSlot: {
+  mid: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 48,
+    minWidth: 120,
   },
   score: {
     color: colors.text,

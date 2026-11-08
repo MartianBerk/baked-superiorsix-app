@@ -32,8 +32,8 @@ const SideGamesOpenContext = createContext<SideGamesOpenContextValue | null>(
 const POLL_MS = 60_000;
 
 /**
- * Polls public euros / worldcup meta so the bottom nav can show trophy tabs
- * only while that tournament is active.
+ * Polls public euros / worldcup meta so the bottom nav can show at most one
+ * trophy tab (open Euros hides World Cup and vice versa).
  */
 export function SideGamesOpenProvider({ children }: { children: ReactNode }) {
   const [eurosMeta, setEurosMeta] = useState<EurosMeta | null>(null);

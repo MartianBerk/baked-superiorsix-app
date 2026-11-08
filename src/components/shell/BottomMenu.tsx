@@ -12,8 +12,9 @@ import { useSideGamesOpen } from '@/features/side-games/SideGamesOpenContext';
 import { colors } from '@/theme';
 
 /**
- * Tab order: fixtures → scores → leaders → [euros?] → [worldcup?] → user
- * (rightmost). Side-game trophy tabs only when that tournament is open.
+ * Tab order: fixtures → scores → leaders → [euros|worldcup?] → user
+ * (rightmost). At most one side-game trophy: open Euros hides World Cup
+ * and vice versa.
  */
 const TAB_ICONS: Record<string, MenuIconName> = {
   index: 'fixtures',
@@ -68,6 +69,8 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
   const { mode: scoresMode, setMode: setScoresMode } = useScoresTabMode();
   const { mode: leadersMode, setMode: setLeadersMode } = useLeadersTabMode();
   const { eurosOpen, worldcupOpen } = useSideGamesOpen();
+  const showEuros = eurosOpen;
+  const showWorldcup = worldcupOpen && !eurosOpen;
   const canAdminToggle = isAuthenticated && hasRole(ADMIN_ROLE);
 
   const toggleDualMode = useCallback(
@@ -118,11 +121,11 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
             return null;
           }
 
-          // Hide closed side-game tabs (href: null from layout + open flags).
-          if (route.name === 'euros' && !eurosOpen) {
+          // Only the open tournament’s icon (Euros wins if both somehow open).
+          if (route.name === 'euros' && !showEuros) {
             return null;
           }
-          if (route.name === 'worldcup' && !worldcupOpen) {
+          if (route.name === 'worldcup' && !showWorldcup) {
             return null;
           }
           const href = descriptors[route.key]?.options?.href;

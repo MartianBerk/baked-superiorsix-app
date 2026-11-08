@@ -3,11 +3,17 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import type { SideGamePredictionChoice } from '@/api/sideGames';
 import { colors } from '@/theme';
 
+const CHOICES: { value: SideGamePredictionChoice; label: string }[] = [
+  { value: 'home', label: 'H' },
+  { value: 'draw', label: 'D' },
+  { value: 'away', label: 'A' },
+];
+
 type Props = {
   selection: SideGamePredictionChoice | null;
   extraTime: boolean;
   penalties: boolean;
-  /** Knockout (matchday ≥ 4): Draw becomes 90/ET/P cycle. */
+  /** Knockout (matchday ≥ 4): middle control is 90/ET/P instead of D. */
   knockout: boolean;
   busy: boolean;
   disabled: boolean;
@@ -17,7 +23,8 @@ type Props = {
 };
 
 /**
- * Home / Draw|90-ET-P / Away — legacy Euros / World Cup prediction row.
+ * Inline mid-row H / D / A badges (same chrome as admin prediction rows).
+ * Knockout replaces D with a compact 90 → ET → P cycle control.
  */
 export function SideGamePredictionPicker({
   selection,
@@ -33,178 +40,107 @@ export function SideGamePredictionPicker({
   const locked = disabled || busy || readOnly;
 
   return (
-    <View style={styles.wrap}>
-      {readOnly ? (
-        <Text style={styles.readOnlyHint}>
-          View only — roster + euros/worldcup role required to submit.
-        </Text>
-      ) : null}
-      <View style={styles.row}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ selected: selection === 'home', disabled: locked }}
-          accessibilityLabel="Predict home"
-          disabled={locked}
-          onPress={() => onSelect('home')}
-          style={({ pressed }) => [
-            styles.button,
-            selection === 'home' && styles.buttonActive,
-            pressed && !locked && styles.buttonPressed,
-            locked && styles.buttonDisabled,
-          ]}
-        >
-          {busy && selection === 'home' ? (
-            <ActivityIndicator size="small" color={colors.text} />
-          ) : (
-            <Text
-              style={[
-                styles.label,
-                selection === 'home' && styles.labelActive,
+    <View style={styles.picker}>
+      {CHOICES.map(({ value, label }) => {
+        if (knockout && value === 'draw') {
+          const cycleEnabled =
+            !locked && selection != null && selection !== 'draw';
+          return (
+            <Pressable
+              key="knockout-cycle"
+              accessibilityRole="button"
+              accessibilityLabel="Cycle ninety minutes, extra time, penalties"
+              disabled={!cycleEnabled}
+              onPress={onCycleKnockout}
+              style={({ pressed }) => [
+                styles.button,
+                styles.knockoutButton,
+                selection != null &&
+                  selection !== 'draw' &&
+                  styles.buttonActiveSoft,
+                pressed && cycleEnabled && styles.buttonPressed,
+                !cycleEnabled && styles.buttonDisabled,
               ]}
             >
-              Home
-            </Text>
-          )}
-        </Pressable>
+              <View style={styles.toggleRow}>
+                <Text
+                  style={[
+                    styles.togglePart,
+                    selection && !extraTime && !penalties && styles.toggleActive,
+                  ]}
+                >
+                  90
+                </Text>
+                <Text
+                  style={[
+                    styles.togglePart,
+                    selection && extraTime && !penalties && styles.toggleActive,
+                  ]}
+                >
+                  ET
+                </Text>
+                <Text
+                  style={[
+                    styles.togglePart,
+                    selection && penalties && styles.toggleActive,
+                  ]}
+                >
+                  P
+                </Text>
+              </View>
+            </Pressable>
+          );
+        }
 
-        {knockout ? (
+        const active = selection === value;
+        return (
           <Pressable
+            key={value}
             accessibilityRole="button"
-            accessibilityLabel="Cycle ninety minutes, extra time, penalties"
-            disabled={locked || selection == null || selection === 'draw'}
-            onPress={onCycleKnockout}
-            style={({ pressed }) => [
-              styles.button,
-              styles.toggle,
-              selection != null &&
-                selection !== 'draw' &&
-                styles.buttonActiveSoft,
-              pressed && !locked && styles.buttonPressed,
-              (locked || selection == null || selection === 'draw') &&
-                styles.buttonDisabled,
-            ]}
-          >
-            <View style={styles.toggleRow}>
-              <Text
-                style={[
-                  styles.togglePart,
-                  selection && !extraTime && !penalties && styles.toggleActive,
-                ]}
-              >
-                90
-              </Text>
-              <Text
-                style={[
-                  styles.togglePart,
-                  selection && extraTime && !penalties && styles.toggleActive,
-                ]}
-              >
-                ET
-              </Text>
-              <Text
-                style={[
-                  styles.togglePart,
-                  selection && penalties && styles.toggleActive,
-                ]}
-              >
-                P
-              </Text>
-            </View>
-          </Pressable>
-        ) : (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{
-              selected: selection === 'draw',
-              disabled: locked,
-            }}
-            accessibilityLabel="Predict draw"
+            accessibilityState={{ selected: active, disabled: locked }}
+            accessibilityLabel={`Predict ${label}`}
             disabled={locked}
-            onPress={() => onSelect('draw')}
+            onPress={() => onSelect(value)}
             style={({ pressed }) => [
               styles.button,
-              selection === 'draw' && styles.buttonActive,
+              active && styles.buttonActive,
               pressed && !locked && styles.buttonPressed,
               locked && styles.buttonDisabled,
             ]}
           >
-            {busy && selection === 'draw' ? (
+            {busy && active ? (
               <ActivityIndicator size="small" color={colors.text} />
             ) : (
-              <Text
-                style={[
-                  styles.label,
-                  selection === 'draw' && styles.labelActive,
-                ]}
-              >
-                Draw
+              <Text style={[styles.label, active && styles.labelActive]}>
+                {label}
               </Text>
             )}
           </Pressable>
-        )}
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ selected: selection === 'away', disabled: locked }}
-          accessibilityLabel="Predict away"
-          disabled={locked}
-          onPress={() => onSelect('away')}
-          style={({ pressed }) => [
-            styles.button,
-            selection === 'away' && styles.buttonActive,
-            pressed && !locked && styles.buttonPressed,
-            locked && styles.buttonDisabled,
-          ]}
-        >
-          {busy && selection === 'away' ? (
-            <ActivityIndicator size="small" color={colors.text} />
-          ) : (
-            <Text
-              style={[
-                styles.label,
-                selection === 'away' && styles.labelActive,
-              ]}
-            >
-              Away
-            </Text>
-          )}
-        </Pressable>
-      </View>
+        );
+      })}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  readOnlyHint: {
-    color: colors.textMuted,
-    fontSize: 12,
-    marginBottom: 8,
-  },
-  row: {
+  picker: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
+    gap: 6,
+    flexShrink: 0,
   },
   button: {
-    flex: 1,
-    minHeight: 36,
+    width: 36,
+    height: 36,
     borderRadius: 10,
     backgroundColor: colors.menuBar,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 8,
   },
-  toggle: {
+  knockoutButton: {
+    width: 72,
     paddingHorizontal: 4,
   },
   buttonActive: {
@@ -215,7 +151,7 @@ const styles = StyleSheet.create({
     borderColor: colors.accentBright,
   },
   buttonPressed: {
-    backgroundColor: colors.menuActive,
+    backgroundColor: colors.surface,
   },
   buttonDisabled: {
     opacity: 0.45,
@@ -223,9 +159,8 @@ const styles = StyleSheet.create({
   label: {
     color: colors.textMuted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
     letterSpacing: 0.3,
-    textTransform: 'uppercase',
   },
   labelActive: {
     color: colors.text,
@@ -233,11 +168,11 @@ const styles = StyleSheet.create({
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   togglePart: {
     color: colors.textMuted,
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '700',
   },
   toggleActive: {
