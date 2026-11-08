@@ -7,6 +7,7 @@ import { DualModeAuthReset } from '@/components/shell/DualModeAuthReset';
 import { GamedayHeaderSync } from '@/components/shell/GamedayHeaderSync';
 import { GamedayRoundStatusSync } from '@/components/shell/GamedayRoundStatusSync';
 import { RoundStatusProvider } from '@/components/shell/RoundStatusContext';
+import { tabSlideTransition } from '@/components/shell/tabSlideTransition';
 import { UserTabModeProvider } from '@/features/auth/UserTabModeContext';
 import { LeadersTabModeProvider } from '@/features/leaders/LeadersTabModeContext';
 import { FixturesTabModeProvider } from '@/features/matches/FixturesTabModeContext';
@@ -40,6 +41,7 @@ export default function SuperSixLayout() {
                   )}
                   screenOptions={{
                     headerShown: false,
+                    ...tabSlideTransition,
                   }}
                 >
                   <Tabs.Screen
