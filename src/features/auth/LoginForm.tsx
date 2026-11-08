@@ -14,13 +14,8 @@ import { colors } from '@/theme';
 
 type Mode = 'signIn' | 'firstLogin';
 
-type Props = {
-  /** Shown above the form (e.g. profile tab vs /auth route). */
-  heading?: string;
-};
-
 /** Email / password against baked-auth (`audience=superiorsix`). */
-export function LoginForm({ heading }: Props) {
+export function LoginForm() {
   const { signIn, claimAndAcceptInvite } = useAuth();
   const [mode, setMode] = useState<Mode>('signIn');
   const [email, setEmail] = useState('');
@@ -28,9 +23,6 @@ export function LoginForm({ heading }: Props) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  const title =
-    mode === 'firstLogin' ? 'Invited' : (heading ?? 'Sign in');
 
   const passwordsMatch =
     mode !== 'firstLogin' ||
@@ -77,8 +69,6 @@ export function LoginForm({ heading }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.heading}>{title}</Text>
-
       <View style={styles.modeRow}>
         <Pressable
           accessibilityRole="button"
@@ -226,13 +216,6 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     alignSelf: 'center',
     paddingHorizontal: 24,
-  },
-  heading: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-    marginBottom: 16,
   },
   modeRow: {
     flexDirection: 'row',
