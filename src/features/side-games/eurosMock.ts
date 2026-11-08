@@ -140,21 +140,33 @@ export const MOCK_EUROS_MATCHES: SideGameMatch[] = [
     penalties: false,
     use_match: true,
   },
+  /**
+   * Knockout (matchday ≥ 4): Home win decided in ET.
+   * On today’s scrubber day so H + 90/ET/P middle badge is visible in DEV.
+   */
   {
     id: 201,
     home_team: 'England',
     away_team: 'France',
-    home_score: null,
-    away_score: null,
-    status: 'SCHEDULED',
+    home_score: 2,
+    away_score: 1,
+    status: 'FINISHED',
     match_minute: null,
-    match_date: dayOffsetIso(14, 19),
+    match_date: dayOffsetIso(0, 14),
     matchday: 4,
-    extra_time: false,
+    extra_time: true,
     penalties: false,
     use_match: true,
   },
 ];
+
+/** DEV seed: viewer pick H + ET on England–France (knockout). */
+export const MOCK_EUROS_VIEWER_PICKS: Record<
+  number,
+  { prediction: 'home' | 'draw' | 'away'; extraTime: boolean; penalties: boolean }
+> = {
+  201: { prediction: 'home', extraTime: true, penalties: false },
+};
 
 export const MOCK_EUROS_SCORES: SideGameScoreRow[] = [
   { player: 'Ada', score: 2, bonus: 0, total: 2, auth_id: 'mock-ada' },
@@ -191,6 +203,16 @@ export const MOCK_EUROS_PREDICTIONS: SideGamePrediction[] = [
     prediction: 'home',
     plus_ninety: false,
     extra_time: false,
+    penalties: false,
+    dropped: false,
+  },
+  {
+    id: 4,
+    auth_id: 'mock-ada',
+    match_id: 201,
+    prediction: 'home',
+    plus_ninety: false,
+    extra_time: true,
     penalties: false,
     dropped: false,
   },
