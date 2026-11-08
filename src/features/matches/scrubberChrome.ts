@@ -22,7 +22,8 @@ export const scrubberChrome = StyleSheet.create({
   },
   /** Fixed side slot for mini destination labels (or empty spacer at range ends). */
   sideHit: {
-    width: 78,
+    // Wide enough for muted “Performance” at mini size without ellipsis.
+    width: 92,
     height: 33,
     alignItems: 'center',
     justifyContent: 'center',
@@ -56,7 +57,7 @@ export const scrubberChrome = StyleSheet.create({
   // --- Back-compat aliases (KickoffDateDisplay / older call sites) ---
   /** @deprecated Prefer `sideHit` — same geometry for empty spacers. */
   chevronHit: {
-    width: 78,
+    width: 92,
     height: 33,
     alignItems: 'center',
     justifyContent: 'center',
