@@ -4,9 +4,9 @@ import type { PredictionChoice } from '@/api/superiorsix';
 import { colors } from '@/theme';
 
 const CHOICES: { value: PredictionChoice; label: string }[] = [
-  { value: 'home', label: 'Home' },
-  { value: 'draw', label: 'Draw' },
-  { value: 'away', label: 'Away' },
+  { value: 'home', label: 'H' },
+  { value: 'draw', label: 'D' },
+  { value: 'away', label: 'A' },
 ];
 
 type Props = {
@@ -17,8 +17,8 @@ type Props = {
 };
 
 /**
- * Home / Draw / Away controls for the expanded match-detail panel.
- * Active selection uses the accent green (legacy GamePrediction).
+ * H / D / A badges for the expanded match-detail panel — same chrome as
+ * tournament mid-row badges and admin prediction rows.
  */
 export function PredictionPicker({
   selection,
@@ -26,6 +26,8 @@ export function PredictionPicker({
   disabled,
   onSelect,
 }: Props) {
+  const locked = disabled || busy;
+
   return (
     <View style={styles.wrap}>
       <View style={styles.row}>
@@ -35,15 +37,15 @@ export function PredictionPicker({
             <Pressable
               key={value}
               accessibilityRole="button"
-              accessibilityState={{ selected: active, disabled: disabled || busy }}
+              accessibilityState={{ selected: active, disabled: locked }}
               accessibilityLabel={`Predict ${label}`}
-              disabled={disabled || busy}
+              disabled={locked}
               onPress={() => onSelect(value)}
               style={({ pressed }) => [
                 styles.button,
                 active && styles.buttonActive,
-                pressed && !disabled && !busy && styles.buttonPressed,
-                (disabled || busy) && styles.buttonDisabled,
+                pressed && !locked && styles.buttonPressed,
+                locked && styles.buttonDisabled,
               ]}
             >
               {busy && active ? (
@@ -71,27 +73,25 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
+    justifyContent: 'center',
+    gap: 6,
   },
   button: {
-    flex: 1,
-    minHeight: 36,
+    width: 36,
+    height: 36,
     borderRadius: 10,
     backgroundColor: colors.menuBar,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 8,
   },
   buttonActive: {
     backgroundColor: colors.accent,
     borderColor: colors.accentBright,
   },
   buttonPressed: {
-    backgroundColor: colors.menuActive,
+    backgroundColor: colors.surface,
   },
   buttonDisabled: {
     opacity: 0.45,
@@ -99,9 +99,8 @@ const styles = StyleSheet.create({
   label: {
     color: colors.textMuted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
     letterSpacing: 0.3,
-    textTransform: 'uppercase',
   },
   labelActive: {
     color: colors.text,
