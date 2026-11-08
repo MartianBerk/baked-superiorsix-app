@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, type StyleProp, type TextStyle } from 'react-native';
 import Animated, {
   Easing,
+  cancelAnimation,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
@@ -11,6 +12,7 @@ import Animated, {
 import { colors } from '@/theme';
 
 import {
+  SCRUB_LAND_MS,
   SCRUB_SHOOT_PX,
   SCRUB_SLIDE_MS,
   SCRUB_SLIDE_PX,
@@ -28,7 +30,10 @@ type Props = {
   numberOfLines?: number;
 };
 
+/** Snappy shoot (minis). */
 const SHOOT_EASING = Easing.out(Easing.cubic);
+/** Soft centre settle — no overshoot / bounce. */
+const LAND_EASING = Easing.bezier(0.22, 1, 0.36, 1);
 
 function travelPx(size: 'center' | 'mini'): number {
   return size === 'mini' ? SCRUB_SHOOT_PX : SCRUB_SLIDE_PX;
@@ -48,10 +53,14 @@ function shootTiming() {
   return { duration: SCRUB_SLIDE_MS, easing: SHOOT_EASING };
 }
 
+function landTiming() {
+  return { duration: SCRUB_LAND_MS, easing: LAND_EASING };
+}
+
 /**
  * Scrubber label that shoots with the scrub direction when its text changes.
- * Mini destinations travel a long hop at full opacity (no fade-in); centre
- * headers use a shorter hop inside the clipped centre slot.
+ * Minis keep a long exit→enter hop; the centre header uses a single incoming
+ * shoot so it lands once without a bounce / double settle.
  */
 export function ScrubberSlidingText({
   label,
@@ -62,30 +71,50 @@ export function ScrubberSlidingText({
   numberOfLines = 1,
 }: Props) {
   const [displayed, setDisplayed] = useState(label);
+  const displayedRef = useRef(label);
   const translateX = useSharedValue(0);
   const booted = useRef(false);
+
+  const commitLabel = useCallback((next: string) => {
+    displayedRef.current = next;
+    setDisplayed(next);
+  }, []);
 
   useEffect(() => {
     if (!booted.current) {
       booted.current = true;
-      // Newly appearing side preview after a scrub — shoot in with the hop.
+      displayedRef.current = label;
       if (direction != null) {
         translateX.value = enterOffset(direction, size);
-        translateX.value = withTiming(0, shootTiming());
+        translateX.value = withTiming(
+          0,
+          size === 'center' ? landTiming() : shootTiming(),
+        );
       }
       return;
     }
 
-    if (label === displayed) {
+    if (label === displayedRef.current) {
       return;
     }
 
+    cancelAnimation(translateX);
+
     if (direction == null) {
-      setDisplayed(label);
+      commitLabel(label);
       translateX.value = 0;
       return;
     }
 
+    if (size === 'center') {
+      // Incoming shoot only — avoids exit→teleport→enter double settle.
+      translateX.value = enterOffset(direction, size);
+      commitLabel(label);
+      translateX.value = withTiming(0, landTiming());
+      return;
+    }
+
+    // Mini: shoot out, then shoot across into the side slot.
     translateX.value = withTiming(
       exitOffset(direction, size),
       shootTiming(),
@@ -93,12 +122,12 @@ export function ScrubberSlidingText({
         if (!finished) {
           return;
         }
-        runOnJS(setDisplayed)(label);
         translateX.value = enterOffset(direction, size);
+        runOnJS(commitLabel)(label);
         translateX.value = withTiming(0, shootTiming());
       },
     );
-  }, [label, direction, displayed, size, translateX]);
+  }, [label, direction, size, translateX, commitLabel]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],

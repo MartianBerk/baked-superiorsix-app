@@ -8,5 +8,7 @@ export const SCRUB_SLIDE_PX = 36;
  * into the side slot (sides use overflow:visible so the flight is visible).
  */
 export const SCRUB_SHOOT_PX = 180;
-/** Fast but still readable hop for centre + mini labels. */
+/** Fast shoot for mini exit/enter hops. */
 export const SCRUB_SLIDE_MS = 160;
+/** Slightly longer centre land — decelerates to rest without a second hop. */
+export const SCRUB_LAND_MS = 200;
