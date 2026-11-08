@@ -319,7 +319,7 @@ export function SideGamePlayerWidget({ kind }: Props) {
               <MenuIcon
                 name={kind === 'euros' ? 'euros' : 'worldcup'}
                 size={SCRUBBER_CHEVRON_SIZE}
-                color={colors.textMuted}
+                color={colors.text}
               />
               <Text style={styles.potLabel} numberOfLines={1}>
                 {potLabel}
@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
   },
   potLabel: {
     flexShrink: 1,
-    color: colors.textMuted,
+    color: colors.text,
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: 0.3,
