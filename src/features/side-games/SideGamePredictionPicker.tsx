@@ -125,16 +125,15 @@ export function SideGamePredictionPicker({
 
 const styles = StyleSheet.create({
   /**
-   * Badges in the middle ~33% of the mid-row section (not full-width stretch).
-   * minWidth + gap keep H/D/A a little more open inside that band.
+   * Shrink-wrap each row’s badge group and center it in the mid band.
+   * Do not stretch to a shared width — that left-aligns H across mixed
+   * knockout / group-stage rows on the same day.
    */
   picker: {
-    width: '33%',
-    minWidth: 148,
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     gap: 12,
     flexShrink: 0,
   },
@@ -147,17 +146,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  /** H / A stay fixed — do not grow or shift. */
+  /** H / D / A stay fixed width. */
   choiceButton: {
     width: 36,
     flexGrow: 0,
     flexShrink: 0,
   },
-  /** Middle 90/ET/P fills remaining space between H and A. */
+  /** Wider middle control; H/A stay 36px — group remains centered as a unit. */
   knockoutButton: {
-    flexGrow: 1,
-    flexShrink: 1,
-    minWidth: 80,
+    width: 96,
+    flexGrow: 0,
+    flexShrink: 0,
     paddingHorizontal: 8,
   },
   buttonActive: {
