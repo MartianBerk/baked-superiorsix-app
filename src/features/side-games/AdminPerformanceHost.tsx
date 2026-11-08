@@ -11,7 +11,7 @@ import {
 import { SideGamesAdminWidget } from './SideGamesAdminWidget';
 
 /**
- * Leaders admin mode: Round ↔ Side games scrubber, then the matching widget.
+ * Leaders admin mode: Round ↔ Tournament scrubber, then the matching widget.
  */
 export function AdminPerformanceHost() {
   const [view, setView] = useState<AdminPerformanceView>('round');

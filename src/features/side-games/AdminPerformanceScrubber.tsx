@@ -17,11 +17,11 @@ type Props = {
 };
 
 function labelFor(mode: AdminPerformanceView): string {
-  return mode === 'round' ? 'Round' : 'Side games';
+  return mode === 'round' ? 'Round' : 'Tournament';
 }
 
 /**
- * Admin Performance scrubber: Super Six round admin ↔ side-game activate.
+ * Admin Performance scrubber: Super Six round admin ↔ Tournament activate.
  */
 export function AdminPerformanceScrubber({ mode, onChange }: Props) {
   const index = VIEWS.indexOf(mode);
@@ -60,7 +60,7 @@ export function AdminPerformanceScrubber({ mode, onChange }: Props) {
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Show Side games admin"
+        accessibilityLabel="Show Tournament admin"
         disabled={!canRight}
         onPress={() => {
           if (canRight) {

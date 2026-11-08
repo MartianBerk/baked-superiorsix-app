@@ -44,7 +44,6 @@ type PendingConfirm =
       kind: 'open';
       tournament: SideGameKind;
       message: string;
-      startDate: string;
       buyInPence: number;
       entrantIds: string[];
     }
@@ -94,8 +93,9 @@ function formatApiError(err: unknown, fallback: string): string {
 }
 
 /**
- * Admin Side games activate: tournament picker, roster multi-select, buy-in,
- * open/end via SS-141 APIs.
+ * Admin Tournament activate: tournament picker, roster multi-select, buy-in,
+ * open/end via SS-141 APIs. No start-date picker — Euros open sends today
+ * when the BE still requires `start_date`.
  */
 export function SideGamesAdminWidget() {
   const { status, isAuthenticated, token, hasRole } = useAuth();
@@ -107,7 +107,6 @@ export function SideGamesAdminWidget() {
   const [worldcupMeta, setWorldcupMeta] = useState<WorldcupMeta | null>(null);
   const [players, setPlayers] = useState<PlayerProfile[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [startDate, setStartDate] = useState(utcDayKey(new Date()));
   const [endDate, setEndDate] = useState(utcDayKey(new Date()));
   const [stakePounds, setStakePounds] = useState('2');
   const [loading, setLoading] = useState(false);
@@ -156,7 +155,6 @@ export function SideGamesAdminWidget() {
         setEurosMeta(euros);
         setWorldcupMeta(worldcup);
         setPlayers(roster);
-        setStartDate(utcDayKey(new Date()));
         setEndDate(utcDayKey(new Date()));
       } catch (err) {
         setError(
@@ -227,25 +225,17 @@ export function SideGamesAdminWidget() {
       setError('Enter a valid buy-in in pounds (e.g. 2 or 2.50).');
       return;
     }
-    if (tournament === 'euros') {
-      const day = startDate.trim();
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
-        setError('Start date must be YYYY-MM-DD.');
-        return;
-      }
-    }
 
     const pot = formatPounds(buyInPence * selectedIds.length);
     const names = selectedPlayers.map(playerLabel).join(', ');
     setPendingConfirm({
       kind: 'open',
       tournament,
-      startDate: startDate.trim(),
       buyInPence,
       entrantIds: [...selectedIds],
       message:
         tournament === 'euros'
-          ? `Open Euro Wizard on ${formatScrubberDate(startDate.trim())} with buy-in ${formatPounds(buyInPence)} × ${selectedIds.length} = ${pot}. Entrants: ${names}. Proceed?`
+          ? `Open Euro Wizard with buy-in ${formatPounds(buyInPence)} × ${selectedIds.length} = ${pot}. Entrants: ${names}. Proceed?`
           : `Open World Cup with buy-in ${formatPounds(buyInPence)} × ${selectedIds.length} = ${pot}. Entrants: ${names}. Proceed?`,
     });
   };
@@ -260,8 +250,10 @@ export function SideGamesAdminWidget() {
     setPendingConfirm(null);
     try {
       if (confirm.tournament === 'euros') {
+        // BE still requires start_date; tournament calendar is authoritative —
+        // send today without exposing a picker.
         const created = await openEurosTournament(token, {
-          startDate: confirm.startDate,
+          startDate: utcDayKey(new Date()),
           buyInPence: confirm.buyInPence,
           entrantIds: confirm.entrantIds,
         });
@@ -432,13 +424,6 @@ export function SideGamesAdminWidget() {
       }
     >
       <View style={styles.wrap}>
-        <Text style={styles.kicker}>Admin</Text>
-        <Text style={styles.heading}>Side games</Text>
-        <Text style={styles.lede}>
-          Activate Euro Wizard or World Cup: pick the tournament, select
-          entrants, set buy-in. Pot is static (buy-in × entrants).
-        </Text>
-
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {note ? <Text style={styles.saved}>{note}</Text> : null}
 
@@ -533,22 +518,6 @@ export function SideGamesAdminWidget() {
         {!currentOpen ? (
           <View style={styles.block}>
             <Text style={styles.sectionTitle}>Open tournament</Text>
-            {tournament === 'euros' ? (
-              <>
-                <Text style={styles.label}>Start date (UTC)</Text>
-                <TextInput
-                  style={styles.input}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!busy}
-                  value={startDate}
-                  onChangeText={setStartDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.textMuted}
-                  accessibilityLabel="Tournament start date"
-                />
-              </>
-            ) : null}
             <Text style={styles.label}>Buy-in (£)</Text>
             <TextInput
               style={styles.input}
@@ -705,14 +674,6 @@ const styles = StyleSheet.create({
   wrap: {
     paddingHorizontal: '3%',
     paddingTop: 4,
-  },
-  kicker: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    marginBottom: 4,
   },
   heading: {
     color: colors.text,

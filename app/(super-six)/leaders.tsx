@@ -4,7 +4,7 @@ import { StatsPlayerWidget } from '@/features/stats/StatsPlayerWidget';
 
 /**
  * Leaders tab: player previous-round stats + winners archive (SS-28), or
- * admin Round ↔ Side games (SS-29). Mode swaps in place via
+ * admin Round ↔ Tournament (SS-29). Mode swaps in place via
  * LeadersTabModeProvider.
  */
 export default function LeadersScreen() {
