@@ -744,16 +744,16 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 6,
   },
-  /** ~33% — subround scrubber. */
+  /** Left slate `# n` chip — 25% of the scrubber row. */
   subroundCol: {
     flexGrow: 1,
     flexShrink: 1,
     flexBasis: 0,
     minWidth: 0,
   },
-  /** ~66% — date scrubber. */
+  /** Right date chip — 75% of the scrubber row. */
   dateCol: {
-    flexGrow: 2,
+    flexGrow: 3,
     flexShrink: 1,
     flexBasis: 0,
     minWidth: 0,
