@@ -70,11 +70,13 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
+  /** Badges spaced across the middle ~33% of the expanded panel only. */
   row: {
+    width: '33%',
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
+    justifyContent: 'space-between',
   },
   button: {
     width: 36,

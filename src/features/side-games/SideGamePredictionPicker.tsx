@@ -123,10 +123,18 @@ export function SideGamePredictionPicker({
 }
 
 const styles = StyleSheet.create({
+  /**
+   * Badges in the middle ~33% of the mid-row section (not full-width stretch).
+   * minWidth + gap keep H/D/A a little more open inside that band.
+   */
   picker: {
+    width: '33%',
+    minWidth: 148,
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'space-between',
+    gap: 12,
     flexShrink: 0,
   },
   button: {
@@ -140,8 +148,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   knockoutButton: {
-    width: 72,
-    paddingHorizontal: 4,
+    width: 44,
+    paddingHorizontal: 2,
   },
   buttonActive: {
     backgroundColor: colors.accent,
