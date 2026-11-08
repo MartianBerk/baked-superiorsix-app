@@ -317,7 +317,7 @@ export function SideGamePlayerWidget({ kind }: Props) {
           >
             <MenuIcon
               name={kind === 'euros' ? 'euros' : 'worldcup'}
-              size={20}
+              size={SCRUBBER_CHEVRON_SIZE}
               color={colors.textMuted}
             />
             <Text style={styles.potLabel}>{potLabel}</Text>
@@ -380,6 +380,7 @@ export function SideGamePlayerWidget({ kind }: Props) {
               dates={dayKeys}
               selectedDate={effectiveDay}
               onChange={setSelectedDay}
+              style={styles.scrubberFlush}
             />
           </View>
           {dayMatches.length > 0 ? (
@@ -473,18 +474,26 @@ const styles = StyleSheet.create({
   },
   viewScrubberWrap: {
     paddingHorizontal: '3%',
-    marginBottom: 8,
+    // Same 12px rhythm as MatchPlayerWidget scrubberRow.
+    marginBottom: 12,
   },
-  /** Same 3% inset as AppHeader / Matches↔Table scrubber / Super Six screens. */
+  /** Same 3% inset as AppHeader / Super Six Matches scrubbers. */
   dateScrubberWrap: {
     paddingHorizontal: '3%',
+    marginBottom: 12,
   },
   scrubberLine: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  /** Same bordered scrubber chip as Super Six `# n` / slate scrubber. */
+  scrubberFlush: {
+    marginBottom: 0,
+  },
+  /**
+   * Same bordered scrubber chip metrics as Super Six `# n` / date chips
+   * (scrubberChrome.row padding 8 / 7.5 + chevron-hit height).
+   */
   potChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -492,14 +501,13 @@ const styles = StyleSheet.create({
     gap: 6,
     flexShrink: 0,
     marginBottom: 0,
-    paddingHorizontal: 10,
-    paddingVertical: 7.5,
+    minHeight: 7.5 * 2 + 33,
   },
   potLabel: {
     color: colors.textMuted,
     fontSize: 15,
     fontWeight: '700',
-    letterSpacing: 0.2,
+    letterSpacing: 0.3,
   },
   viewScrubber: {
     flex: 1,
@@ -508,7 +516,7 @@ const styles = StyleSheet.create({
   },
   viewLabel: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     letterSpacing: 0.3,
   },
