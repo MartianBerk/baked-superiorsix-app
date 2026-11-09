@@ -31,7 +31,10 @@ export const scoreListChrome = StyleSheet.create({
   rowFirst: {
     borderTopWidth: 0,
   },
-  /** Selected / has-pick wash. */
+  /**
+   * Optional has-pick wash (Scores expanded rows only).
+   * Matches / Euros/WC omit this — no locked/picked colour on match sections.
+   */
   rowPicked: {
     backgroundColor: colors.menuActive,
   },

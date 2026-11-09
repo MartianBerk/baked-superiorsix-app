@@ -123,7 +123,6 @@ export function MatchPredictRow({
         style={[
           scoreListChrome.row,
           isFirst && scoreListChrome.rowFirst,
-          prediction != null && scoreListChrome.rowPicked,
         ]}
       >
         <View style={styles.leading}>
