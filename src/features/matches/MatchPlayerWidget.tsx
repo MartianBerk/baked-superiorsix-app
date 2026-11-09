@@ -304,8 +304,10 @@ export function MatchPlayerWidget() {
       setBoardLive(board.live);
       setNextKickoff(board.next_kickoff);
       const authId = session?.userId;
+      // Prefer the board payload so this callback stays stable across scrub
+      // (matches.length in deps was recreating loadCatalog → full-page reload).
       const boardSlateSize =
-        board.matches.length > 0 ? board.matches.length : matches.length;
+        board.matches.length > 0 ? board.matches.length : board.match_count;
       setPerfectSix(perfectSixFromBoard(board, authId, boardSlateSize));
       if (authId) {
         const mine = board.scores.find((row) => row.auth_id === authId);
@@ -328,7 +330,7 @@ export function MatchPlayerWidget() {
         setDraft({});
       }
     },
-    [session?.userId, matches.length, canPredict],
+    [session?.userId, canPredict],
   );
 
   /** One `livescores?subroundId=` call — slate, difficulty, live chrome, picks. */
@@ -604,11 +606,14 @@ export function MatchPlayerWidget() {
           </Text>
         ) : null}
 
-        {predictionsLoading && matches.length > 0 ? (
+        {/* Like Scores: scrubber stays mounted; only the section below reloads. */}
+        {predictionsLoading && matches.length === 0 ? (
           <View style={styles.listLoading}>
             <ActivityIndicator color={colors.textMuted} />
           </View>
-        ) : matches.length > 0 ? (
+        ) : null}
+
+        {matches.length > 0 ? (
           <View style={styles.card}>
             {matches.map((match) => (
               <MatchPredictRow
@@ -658,16 +663,16 @@ const styles = StyleSheet.create({
     // Same 12px rhythm as header → scrubber.
     marginBottom: 12,
   },
-  /** Left slate `# n` chip — 25% of the scrubber row. */
+  /** Left slate `# n` chip — ~33% (same as Scores subround scrubber). */
   subroundCol: {
     flexGrow: 1,
     flexShrink: 1,
     flexBasis: 0,
     minWidth: 0,
   },
-  /** Right date chip — 75% of the scrubber row. */
+  /** Right date chip — ~67% (same as Scores). */
   dateCol: {
-    flexGrow: 3,
+    flexGrow: 2,
     flexShrink: 1,
     flexBasis: 0,
     minWidth: 0,

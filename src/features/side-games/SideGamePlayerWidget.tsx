@@ -23,16 +23,18 @@ import {
 } from '@/api/sideGames';
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
-import { ChevronIcon } from '@/components/icons/ChevronIcon';
 import { MenuIcon } from '@/components/icons/MenuIcon';
 import { buildPlayerRoundStatus } from '@/components/shell/playerRoundStatus';
 import { useRoundStatus } from '@/components/shell/RoundStatusContext';
 import { DateScrubber } from '@/features/matches/DateScrubber';
 import { utcDayKey } from '@/features/matches/formatMatchDate';
+import { ScrubberSidePreview } from '@/features/matches/ScrubberSidePreview';
+import { ScrubberSlidingText } from '@/features/matches/ScrubberSlidingText';
 import {
   SCRUBBER_CHEVRON_SIZE,
   scrubberChrome,
 } from '@/features/matches/scrubberChrome';
+import type { ScrubDirection } from '@/features/matches/scrubberSlide';
 import { formatPrizePounds } from '@/features/scores/gamedayHeader';
 import { colors } from '@/theme';
 
@@ -47,6 +49,10 @@ import { useSideGamesOpen } from './SideGamesOpenContext';
 type ViewMode = 'matches' | 'table';
 
 const VIEWS: ViewMode[] = ['matches', 'table'];
+
+function viewLabel(mode: ViewMode): string {
+  return mode === 'matches' ? 'Matches' : 'Table';
+}
 
 type Props = {
   kind: SideGameKind;
@@ -110,6 +116,9 @@ export function SideGamePlayerWidget({ kind }: Props) {
   const { eurosMeta, worldcupMeta, refresh: refreshOpen } = useSideGamesOpen();
 
   const [view, setView] = useState<ViewMode>('matches');
+  const [viewDirection, setViewDirection] = useState<ScrubDirection | null>(
+    null,
+  );
   const [matches, setMatches] = useState<SideGameMatch[]>([]);
   const [scores, setScores] = useState<SideGameScoreRow[]>([]);
   const [, setPredictions] = useState<SideGamePrediction[]>([]);
@@ -339,6 +348,10 @@ export function SideGamePlayerWidget({ kind }: Props) {
   };
 
   const viewIndex = VIEWS.indexOf(view);
+  const canViewLeft = viewIndex > 0;
+  const canViewRight = viewIndex >= 0 && viewIndex < VIEWS.length - 1;
+  const leftViewLabel = canViewLeft ? viewLabel(VIEWS[viewIndex - 1]) : null;
+  const rightViewLabel = canViewRight ? viewLabel(VIEWS[viewIndex + 1]) : null;
 
   if (loading) {
     return (
@@ -375,48 +388,40 @@ export function SideGamePlayerWidget({ kind }: Props) {
             <View
               style={[scrubberChrome.row, styles.viewScrubber]}
               accessibilityRole="adjustable"
-              accessibilityLabel={`${titleFor(kind)} ${view}`}
+              accessibilityLabel={`${titleFor(kind)} ${viewLabel(view)}`}
             >
-              <Pressable
-                accessibilityRole="button"
+              <ScrubberSidePreview
+                label={leftViewLabel}
                 accessibilityLabel="Show Matches"
-                disabled={viewIndex <= 0}
-                onPress={() => setView('matches')}
-                style={({ pressed }) => [
-                  scrubberChrome.chevronHit,
-                  viewIndex <= 0 && scrubberChrome.chevronDisabled,
-                  pressed && viewIndex > 0 && scrubberChrome.pressed,
-                ]}
-              >
-                {viewIndex > 0 ? (
-                  <ChevronIcon direction="left" size={SCRUBBER_CHEVRON_SIZE} />
-                ) : (
-                  <View style={scrubberChrome.chevronSpacer} />
-                )}
-              </Pressable>
-              <Text style={styles.viewLabel} numberOfLines={1}>
-                {view === 'matches' ? 'Matches' : 'Table'}
-              </Text>
-              <Pressable
-                accessibilityRole="button"
+                disabled={!canViewLeft}
+                direction={viewDirection}
+                onPress={() => {
+                  if (!canViewLeft) {
+                    return;
+                  }
+                  setViewDirection('left');
+                  setView(VIEWS[viewIndex - 1]);
+                }}
+              />
+              <View style={scrubberChrome.centerSlot}>
+                <ScrubberSlidingText
+                  label={viewLabel(view)}
+                  direction={viewDirection}
+                />
+              </View>
+              <ScrubberSidePreview
+                label={rightViewLabel}
                 accessibilityLabel="Show Table"
-                disabled={viewIndex >= VIEWS.length - 1}
-                onPress={() => setView('table')}
-                style={({ pressed }) => [
-                  scrubberChrome.chevronHit,
-                  viewIndex >= VIEWS.length - 1 &&
-                    scrubberChrome.chevronDisabled,
-                  pressed &&
-                    viewIndex < VIEWS.length - 1 &&
-                    scrubberChrome.pressed,
-                ]}
-              >
-                {viewIndex < VIEWS.length - 1 ? (
-                  <ChevronIcon direction="right" size={SCRUBBER_CHEVRON_SIZE} />
-                ) : (
-                  <View style={scrubberChrome.chevronSpacer} />
-                )}
-              </Pressable>
+                disabled={!canViewRight}
+                direction={viewDirection}
+                onPress={() => {
+                  if (!canViewRight) {
+                    return;
+                  }
+                  setViewDirection('right');
+                  setView(VIEWS[viewIndex + 1]);
+                }}
+              />
             </View>
           </View>
         </View>
@@ -573,13 +578,6 @@ const styles = StyleSheet.create({
   },
   viewScrubber: {
     marginBottom: 0,
-  },
-  viewLabel: {
-    flexShrink: 1,
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: 0.3,
   },
   error: {
     color: colors.resultLose,
