@@ -713,12 +713,6 @@ export function MatchAdminWidget() {
             selections.
           </Text>
         ) : null}
-        {!needsRound && isPendingSubroundId(selectedSubroundId) ? (
-          <Text style={styles.lede}>
-            Current slate — pick matches and Submit. The subround is created on
-            first submit.
-          </Text>
-        ) : null}
         <View style={styles.scrubberRow}>
           {!needsRound &&
           subrounds.length > 0 &&
