@@ -2,8 +2,8 @@ import { Stack } from 'expo-router';
 
 import { colors } from '@/theme';
 
-/** Euro Wizard experience boundary (stub shell for SS-8). */
-export default function EuroWizardLayout() {
+/** Euros experience boundary (redirects into Super Six tab). */
+export default function EurosLayout() {
   return (
     <Stack
       screenOptions={{
@@ -14,7 +14,7 @@ export default function EuroWizardLayout() {
         contentStyle: { backgroundColor: colors.background },
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'Euro Wizard' }} />
+      <Stack.Screen name="index" options={{ title: 'Euros' }} />
     </Stack>
   );
 }

@@ -15,6 +15,8 @@ import { useRoundStatus } from './RoundStatusContext';
  * No interval — pot/round change only on remount / refresh, not every 60s.
  * Prefers BE `prize_pot_pence` / `round_number`; falls back to FE formula
  * buy_in × full_roster × slate (14×£2 → £28 / £56 / £84…).
+ * Runs on all Super Six tabs (including Euros / World Cup) — tournament pot
+ * lives on the scrubber row only, not the app header.
  */
 export function GamedayHeaderSync() {
   const { setGamedayHeader } = useRoundStatus();

@@ -9,10 +9,14 @@ type Props = {
   status: RoundStatus;
 };
 
-/** Denominator for header n/X — loaded slate size, with 6 only as last-resort fallback. */
+/**
+ * Denominator for header n/X.
+ * Prefer explicit `slateSize` (including 0). Fall back to 6 only when omitted
+ * (legacy Super Six placeholder) — never invent 6 over a published 0.
+ */
 export function resolveSlateSize(status: RoundStatus): number {
   const size = status.slateSize;
-  if (size != null && Number.isFinite(size) && size > 0) {
+  if (size != null && Number.isFinite(size) && size >= 0) {
     return Math.floor(size);
   }
   return 6;

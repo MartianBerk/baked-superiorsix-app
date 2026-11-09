@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { ScrubberSidePreview } from './ScrubberSidePreview';
+import {
+  ScrubberSidePreview,
+  type ScrubberSideDensity,
+} from './ScrubberSidePreview';
 import { ScrubberSlidingText } from './ScrubberSlidingText';
 import { formatScrubberDate } from './formatMatchDate';
 import { scrubberChrome } from './scrubberChrome';
@@ -13,6 +16,12 @@ type Props = {
   onChange: (dayKey: string) => void;
   /** Outer row style (e.g. clear margin when nested in a side-by-side row). */
   style?: StyleProp<ViewStyle>;
+  /**
+   * Side mini density. Full-width Euros/World Cup date scrubbers use `wide`
+   * so `Sat 31 Oct` is not ellipsized; compact fits admin date chips next to
+   * the slate scrubber.
+   */
+  sideDensity?: ScrubberSideDensity;
 };
 
 /** Left/right date scrubber through available match days. */
@@ -21,6 +30,7 @@ export function DateScrubber({
   selectedDate,
   onChange,
   style,
+  sideDensity = 'compact',
 }: Props) {
   const [direction, setDirection] = useState<ScrubDirection | null>(null);
 
@@ -47,6 +57,7 @@ export function DateScrubber({
         }
         disabled={!canLeft}
         direction={direction}
+        density={sideDensity}
         onPress={() => {
           if (!canLeft) {
             return;
@@ -67,6 +78,7 @@ export function DateScrubber({
         }
         disabled={!canRight}
         direction={direction}
+        density={sideDensity}
         onPress={() => {
           if (!canRight) {
             return;

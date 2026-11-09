@@ -5,6 +5,7 @@ import { colors } from '@/theme';
 
 import { PickOutcomeBadge } from './PickOutcomeBadge';
 import { isPickCurrentlyCorrect, PICK_BADGE_LABEL } from './pickOutcome';
+import { scoreListChrome } from './scoreListChrome';
 
 type Props = {
   match: LiveMatch;
@@ -23,8 +24,16 @@ export function ScoreMatchRow({ match, prediction, now = new Date() }: Props) {
   const pickCorrect = isPickCurrentlyCorrect(prediction, match, now);
 
   return (
-    <View style={[styles.row, prediction != null && styles.rowPicked]}>
-      <Text style={[styles.team, styles.teamHome]} numberOfLines={1}>
+    <View
+      style={[
+        scoreListChrome.row,
+        prediction != null && scoreListChrome.rowPicked,
+      ]}
+    >
+      <Text
+        style={[scoreListChrome.team, styles.teamHome]}
+        numberOfLines={1}
+      >
         {match.home_team}
       </Text>
       <View style={styles.centre}>
@@ -43,7 +52,10 @@ export function ScoreMatchRow({ match, prediction, now = new Date() }: Props) {
           <Text style={styles.pickNone}>—</Text>
         )}
       </View>
-      <Text style={[styles.team, styles.teamAway]} numberOfLines={1}>
+      <Text
+        style={[scoreListChrome.team, styles.teamAway]}
+        numberOfLines={1}
+      >
         {match.away_team}
         {postponed ? ' (P)' : ''}
       </Text>
@@ -52,30 +64,14 @@ export function ScoreMatchRow({ match, prediction, now = new Date() }: Props) {
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  rowPicked: {
-    backgroundColor: colors.menuActive,
-  },
-  team: {
+  teamHome: {
     flex: 1,
     minWidth: 0,
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: '600',
-    lineHeight: 14,
-  },
-  teamHome: {
     textAlign: 'left',
   },
   teamAway: {
+    flex: 1,
+    minWidth: 0,
     textAlign: 'right',
   },
   centre: {

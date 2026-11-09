@@ -3,6 +3,8 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import type { LiveMatch, PredictionChoice } from '@/api/superiorsix';
 import { colors } from '@/theme';
 
+import { pickBadgeChrome } from './pickBadgeChrome';
+
 const CHOICES: { value: PredictionChoice; label: string }[] = [
   { value: 'home', label: 'H' },
   { value: 'draw', label: 'D' },
@@ -19,7 +21,7 @@ type Props = {
 
 /**
  * Expanded admin prediction row: Home | H D A | Away.
- * Tap submits that pick for the player (admin-on-behalf).
+ * Badge chrome matches Scores `PickOutcomeBadge` exactly.
  */
 export function AdminPredictionMatchRow({
   match,
@@ -51,8 +53,7 @@ export function AdminPredictionMatchRow({
               disabled={locked || busy}
               onPress={() => onSelect(value)}
               style={({ pressed }) => [
-                styles.button,
-                active && styles.buttonActive,
+                active ? pickBadgeChrome.badge : pickBadgeChrome.badgeIdle,
                 pressed && !locked && !busy && styles.buttonPressed,
                 (locked || busy) && styles.buttonDisabled,
               ]}
@@ -60,7 +61,13 @@ export function AdminPredictionMatchRow({
               {busy && active ? (
                 <ActivityIndicator size="small" color={colors.text} />
               ) : (
-                <Text style={[styles.label, active && styles.labelActive]}>
+                <Text
+                  style={
+                    active
+                      ? pickBadgeChrome.badgeLabel
+                      : pickBadgeChrome.badgeLabelIdle
+                  }
+                >
                   {label}
                 </Text>
               )}
@@ -109,33 +116,10 @@ const styles = StyleSheet.create({
     gap: 6,
     flexShrink: 0,
   },
-  button: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: colors.menuBar,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accentBright,
-  },
   buttonPressed: {
     backgroundColor: colors.surface,
   },
   buttonDisabled: {
     opacity: 0.45,
-  },
-  label: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-  },
-  labelActive: {
-    color: colors.text,
   },
 });

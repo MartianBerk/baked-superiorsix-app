@@ -2,8 +2,8 @@ import { Stack } from 'expo-router';
 
 import { colors } from '@/theme';
 
-/** Qatar Hero experience boundary (stub shell for SS-8). */
-export default function QatarHeroLayout() {
+/** World Cup experience boundary (redirects into Super Six tab). */
+export default function WorldCupLayout() {
   return (
     <Stack
       screenOptions={{
@@ -14,7 +14,7 @@ export default function QatarHeroLayout() {
         contentStyle: { backgroundColor: colors.background },
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'Qatar Hero' }} />
+      <Stack.Screen name="index" options={{ title: 'World Cup' }} />
     </Stack>
   );
 }

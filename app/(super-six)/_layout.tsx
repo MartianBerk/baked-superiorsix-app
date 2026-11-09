@@ -12,13 +12,89 @@ import { UserTabModeProvider } from '@/features/auth/UserTabModeContext';
 import { LeadersTabModeProvider } from '@/features/leaders/LeadersTabModeContext';
 import { FixturesTabModeProvider } from '@/features/matches/FixturesTabModeContext';
 import { ScoresTabModeProvider } from '@/features/scores/ScoresTabModeContext';
+import {
+  SideGamesOpenProvider,
+  useSideGamesOpen,
+} from '@/features/side-games/SideGamesOpenContext';
 import { colors } from '@/theme';
 
 /**
  * Core Super Six experience: header (round | logo | prize) + bottom menu.
  * Profile, fixtures, scores, and leaders admin modes swap in place via
  * tab-mode providers (header + nav stay visible).
+ * At most one side-game tab: Euros open hides World Cup (and vice versa).
  */
+function SuperSixTabs() {
+  const { eurosOpen, worldcupOpen } = useSideGamesOpen();
+  // Mutual exclusion — only the open tournament’s icon appears.
+  const showEuros = eurosOpen;
+  const showWorldcup = worldcupOpen && !eurosOpen;
+
+  return (
+    <View style={styles.shell}>
+      <AppHeader />
+      <Tabs
+        tabBar={({ state, descriptors, navigateToTab }) => (
+          <BottomMenu
+            state={state}
+            descriptors={descriptors}
+            navigateToTab={navigateToTab}
+          />
+        )}
+        screenOptions={{
+          headerShown: false,
+          ...tabSlideTransition,
+        }}
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: 'Fixtures',
+            tabBarAccessibilityLabel: 'Fixtures',
+          }}
+        />
+        <Tabs.Screen
+          name="scores"
+          options={{
+            title: 'Scores',
+            tabBarAccessibilityLabel: 'Scores',
+          }}
+        />
+        <Tabs.Screen
+          name="leaders"
+          options={{
+            title: 'Leaders',
+            tabBarAccessibilityLabel: 'Leaders',
+          }}
+        />
+        <Tabs.Screen
+          name="euros"
+          options={{
+            title: 'Euros',
+            tabBarAccessibilityLabel: 'Euros',
+            href: showEuros ? undefined : null,
+          }}
+        />
+        <Tabs.Screen
+          name="worldcup"
+          options={{
+            title: 'World Cup',
+            tabBarAccessibilityLabel: 'World Cup',
+            href: showWorldcup ? undefined : null,
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: 'Profile',
+            tabBarAccessibilityLabel: 'Profile',
+          }}
+        />
+      </Tabs>
+    </View>
+  );
+}
+
 export default function SuperSixLayout() {
   return (
     <UserTabModeProvider>
@@ -26,54 +102,12 @@ export default function SuperSixLayout() {
         <ScoresTabModeProvider>
           <LeadersTabModeProvider>
             <RoundStatusProvider>
-              <DualModeAuthReset />
-              <GamedayHeaderSync />
-              <GamedayRoundStatusSync />
-              <View style={styles.shell}>
-                <AppHeader />
-                <Tabs
-                  tabBar={({ state, descriptors, navigateToTab }) => (
-                    <BottomMenu
-                      state={state}
-                      descriptors={descriptors}
-                      navigateToTab={navigateToTab}
-                    />
-                  )}
-                  screenOptions={{
-                    headerShown: false,
-                    ...tabSlideTransition,
-                  }}
-                >
-                  <Tabs.Screen
-                    name="index"
-                    options={{
-                      title: 'Fixtures',
-                      tabBarAccessibilityLabel: 'Fixtures',
-                    }}
-                  />
-                  <Tabs.Screen
-                    name="scores"
-                    options={{
-                      title: 'Scores',
-                      tabBarAccessibilityLabel: 'Scores',
-                    }}
-                  />
-                  <Tabs.Screen
-                    name="leaders"
-                    options={{
-                      title: 'Leaders',
-                      tabBarAccessibilityLabel: 'Leaders',
-                    }}
-                  />
-                  <Tabs.Screen
-                    name="profile"
-                    options={{
-                      title: 'Profile',
-                      tabBarAccessibilityLabel: 'Profile',
-                    }}
-                  />
-                </Tabs>
-              </View>
+              <SideGamesOpenProvider>
+                <DualModeAuthReset />
+                <GamedayHeaderSync />
+                <GamedayRoundStatusSync />
+                <SuperSixTabs />
+              </SideGamesOpenProvider>
             </RoundStatusProvider>
           </LeadersTabModeProvider>
         </ScoresTabModeProvider>

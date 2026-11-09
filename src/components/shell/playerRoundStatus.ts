@@ -47,8 +47,10 @@ export function buildPlayerRoundStatus(opts: {
    */
   slateDifficulty?: MatchDifficulty | null;
 }): RoundStatus {
+  // Allow 0 (e.g. tournament still loading / empty) — do not coerce to undefined
+  // or RoundStatusStrip will fall back to Super Six’s hard-coded 6.
   const slateSize =
-    opts.slateSize > 0 && Number.isFinite(opts.slateSize)
+    opts.slateSize >= 0 && Number.isFinite(opts.slateSize)
       ? Math.floor(opts.slateSize)
       : undefined;
   const perfectSix = opts.perfectSix;

@@ -43,6 +43,10 @@ function isProfilePath(pathname: string): boolean {
   return pathname.includes('/profile');
 }
 
+function isSideGamePath(pathname: string): boolean {
+  return pathname.includes('/euros') || pathname.includes('/worldcup');
+}
+
 /**
  * Top shell: round value left (`# n`), logo center, pot value right (`£…`),
  * optional perfect-slate pot banner, plus thin round-status strip.
@@ -59,10 +63,16 @@ export function AppHeader({
   const { mode: scoresMode } = useScoresTabMode();
   const { mode: leadersMode } = useLeadersTabMode();
   const { mode: profileMode } = useUserTabMode();
-  const { playerPickingStatus, gamedayHeader } = useRoundStatus();
+  const {
+    playerPickingStatus,
+    sideGamePickingStatus,
+    gamedayHeader,
+  } = useRoundStatus();
   const resolvedRound = roundLabel ?? gamedayHeader.roundLabel;
   const resolvedPrize = prizeLabel ?? gamedayHeader.prizeLabel;
-  // Hide when logged out, or on Scores / Leaders / Profile admin.
+  const onSideGame = isSideGamePath(pathname);
+  // Hide when logged out or Scores / Leaders / Profile admin.
+  // Euros / World Cup keep the strip (tournament n / total — dedicated channel).
   // Fixtures admin keeps the strip (selection count + slate difficulty pips).
   const hideStatusStrip =
     !isAuthenticated ||
@@ -70,10 +80,20 @@ export function AppHeader({
     (leadersMode === 'admin' && isLeadersPath(pathname)) ||
     (profileMode === 'admin' && isProfilePath(pathname));
 
+  // Pot banner stays Super Six–only (not tournament perfect-slate).
+  const hidePotBanner = hideStatusStrip || onSideGame;
+
+  // Tournament tabs never read Super Six gameday banner counts.
   const status: RoundStatus | null =
     roundStatus ??
     (isAuthenticated && !hideStatusStrip
-      ? (playerPickingStatus ?? PLACEHOLDER_ROUND_STATUS)
+      ? onSideGame
+        ? (sideGamePickingStatus ?? {
+            phase: 'picking' as const,
+            selectedCount: 0,
+            slateSize: 0,
+          })
+        : (playerPickingStatus ?? PLACEHOLDER_ROUND_STATUS)
       : null);
 
   const potHolders = status?.perfectSix;
@@ -83,7 +103,7 @@ export function AppHeader({
   );
   const viewerHasPot = (potHolders ?? []).some((h) => h.isViewer);
   const showPotBanner =
-    isAuthenticated && !hideStatusStrip && potLine != null;
+    isAuthenticated && !hidePotBanner && potLine != null;
 
   return (
     <View

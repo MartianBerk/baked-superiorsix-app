@@ -1,8 +1,8 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import type { PredictionChoice } from '@/api/superiorsix';
-import { colors } from '@/theme';
 
+import { pickBadgeChrome } from './pickBadgeChrome';
 import { PICK_BADGE_LABEL } from './pickOutcome';
 
 type Props = {
@@ -15,8 +15,8 @@ type Props = {
 };
 
 /**
- * Shared H/D/A pick badge (Matches + Scores): grey until scores decide,
- * green accent when the pick matches the scoreline.
+ * Shared H/D/A pick badge (Scores reference styling): lighter grey for the
+ * selection, green when the pick matches the scoreline. No tick mark.
  */
 export function PickOutcomeBadge({
   prediction,
@@ -28,9 +28,9 @@ export function PickOutcomeBadge({
   return (
     <View
       style={[
-        styles.badge,
-        compact && styles.badgeCompact,
-        correct && styles.badgeCorrect,
+        pickBadgeChrome.badge,
+        compact && pickBadgeChrome.badgeCompact,
+        correct && pickBadgeChrome.badgeCorrect,
       ]}
       accessibilityLabel={
         accessibilityLabel ??
@@ -39,9 +39,8 @@ export function PickOutcomeBadge({
     >
       <Text
         style={[
-          styles.badgeLabel,
-          compact && styles.badgeLabelCompact,
-          correct && styles.badgeLabelCorrect,
+          pickBadgeChrome.badgeLabel,
+          compact && pickBadgeChrome.badgeLabelCompact,
         ]}
       >
         {label}
@@ -49,40 +48,3 @@ export function PickOutcomeBadge({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  badge: {
-    width: 27,
-    height: 27,
-    borderRadius: 8,
-    backgroundColor: colors.menuBar,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  badgeCompact: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-  },
-  badgeCorrect: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accentBright,
-  },
-  badgeLabel: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.2,
-    lineHeight: 14,
-  },
-  badgeLabelCompact: {
-    fontSize: 11,
-    lineHeight: 13,
-  },
-  badgeLabelCorrect: {
-    color: colors.text,
-  },
-});

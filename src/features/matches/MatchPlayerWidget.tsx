@@ -30,6 +30,8 @@ import { KickoffDateDisplay } from '@/features/scores/KickoffDateDisplay';
 import { LIVE_POLL_MS } from '@/features/scores/liveScoreDisplay';
 import { colors } from '@/theme';
 
+import { scoreListChrome } from '@/features/scores/scoreListChrome';
+
 import { aggregateSelectionDifficulty } from './matchDifficulty';
 import {
   MatchPredictRow,
@@ -304,8 +306,10 @@ export function MatchPlayerWidget() {
       setBoardLive(board.live);
       setNextKickoff(board.next_kickoff);
       const authId = session?.userId;
+      // Prefer the board payload so this callback stays stable across scrub
+      // (matches.length in deps was recreating loadCatalog → full-page reload).
       const boardSlateSize =
-        board.matches.length > 0 ? board.matches.length : matches.length;
+        board.matches.length > 0 ? board.matches.length : board.match_count;
       setPerfectSix(perfectSixFromBoard(board, authId, boardSlateSize));
       if (authId) {
         const mine = board.scores.find((row) => row.auth_id === authId);
@@ -328,7 +332,7 @@ export function MatchPlayerWidget() {
         setDraft({});
       }
     },
-    [session?.userId, matches.length, canPredict],
+    [session?.userId, canPredict],
   );
 
   /** One `livescores?subroundId=` call — slate, difficulty, live chrome, picks. */
@@ -604,13 +608,16 @@ export function MatchPlayerWidget() {
           </Text>
         ) : null}
 
-        {predictionsLoading && matches.length > 0 ? (
+        {/* Like Scores: scrubber stays mounted; only the section below reloads. */}
+        {predictionsLoading && matches.length === 0 ? (
           <View style={styles.listLoading}>
             <ActivityIndicator color={colors.textMuted} />
           </View>
-        ) : matches.length > 0 ? (
-          <View style={styles.card}>
-            {matches.map((match) => (
+        ) : null}
+
+        {matches.length > 0 ? (
+          <View style={scoreListChrome.sectionCard}>
+            {matches.map((match, index) => (
               <MatchPredictRow
                 key={match.id}
                 match={match}
@@ -620,6 +627,7 @@ export function MatchPlayerWidget() {
                 canPredict={canPredict}
                 teamColumnWidth={teamColumnWidth}
                 now={now}
+                isFirst={index === 0}
                 onPredict={(choice) => {
                   void onPredict(match, choice);
                 }}
@@ -658,12 +666,14 @@ const styles = StyleSheet.create({
     // Same 12px rhythm as header → scrubber.
     marginBottom: 12,
   },
+  /** Left slate `# n` chip — ~33% (same as Scores subround scrubber). */
   subroundCol: {
     flexGrow: 1,
     flexShrink: 1,
     flexBasis: 0,
     minWidth: 0,
   },
+  /** Right date chip — ~67% (same as Scores). */
   dateCol: {
     flexGrow: 2,
     flexShrink: 1,
@@ -691,12 +701,5 @@ const styles = StyleSheet.create({
   listLoading: {
     paddingVertical: 24,
     alignItems: 'center',
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    overflow: 'hidden',
   },
 });

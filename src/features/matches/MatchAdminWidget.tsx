@@ -803,14 +803,14 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 6,
   },
-  /** ~33% — subround scrubber. */
+  /** Left slate `# n` chip — ~33% (same as Scores / player Matches). */
   subroundCol: {
     flexGrow: 1,
     flexShrink: 1,
     flexBasis: 0,
     minWidth: 0,
   },
-  /** ~66% — date scrubber. */
+  /** Right date chip — ~67% (same as Scores / player Matches). */
   dateCol: {
     flexGrow: 2,
     flexShrink: 1,

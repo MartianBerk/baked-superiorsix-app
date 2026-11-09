@@ -4,6 +4,8 @@ import { colors } from '@/theme';
 
 /** Compact side slot — fits `# n` / short date minis in the narrow slate column. */
 export const SCRUBBER_SIDE_COMPACT = 40;
+/** Medium side slot — fits word minis like “Matches” / “Table” without eating the centre. */
+export const SCRUBBER_SIDE_MEDIUM = 64;
 /** Wide side slot — fits muted “Performance” on the full-width Leaders scrubber. */
 export const SCRUBBER_SIDE_WIDE = 92;
 
@@ -32,6 +34,16 @@ export const scrubberChrome = StyleSheet.create({
    */
   sideHit: {
     width: SCRUBBER_SIDE_COMPACT,
+    height: 33,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16.5,
+    overflow: 'visible',
+    paddingHorizontal: 2,
+  },
+  /** Side-game Matches↔Table minis (“Matches” / “Table”). */
+  sideHitMedium: {
+    width: SCRUBBER_SIDE_MEDIUM,
     height: 33,
     alignItems: 'center',
     justifyContent: 'center',

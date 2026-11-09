@@ -23,6 +23,7 @@ import {
   isPickCurrentlyCorrect,
   PICK_BADGE_LABEL,
 } from '@/features/scores/pickOutcome';
+import { scoreListChrome } from '@/features/scores/scoreListChrome';
 import { colors } from '@/theme';
 
 import { DifficultyPips } from './DifficultyPips';
@@ -62,6 +63,8 @@ type Props = {
   teamColumnWidth: number;
   /** Wall clock for lock / score-line / badge timing (defaults to now). */
   now?: Date;
+  /** First row in the slate card — omit top rule (Scores list chrome). */
+  isFirst?: boolean;
 };
 
 /**
@@ -78,6 +81,7 @@ export function MatchPredictRow({
   onPredict,
   teamColumnWidth,
   now = new Date(),
+  isFirst = false,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   /** Lock forces sections closed without a cascading setState effect. */
@@ -114,8 +118,13 @@ export function MatchPredictRow({
   );
 
   return (
-    <View style={[styles.block, prediction != null && styles.blockPicked]}>
-      <View style={styles.row}>
+    <View>
+      <View
+        style={[
+          scoreListChrome.row,
+          isFirst && scoreListChrome.rowFirst,
+        ]}
+      >
         <View style={styles.leading}>
           <View style={styles.gameAndPips}>
             {match.game_number != null ? (
@@ -126,10 +135,10 @@ export function MatchPredictRow({
             <DifficultyPips difficulty={match.difficulty} />
           </View>
           <View style={[styles.teams, { maxWidth: teamColumnWidth }]}>
-            <Text style={styles.team} numberOfLines={1}>
+            <Text style={scoreListChrome.team} numberOfLines={1}>
               {match.home_team}
             </Text>
-            <Text style={styles.team} numberOfLines={1}>
+            <Text style={scoreListChrome.team} numberOfLines={1}>
               {match.away_team}
               {postponed ? ' (P)' : ''}
             </Text>
@@ -235,20 +244,6 @@ export function MatchPredictRow({
 }
 
 const styles = StyleSheet.create({
-  block: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  blockPicked: {
-    backgroundColor: colors.menuActive,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
   leading: {
     flex: 1,
     flexDirection: 'row',
@@ -278,14 +273,8 @@ const styles = StyleSheet.create({
   teams: {
     flexShrink: 1,
     minWidth: 0,
-    gap: 2,
+    gap: 1,
     justifyContent: 'center',
-  },
-  team: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 16,
   },
   badgeBusy: {
     width: 27,
@@ -301,7 +290,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 14,
+    gap: 10,
   },
   minute: {
     color: colors.text,
@@ -313,25 +302,25 @@ const styles = StyleSheet.create({
   },
   score: {
     color: colors.text,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
     fontVariant: ['tabular-nums'],
-    minWidth: 48,
+    minWidth: 44,
     textAlign: 'center',
   },
   actionHit: {
-    width: 36,
-    height: 36,
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 18,
+    borderRadius: 14,
   },
   actionPressed: {
     backgroundColor: colors.surface,
   },
   signInButton: {
-    alignSelf: 'flex-start',
+    alignSelf: 'flex-end',
     marginTop: 8,
     paddingHorizontal: 12,
     paddingVertical: 7,

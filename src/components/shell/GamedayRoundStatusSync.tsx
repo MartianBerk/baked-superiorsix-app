@@ -114,18 +114,25 @@ function isFixturesPath(pathname: string): boolean {
   if (
     pathname.includes('/scores') ||
     pathname.includes('/leaders') ||
-    pathname.includes('/profile')
+    pathname.includes('/profile') ||
+    pathname.includes('/euros') ||
+    pathname.includes('/worldcup')
   ) {
     return false;
   }
   return true;
 }
 
+function isSideGamePath(pathname: string): boolean {
+  return pathname.includes('/euros') || pathname.includes('/worldcup');
+}
+
 /**
- * Single publisher for the shell n/X strip on every player tab.
+ * Single publisher for the shell n/X strip on Super Six player tabs.
  * Derives picking vs live/finished + counts from `/game/meta` + `/game/livescores`.
  * Matches may still push optimistic picking counts while the draft is open.
- * Skips only while fixtures admin owns the fixtures tab (target slate /6).
+ * Skips fixtures admin on the fixtures tab, and Euros / World Cup tabs
+ * (those publish tournament n / total from SideGamePlayerWidget).
  */
 export function GamedayRoundStatusSync() {
   const { isAuthenticated, session } = useAuth();
@@ -135,6 +142,7 @@ export function GamedayRoundStatusSync() {
   const viewerAuthId = session?.userId ?? null;
   const fixturesAdminOwnsStrip =
     fixturesMode === 'admin' && isFixturesPath(pathname);
+  const sideGameOwnsStrip = isSideGamePath(pathname);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -143,6 +151,10 @@ export function GamedayRoundStatusSync() {
     }
     // Fixtures admin owns the strip only on the fixtures tab itself.
     if (fixturesAdminOwnsStrip) {
+      return;
+    }
+    // Tournament tabs publish their own n / total Selections.
+    if (sideGameOwnsStrip) {
       return;
     }
 
@@ -238,6 +250,7 @@ export function GamedayRoundStatusSync() {
   }, [
     isAuthenticated,
     fixturesAdminOwnsStrip,
+    sideGameOwnsStrip,
     viewerAuthId,
     setPlayerPickingStatus,
   ]);

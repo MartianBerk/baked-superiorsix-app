@@ -1,6 +1,6 @@
 # baked-superiorsix-app
 
-Expo + React Native (web-first) front end for **Superior Six**. One app wrapping Super Six, Euro Wizard, Qatar Hero, and Admin as separate route-group experiences.
+Expo + React Native (web-first) front end for **Superior Six**. One app wrapping Super Six, Euros, World Cup, and Admin as separate route-group experiences.
 
 Bootstrap **SS-8** shipped the shell. **SS-50** adds login on the user widget (profile tab): baked-auth token with `audience=superiorsix`, persisted session, and a superiorsix BFF smoke call. Profile edit UI is **SS-51**.
 
@@ -95,8 +95,8 @@ Defined in `src/theme/colors.ts`.
 app/
   (auth)/            # login stub
   (super-six)/       # core shell: header + bottom tabs (+ in-place admin on user tab)
-  (euro-wizard)/     # empty stub
-  (qatar-hero)/      # empty stub
+  (euros)/           # redirects into Super Six Euros tab
+  (world-cup)/       # redirects into Super Six World Cup tab
 src/
   components/shell/  # AppHeader, BottomMenu, EmptyScreen
   components/icons/  # Menu icons from legacy supersixapp SVGs
