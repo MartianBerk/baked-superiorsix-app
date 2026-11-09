@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 
 import type { AdminMatch } from '@/api/superiorsix';
+import { isPostponedStatus } from '@/features/scores/liveScoreDisplay';
 import { colors } from '@/theme';
 
 import {
@@ -67,11 +68,12 @@ export function KickoffGroup({
       {expanded
         ? group.matches.map((match) => {
             const selected = match.use_match;
+            const postponed = isPostponedStatus(match.status);
+            // Postponed: block add, allow drop if already on the slate.
+            // Otherwise block add only when all 6 slots are full.
             const disabled =
               readOnly ||
-              (match.status === 'POSTPONED'
-                ? !selected
-                : !selected && selectionsFull);
+              (postponed ? !selected : !selected && selectionsFull);
             return (
               <MatchSelectRow
                 key={match.id}

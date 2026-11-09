@@ -35,6 +35,7 @@ import { colors } from '@/theme';
 
 import { AdminPlayerPredictionSection } from './AdminPlayerPredictionSection';
 import { KickoffDateDisplay } from './KickoffDateDisplay';
+import { isPostponedStatus } from './liveScoreDisplay';
 import { playerLabel } from './playerLabel';
 import { useScoresTabMode } from './ScoresTabModeContext';
 
@@ -358,8 +359,8 @@ export function AdminPredictionsWidget() {
       if (previous === choice) {
         return;
       }
-      if (match.status === 'POSTPONED') {
-        setRowError('Past cutoff for prediction set.');
+      if (isPostponedStatus(match.status)) {
+        setRowError('This match is postponed.');
         return;
       }
       const key = `${player.auth_id}:${match.id}`;

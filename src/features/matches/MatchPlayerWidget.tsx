@@ -27,7 +27,10 @@ import {
 } from '@/components/shell/playerRoundStatus';
 import { useRoundStatus } from '@/components/shell/RoundStatusContext';
 import { KickoffDateDisplay } from '@/features/scores/KickoffDateDisplay';
-import { LIVE_POLL_MS } from '@/features/scores/liveScoreDisplay';
+import {
+  isPostponedStatus,
+  LIVE_POLL_MS,
+} from '@/features/scores/liveScoreDisplay';
 import { colors } from '@/theme';
 
 import { scoreListChrome } from '@/features/scores/scoreListChrome';
@@ -517,11 +520,11 @@ export function MatchPlayerWidget() {
       if (draft[match.id] === choice) {
         return;
       }
-      if (subroundLocked || match.status === 'POSTPONED') {
+      if (subroundLocked || isPostponedStatus(match.status)) {
         setRowError(
-          subroundLocked
-            ? 'Past cutoff for this subround\'s predictions.'
-            : 'Past cutoff for prediction set.',
+          isPostponedStatus(match.status)
+            ? 'This match is postponed.'
+            : 'Past cutoff for this subround\'s predictions.',
         );
         return;
       }
