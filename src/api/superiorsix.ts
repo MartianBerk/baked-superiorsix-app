@@ -1493,7 +1493,7 @@ export type AggregateScorePoint = {
 };
 
 /**
- * Player success-rate row for the previous closed round only (n−1).
+ * Player success-rate row for one aggregate scope (current n or previous n−1).
  * `playerid` is roster `auth_id`. Rates are precomputed — FE renders as-is.
  */
 export type AggregatePlayerStats = {
@@ -1505,8 +1505,20 @@ export type AggregatePlayerStats = {
   scores: AggregateScorePoint[];
 };
 
+/** `GET /stats/aggregate` round scope (SS-18 + current-round Performance). */
+export type AggregateStatsScope = 'current' | 'previous';
+
 export type AggregateStatsResponse = {
+  /** Echoed from BE — absent on pre-scope backends. */
+  scope?: AggregateStatsScope;
+  /** Resolved `rounds.id`, or null when empty. */
+  round_id?: number | null;
   stats: AggregatePlayerStats[];
+  /**
+   * True when `scope=current` was requested but the BE omitted the scope echo
+   * (pre-#44 / #45 image). Callers must not fall back to previous as “this round”.
+   */
+  stale_backend?: boolean;
 };
 
 /** One closed round in the full winners archive (`GET /stats/winners`). */
@@ -1573,14 +1585,19 @@ function normalizeHistoricRound(raw: Record<string, unknown>): HistoricRound {
 }
 
 /**
- * SS-18 `GET /stats/aggregate` — success rates for the previous closed round
- * only (n−1). Optional legacy `dd-mm-yyyy` day filters.
+ * SS-18 `GET /stats/aggregate` — success rates for one round scope.
+ * Default `previous` (n−1). Pass `scope: 'current'` for the open round (n).
+ * Optional legacy `dd-mm-yyyy` day filters.
  */
 export async function getStatsAggregate(opts?: {
+  scope?: AggregateStatsScope;
   startDate?: string | null;
   endDate?: string | null;
 }): Promise<AggregateStatsResponse> {
   const params = new URLSearchParams();
+  if (opts?.scope) {
+    params.set('scope', opts.scope);
+  }
   if (opts?.startDate) {
     params.set('start_date', opts.startDate);
   }
@@ -1599,7 +1616,23 @@ export async function getStatsAggregate(opts?: {
   }
   const body = await readApiJson<Record<string, unknown>>(response);
   const rows = Array.isArray(body?.stats) ? body.stats : [];
+  const scopeRaw = body?.scope;
+  const scope =
+    scopeRaw === 'current' || scopeRaw === 'previous' ? scopeRaw : undefined;
+  const roundId =
+    body?.round_id == null ? body?.round_id : asFiniteNumber(body.round_id);
+  // Stale BE ignores `scope` and omits the echo — do not treat n−1 as current.
+  if (opts?.scope === 'current' && scope !== 'current') {
+    return {
+      scope: 'current',
+      round_id: null,
+      stats: [],
+      stale_backend: true,
+    };
+  }
   return {
+    scope,
+    round_id: roundId === undefined ? undefined : roundId,
     stats: rows
       .filter((row): row is Record<string, unknown> => !!row && typeof row === 'object')
       .map(normalizeAggregatePlayerStats),

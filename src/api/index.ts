@@ -54,6 +54,7 @@ export type {
   AggregatePlayerStats,
   AggregateScorePoint,
   AggregateStatsResponse,
+  AggregateStatsScope,
   GameCurrentRound,
   GameMeta,
   HistoricRound,

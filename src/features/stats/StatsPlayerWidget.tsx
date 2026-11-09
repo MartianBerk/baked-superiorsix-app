@@ -19,7 +19,7 @@ import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
 import { colors } from '@/theme';
 
-import { type StatsCompareRow } from './compareStats';
+import { mergeCompareRows, type StatsCompareRow } from './compareStats';
 import { PlayerStatsList } from './PlayerStatsList';
 import { SuccessRateGraph } from './SuccessRateGraph';
 import {
@@ -30,8 +30,7 @@ import { WinnersList } from './WinnersList';
 
 /**
  * Previous-only rows: same graphic shell data, no n vs n−1 deltas / overlay.
- * Day series from the closed round are the primary (solid) graph series.
- * (SS-18 aggregate is n−1; wire mergeCompareRows when a current-n API exists.)
+ * Used when there is no open round — closed n−1 day series is the solid line.
  */
 function rowsWithoutDelta(previous: AggregatePlayerStats[]): StatsCompareRow[] {
   return previous
@@ -56,7 +55,7 @@ function rowsWithoutDelta(previous: AggregatePlayerStats[]): StatsCompareRow[] {
 
 /**
  * Leaders (player) — Performance↔Winners scrubber.
- * Live only: SS-18 `/stats/aggregate` (n−1) + `/stats/winners`.
+ * Live: `/stats/aggregate?scope=current` (n) + `scope=previous` (n−1) + winners.
  * Empty payloads render blank (no mock fixtures).
  */
 export function StatsPlayerWidget() {
@@ -76,15 +75,24 @@ export function StatsPlayerWidget() {
     }
     setError(null);
     try {
-      const [previous, winners] = await Promise.all([
-        getStatsAggregate(),
+      const [current, previous, winners] = await Promise.all([
+        getStatsAggregate({ scope: 'current' }),
+        getStatsAggregate({ scope: 'previous' }),
         getStatsWinners(),
       ]);
-      setCompareRows(
-        previous.stats.length > 0
-          ? rowsWithoutDelta(previous.stats)
-          : [],
-      );
+      if (current.stale_backend) {
+        // BE image lacks scope=current — do not paint n−1 as this round.
+        setCompareRows([]);
+        setError(
+          'Stats backend is missing scope=current (need baked-superiorsix #45 on master). Rebuild after merge.',
+        );
+      } else if (current.stats.length > 0) {
+        setCompareRows(mergeCompareRows(current.stats, previous.stats));
+      } else if (previous.stats.length > 0) {
+        setCompareRows(rowsWithoutDelta(previous.stats));
+      } else {
+        setCompareRows([]);
+      }
       setRounds(winners.rounds);
     } catch (err) {
       const message =
