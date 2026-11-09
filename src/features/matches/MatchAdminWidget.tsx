@@ -775,6 +775,7 @@ export function MatchAdminWidget() {
               busyMatchId={null}
               selectionsFull={selectedCount >= MAX_SLOTS}
               readOnly={needsRound || !canEdit}
+              leaguesById={leaguesById}
               onToggleMatch={onToggleMatch}
             />
           ))

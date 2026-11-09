@@ -106,6 +106,8 @@ function fixtureToPlayerMatch(fixture: LiveScoreFixture): PlayerMatch {
     game_number: fixture.game_number,
     match_date: fixture.match_date,
     subround_id: fixture.subround_id,
+    league_id: fixture.league_id,
+    league_code: fixture.league_code,
     difficulty: fixture.difficulty ?? null,
   };
 }

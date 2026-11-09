@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 
-import type { AdminMatch } from '@/api/superiorsix';
+import type { AdminMatch, LeagueInfo } from '@/api/superiorsix';
 import { isPostponedStatus } from '@/features/scores/liveScoreDisplay';
 import { scoreListChrome } from '@/features/scores/scoreListChrome';
 import { colors } from '@/theme';
@@ -24,6 +24,8 @@ type Props = {
   selectionsFull: boolean;
   /** Closed / historical subround — disable add/drop. */
   readOnly?: boolean;
+  /** league_id → catalog row (for per-match PL / ELC codes). */
+  leaguesById: Record<number, LeagueInfo>;
   onToggleMatch: (match: AdminMatch) => void;
 };
 
@@ -35,6 +37,7 @@ export function KickoffGroup({
   busyMatchId,
   selectionsFull,
   readOnly = false,
+  leaguesById,
   onToggleMatch,
 }: Props) {
   const chevron = (expanded ? CHEVRON_UP : CHEVRON_DOWN).replaceAll(
@@ -81,10 +84,18 @@ export function KickoffGroup({
             const disabled =
               readOnly ||
               (postponed ? !selected : !selected && selectionsFull);
+            const leagueCode =
+              (typeof match.league_code === 'string' &&
+              match.league_code.trim()
+                ? match.league_code.trim()
+                : null) ??
+              leaguesById[match.league_id]?.code ??
+              null;
             return (
               <View key={match.id} style={scoreListChrome.sectionCard}>
                 <MatchSelectRow
                   match={match}
+                  leagueCode={leagueCode}
                   busy={busyMatchId === match.id}
                   disabled={disabled}
                   onToggle={onToggleMatch}

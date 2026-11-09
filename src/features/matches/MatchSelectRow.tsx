@@ -15,6 +15,8 @@ const CHEVRON_UP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" 
 
 type Props = {
   match: AdminMatch;
+  /** League catalog code (PL / ELC / …), shown above difficulty pips. */
+  leagueCode?: string | null;
   busy: boolean;
   disabled: boolean;
   onToggle: (match: AdminMatch) => void;
@@ -26,7 +28,13 @@ type Props = {
  * Postponed fixtures show `(P)` and cannot be added to the slate
  * (already-selected postponed rows stay droppable).
  */
-export function MatchSelectRow({ match, busy, disabled, onToggle }: Props) {
+export function MatchSelectRow({
+  match,
+  leagueCode,
+  busy,
+  disabled,
+  onToggle,
+}: Props) {
   const [expanded, setExpanded] = useState(false);
   const selected = match.use_match;
   const postponed = isPostponedStatus(match.status);
@@ -50,7 +58,14 @@ export function MatchSelectRow({ match, busy, disabled, onToggle }: Props) {
       ]}
     >
       <View style={styles.row}>
-        <DifficultyPips difficulty={match.difficulty} />
+        <View style={styles.leagueAndPips}>
+          {leagueCode ? (
+            <Text style={styles.leagueCode} numberOfLines={1}>
+              {leagueCode}
+            </Text>
+          ) : null}
+          <DifficultyPips difficulty={match.difficulty} />
+        </View>
         <View style={styles.teams}>
           <Text style={teamStyle} numberOfLines={1}>
             {match.home_team}
@@ -129,6 +144,21 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
+  },
+  leagueAndPips: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    gap: 2,
+    flexShrink: 0,
+    minWidth: 28,
+  },
+  leagueCode: {
+    color: colors.textMuted,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    lineHeight: 11,
   },
   teams: {
     flex: 1,

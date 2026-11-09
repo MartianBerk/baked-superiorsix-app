@@ -88,6 +88,8 @@ export type AdminMatch = {
   id: number;
   external_id: string;
   league_id: number;
+  /** League catalog code when BE embeds it (else resolve via listLeagues). */
+  league_code?: string | null;
   match_date: string;
   match_minute: number | null;
   status: string;
@@ -189,6 +191,9 @@ export type LiveMatch = {
   match_date: string;
   /** SS-82 slate id when selected for Super Six. */
   subround_id?: number | null;
+  league_id?: number | null;
+  /** League catalog code (PL / ELC / …) when BE includes it. */
+  league_code?: string | null;
   difficulty?: MatchDifficulty | null;
 };
 
@@ -1235,6 +1240,10 @@ export type LiveScoreFixture = {
   match_minute: number | null;
   game_number: number | null;
   subround_id: number | null;
+  /** Present on livescores `MatchResponse` rows. */
+  league_id: number | null;
+  /** League catalog code when BE embeds it on the fixture. */
+  league_code: string | null;
   difficulty?: MatchDifficulty | null;
 };
 
@@ -1331,6 +1340,10 @@ function normalizeLiveScoreFixture(
   ) {
     return null;
   }
+  const leagueCode =
+    typeof raw.league_code === 'string' && raw.league_code.trim()
+      ? raw.league_code.trim()
+      : null;
   return {
     id,
     home_team: raw.home_team,
@@ -1342,6 +1355,8 @@ function normalizeLiveScoreFixture(
     match_minute: asFiniteNumber(raw.match_minute),
     game_number: asFiniteNumber(raw.game_number),
     subround_id: asFiniteNumber(raw.subround_id),
+    league_id: asFiniteNumber(raw.league_id),
+    league_code: leagueCode,
     difficulty: asMatchDifficulty(raw.difficulty),
   };
 }
