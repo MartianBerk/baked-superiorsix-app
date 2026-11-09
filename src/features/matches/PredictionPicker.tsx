@@ -1,6 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { PredictionChoice } from '@/api/superiorsix';
+import { pickBadgeChrome } from '@/features/scores/pickBadgeChrome';
 import { colors } from '@/theme';
 
 const CHOICES: { value: PredictionChoice; label: string }[] = [
@@ -17,8 +18,8 @@ type Props = {
 };
 
 /**
- * H / D / A badges for the expanded match-detail panel — same chrome as
- * tournament mid-row badges and admin prediction rows.
+ * H / D / A badges for the expanded match-detail panel.
+ * Selected / idle chrome matches Scores `PickOutcomeBadge` exactly.
  */
 export function PredictionPicker({
   selection,
@@ -42,8 +43,7 @@ export function PredictionPicker({
               disabled={locked}
               onPress={() => onSelect(value)}
               style={({ pressed }) => [
-                styles.button,
-                active && styles.buttonActive,
+                active ? pickBadgeChrome.badge : pickBadgeChrome.badgeIdle,
                 pressed && !locked && styles.buttonPressed,
                 locked && styles.buttonDisabled,
               ]}
@@ -51,7 +51,13 @@ export function PredictionPicker({
               {busy && active ? (
                 <ActivityIndicator size="small" color={colors.text} />
               ) : (
-                <Text style={[styles.label, active && styles.labelActive]}>
+                <Text
+                  style={
+                    active
+                      ? pickBadgeChrome.badgeLabel
+                      : pickBadgeChrome.badgeLabelIdle
+                  }
+                >
                   {label}
                 </Text>
               )}
@@ -78,34 +84,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  button: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: colors.menuBar,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  /** Selected pick — lighter grey (correctness uses PickOutcomeBadge green). */
-  buttonActive: {
-    backgroundColor: colors.menuActive,
-    borderColor: colors.border,
-  },
   buttonPressed: {
     backgroundColor: colors.surface,
   },
   buttonDisabled: {
     opacity: 0.45,
-  },
-  label: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-  },
-  labelActive: {
-    color: colors.text,
   },
 });

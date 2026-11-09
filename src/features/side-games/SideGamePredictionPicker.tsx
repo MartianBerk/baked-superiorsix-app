@@ -1,6 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { SideGamePredictionChoice } from '@/api/sideGames';
+import { pickBadgeChrome } from '@/features/scores/pickBadgeChrome';
 import { colors } from '@/theme';
 
 const CHOICES: { value: SideGamePredictionChoice; label: string }[] = [
@@ -28,9 +29,8 @@ type Props = {
 };
 
 /**
- * Inline mid-row H / D / A badges (same chrome as admin prediction rows).
- * Knockout replaces D with a compact 90 → ET → P cycle control.
- * Selection = lighter grey; correct = green (no separate tick).
+ * Inline mid-row H / D / A (or knockout 90/ET/P).
+ * Badge chrome is Scores `PickOutcomeBadge` exactly (via `pickBadgeChrome`).
  */
 export function SideGamePredictionPicker({
   selection,
@@ -62,16 +62,17 @@ export function SideGamePredictionPicker({
               disabled={!cycleEnabled}
               onPress={onCycleKnockout}
               style={({ pressed }) => [
-                styles.button,
+                hasKnockoutPick && !pickCorrect
+                  ? pickBadgeChrome.badge
+                  : null,
+                hasKnockoutPick && pickCorrect
+                  ? [pickBadgeChrome.badge, pickBadgeChrome.badgeCorrect]
+                  : null,
+                !hasKnockoutPick ? pickBadgeChrome.badgeIdle : null,
+                // Width after chrome so 90/ET/P stays wider than H/D/A.
                 styles.knockoutButton,
-                hasKnockoutPick &&
-                  !pickCorrect &&
-                  styles.buttonSelected,
-                hasKnockoutPick && pickCorrect && styles.buttonCorrect,
                 pressed && cycleEnabled && styles.buttonPressed,
-                // Dim only the empty control — keep selected/correct at full
-                // contrast (same as Scores/Matches PickOutcomeBadge).
-                locked && !hasKnockoutPick && styles.buttonMuted,
+                locked && styles.buttonDisabled,
               ]}
             >
               <View style={styles.toggleRow}>
@@ -123,24 +124,23 @@ export function SideGamePredictionPicker({
             disabled={locked}
             onPress={() => onSelect(value)}
             style={({ pressed }) => [
-              styles.button,
-              styles.choiceButton,
-              active && !activeCorrect && styles.buttonSelected,
-              activeCorrect && styles.buttonCorrect,
+              active
+                ? pickBadgeChrome.badge
+                : pickBadgeChrome.badgeIdle,
+              activeCorrect && pickBadgeChrome.badgeCorrect,
               pressed && !locked && styles.buttonPressed,
-              // Unselected only — selected grey / correct green stay full opacity.
-              locked && !active && styles.buttonMuted,
+              locked && styles.buttonDisabled,
             ]}
           >
             {busy && active ? (
               <ActivityIndicator size="small" color={colors.text} />
             ) : (
               <Text
-                style={[
-                  styles.label,
-                  active && styles.labelSelected,
-                  activeCorrect && styles.labelCorrect,
-                ]}
+                style={
+                  active
+                    ? pickBadgeChrome.badgeLabel
+                    : pickBadgeChrome.badgeLabelIdle
+                }
               >
                 {label}
               </Text>
@@ -166,59 +166,19 @@ const styles = StyleSheet.create({
     gap: 12,
     flexShrink: 0,
   },
-  button: {
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: colors.menuBar,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  /** H / D / A stay fixed width. */
-  choiceButton: {
-    width: 36,
-    flexGrow: 0,
-    flexShrink: 0,
-  },
-  /** Wider middle control; H/A stay 36px — group remains centered as a unit. */
-  knockoutButton: {
-    width: 96,
-    flexGrow: 0,
-    flexShrink: 0,
-    paddingHorizontal: 8,
-  },
   /**
-   * Selected pick — same chrome as Scores/Matches `PickOutcomeBadge`
-   * (`menuActive` + border + primary text).
+   * Wider middle control; height/radius/fill come from `pickBadgeChrome`
+   * so selected/correct match Scores H/D/A badges.
    */
-  buttonSelected: {
-    backgroundColor: colors.menuActive,
-    borderColor: colors.border,
-  },
-  /** Correct pick — same green as `PickOutcomeBadge`. */
-  buttonCorrect: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accentBright,
+  knockoutButton: {
+    width: 84,
+    paddingHorizontal: 6,
   },
   buttonPressed: {
     backgroundColor: colors.surface,
   },
-  /** Unselected / empty when locked — do not fade the active badge. */
-  buttonMuted: {
+  buttonDisabled: {
     opacity: 0.45,
-  },
-  label: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-  },
-  labelSelected: {
-    color: colors.text,
-  },
-  labelCorrect: {
-    color: colors.text,
   },
   toggleRow: {
     flexDirection: 'row',
