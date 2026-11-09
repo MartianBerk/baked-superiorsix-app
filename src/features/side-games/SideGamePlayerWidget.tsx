@@ -395,6 +395,7 @@ export function SideGamePlayerWidget({ kind }: Props) {
                 accessibilityLabel="Show Matches"
                 disabled={!canViewLeft}
                 direction={viewDirection}
+                density="medium"
                 onPress={() => {
                   if (!canViewLeft) {
                     return;
@@ -414,6 +415,7 @@ export function SideGamePlayerWidget({ kind }: Props) {
                 accessibilityLabel="Show Table"
                 disabled={!canViewRight}
                 direction={viewDirection}
+                density="medium"
                 onPress={() => {
                   if (!canViewRight) {
                     return;
@@ -540,18 +542,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  /** Left tournament SVG+pot — 25% (same as Matches `# n`). */
+  /** Left tournament SVG+pot — content-sized so Matches↔Table can use the rest. */
   potCol: {
-    flexGrow: 1,
-    flexShrink: 1,
-    flexBasis: 0,
-    minWidth: 0,
+    flexGrow: 0,
+    flexShrink: 0,
   },
-  /** Right Matches↔Table scrubber — 75% (same as Matches date chip). */
+  /** Right Matches↔Table scrubber — fills remaining row (full Matches / Table labels). */
   viewCol: {
-    flexGrow: 3,
-    flexShrink: 1,
-    flexBasis: 0,
+    flex: 1,
     minWidth: 0,
   },
   scrubberFlush: {
