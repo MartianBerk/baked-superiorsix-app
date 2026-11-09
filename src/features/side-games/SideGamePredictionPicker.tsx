@@ -69,7 +69,9 @@ export function SideGamePredictionPicker({
                   styles.buttonSelected,
                 hasKnockoutPick && pickCorrect && styles.buttonCorrect,
                 pressed && cycleEnabled && styles.buttonPressed,
-                !cycleEnabled && styles.buttonDisabled,
+                // Dim only the empty control — keep selected/correct at full
+                // contrast (same as Scores/Matches PickOutcomeBadge).
+                locked && !hasKnockoutPick && styles.buttonMuted,
               ]}
             >
               <View style={styles.toggleRow}>
@@ -126,7 +128,8 @@ export function SideGamePredictionPicker({
               active && !activeCorrect && styles.buttonSelected,
               activeCorrect && styles.buttonCorrect,
               pressed && !locked && styles.buttonPressed,
-              locked && styles.buttonDisabled,
+              // Unselected only — selected grey / correct green stay full opacity.
+              locked && !active && styles.buttonMuted,
             ]}
           >
             {busy && active ? (
@@ -185,12 +188,15 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     paddingHorizontal: 8,
   },
-  /** Selected pick — lighter grey (not green). */
+  /**
+   * Selected pick — same chrome as Scores/Matches `PickOutcomeBadge`
+   * (`menuActive` + border + primary text).
+   */
   buttonSelected: {
     backgroundColor: colors.menuActive,
     borderColor: colors.border,
   },
-  /** Correct pick — green. */
+  /** Correct pick — same green as `PickOutcomeBadge`. */
   buttonCorrect: {
     backgroundColor: colors.accent,
     borderColor: colors.accentBright,
@@ -198,7 +204,8 @@ const styles = StyleSheet.create({
   buttonPressed: {
     backgroundColor: colors.surface,
   },
-  buttonDisabled: {
+  /** Unselected / empty when locked — do not fade the active badge. */
+  buttonMuted: {
     opacity: 0.45,
   },
   label: {

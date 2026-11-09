@@ -144,8 +144,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
+  /** Same selected-row wash as Matches / Scores. */
   blockPicked: {
-    backgroundColor: 'rgba(22, 53, 86, 0.35)',
+    backgroundColor: colors.menuActive,
   },
   row: {
     flexDirection: 'row',
