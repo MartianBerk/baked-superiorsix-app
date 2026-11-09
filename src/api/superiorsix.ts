@@ -1509,6 +1509,10 @@ export type AggregatePlayerStats = {
 export type AggregateStatsScope = 'current' | 'previous';
 
 export type AggregateStatsResponse = {
+  /** Echoed from BE — absent on pre-scope backends. */
+  scope?: AggregateStatsScope;
+  /** Resolved `rounds.id`, or null when empty. */
+  round_id?: number | null;
   stats: AggregatePlayerStats[];
 };
 
@@ -1607,7 +1611,18 @@ export async function getStatsAggregate(opts?: {
   }
   const body = await readApiJson<Record<string, unknown>>(response);
   const rows = Array.isArray(body?.stats) ? body.stats : [];
+  const scopeRaw = body?.scope;
+  const scope =
+    scopeRaw === 'current' || scopeRaw === 'previous' ? scopeRaw : undefined;
+  const roundId =
+    body?.round_id == null ? body?.round_id : asFiniteNumber(body.round_id);
+  // Stale BE ignores `scope` and omits the echo — do not treat n−1 as current.
+  if (opts?.scope === 'current' && scope !== 'current') {
+    return { scope: 'current', round_id: null, stats: [] };
+  }
   return {
+    scope,
+    round_id: roundId === undefined ? undefined : roundId,
     stats: rows
       .filter((row): row is Record<string, unknown> => !!row && typeof row === 'object')
       .map(normalizeAggregatePlayerStats),
