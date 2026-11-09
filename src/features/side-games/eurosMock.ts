@@ -143,6 +143,7 @@ export const MOCK_EUROS_MATCHES: SideGameMatch[] = [
   /**
    * Knockout (matchday ≥ 4): Home win decided in ET.
    * On today’s scrubber day so H + 90/ET/P middle badge is visible in DEV.
+   * Viewer pick H+ET is correct → green highlight.
    */
   {
     id: 201,
@@ -158,14 +159,54 @@ export const MOCK_EUROS_MATCHES: SideGameMatch[] = [
     penalties: false,
     use_match: true,
   },
+  /**
+   * Upcoming knockout: viewer has H+P selected → lighter-grey 90/ET/P
+   * (not green — match not played yet).
+   */
+  {
+    id: 202,
+    home_team: 'Portugal',
+    away_team: 'Belgium',
+    home_score: null,
+    away_score: null,
+    status: 'SCHEDULED',
+    match_minute: null,
+    match_date: dayOffsetIso(0, 20),
+    matchday: 4,
+    extra_time: false,
+    penalties: false,
+    use_match: true,
+  },
 ];
 
-/** DEV seed: viewer pick H + ET on England–France (knockout). */
+/**
+ * DEV seed viewer picks — mix of lighter-grey selections and one correct green.
+ * - Finished wrong → grey H/D/A
+ * - Live wrong → grey
+ * - Scheduled → grey (no result yet)
+ * - 201 H+ET correct → green knockout
+ * - 202 H+P upcoming → grey knockout 90/ET/P
+ */
 export const MOCK_EUROS_VIEWER_PICKS: Record<
   number,
   { prediction: 'home' | 'draw' | 'away'; extraTime: boolean; penalties: boolean }
 > = {
+  // Germany 5-1 — away is wrong → grey
+  101: { prediction: 'away', extraTime: false, penalties: false },
+  // Hungary 1-3 — home is wrong → grey
+  102: { prediction: 'home', extraTime: false, penalties: false },
+  // Spain 2-0 live — draw is wrong → grey
+  103: { prediction: 'draw', extraTime: false, penalties: false },
+  // Italy scheduled → grey
+  104: { prediction: 'home', extraTime: false, penalties: false },
+  // Poland scheduled → grey
+  105: { prediction: 'away', extraTime: false, penalties: false },
+  // Slovenia scheduled → grey
+  106: { prediction: 'draw', extraTime: false, penalties: false },
+  // England–France finished H+ET correct → green
   201: { prediction: 'home', extraTime: true, penalties: false },
+  // Portugal–Belgium upcoming H+P → grey knockout control
+  202: { prediction: 'home', extraTime: false, penalties: true },
 };
 
 export const MOCK_EUROS_SCORES: SideGameScoreRow[] = [
@@ -214,6 +255,16 @@ export const MOCK_EUROS_PREDICTIONS: SideGamePrediction[] = [
     plus_ninety: false,
     extra_time: true,
     penalties: false,
+    dropped: false,
+  },
+  {
+    id: 5,
+    auth_id: 'mock-ada',
+    match_id: 202,
+    prediction: 'away',
+    plus_ninety: false,
+    extra_time: false,
+    penalties: true,
     dropped: false,
   },
 ];

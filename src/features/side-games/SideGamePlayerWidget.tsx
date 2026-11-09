@@ -172,7 +172,7 @@ export function SideGamePlayerWidget({ kind }: Props) {
             };
           }
         }
-        // DEV mock: always surface England–France H+ET knockout state.
+        // DEV mock: seed viewer picks (grey selections + one correct green).
         if (kind === 'euros' && isEurosMockEnabled()) {
           for (const [matchId, pick] of Object.entries(MOCK_EUROS_VIEWER_PICKS)) {
             fromMine[Number(matchId)] = {
