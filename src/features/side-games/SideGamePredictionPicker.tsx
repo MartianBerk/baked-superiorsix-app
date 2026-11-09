@@ -1,6 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { SideGamePredictionChoice } from '@/api/sideGames';
+import { PickOutcomeBadge } from '@/features/scores/PickOutcomeBadge';
 import { pickBadgeChrome } from '@/features/scores/pickBadgeChrome';
 import { colors } from '@/theme';
 
@@ -30,7 +31,7 @@ type Props = {
 
 /**
  * Inline mid-row H / D / A (or knockout 90/ET/P).
- * Badge chrome is Scores `PickOutcomeBadge` exactly (via `pickBadgeChrome`).
+ * Selected / correct badges are Scores `PickOutcomeBadge` (no locked opacity).
  */
 export function SideGamePredictionPicker({
   selection,
@@ -72,7 +73,8 @@ export function SideGamePredictionPicker({
                 // Width after chrome so 90/ET/P stays wider than H/D/A.
                 styles.knockoutButton,
                 pressed && cycleEnabled && styles.buttonPressed,
-                locked && styles.buttonDisabled,
+                // Never fade a selected/correct knockout control.
+                locked && !hasKnockoutPick && styles.idleMuted,
               ]}
             >
               <View style={styles.toggleRow}>
@@ -113,14 +115,27 @@ export function SideGamePredictionPicker({
 
         const active = selection === value;
         const activeCorrect = active && pickCorrect;
+
+        // Locked selected pick → literal Scores badge (no Pressable fade).
+        if (locked && active) {
+          return (
+            <PickOutcomeBadge
+              key={value}
+              prediction={value}
+              correct={activeCorrect}
+              accessibilityLabel={
+                activeCorrect ? `Correct pick ${label}` : `Pick ${label}`
+              }
+            />
+          );
+        }
+
         return (
           <Pressable
             key={value}
             accessibilityRole="button"
             accessibilityState={{ selected: active, disabled: locked }}
-            accessibilityLabel={
-              activeCorrect ? `Correct pick ${label}` : `Predict ${label}`
-            }
+            accessibilityLabel={`Predict ${label}`}
             disabled={locked}
             onPress={() => onSelect(value)}
             style={({ pressed }) => [
@@ -129,7 +144,8 @@ export function SideGamePredictionPicker({
                 : pickBadgeChrome.badgeIdle,
               activeCorrect && pickBadgeChrome.badgeCorrect,
               pressed && !locked && styles.buttonPressed,
-              locked && styles.buttonDisabled,
+              // Idle only — selected never gets opacity (matches PickOutcomeBadge).
+              locked && !active && styles.idleMuted,
             ]}
           >
             {busy && active ? (
@@ -177,7 +193,7 @@ const styles = StyleSheet.create({
   buttonPressed: {
     backgroundColor: colors.surface,
   },
-  buttonDisabled: {
+  idleMuted: {
     opacity: 0.45,
   },
   toggleRow: {
