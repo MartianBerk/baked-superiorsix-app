@@ -82,6 +82,36 @@ function sortScores(scores: AggregateScorePoint[]): AggregateScorePoint[] {
 }
 
 /**
+ * Centered moving-average radius grows with series length so long rounds
+ * (~21 slates) read softer; short series stay sharp.
+ */
+function smoothRadiusForLength(length: number): number {
+  if (length >= 18) {
+    return 2; // window of 5
+  }
+  if (length >= 10) {
+    return 1; // window of 3
+  }
+  return 0;
+}
+
+function smoothScoreValues(values: number[]): number[] {
+  const radius = smoothRadiusForLength(values.length);
+  if (radius === 0 || values.length === 0) {
+    return values;
+  }
+  return values.map((_, index) => {
+    const start = Math.max(0, index - radius);
+    const end = Math.min(values.length - 1, index + radius);
+    let sum = 0;
+    for (let i = start; i <= end; i++) {
+      sum += values[i];
+    }
+    return sum / (end - start + 1);
+  });
+}
+
+/**
  * X extent: previous round length is the default end; current progresses into
  * that span. If current has more slates, extend past previous.
  */
@@ -94,7 +124,8 @@ function resolveSlotCount(currentLen: number, previousLen: number): number {
 
 /**
  * Current-round correct-picks chart with a lighter-green dotted last-round overlay.
- * X-axis is slate/subround number (`#1`…). Straight segments only.
+ * X-axis is slate/subround number (`#1`…). Straight segments; long series are
+ * centered-average smoothed so spikes read softer.
  */
 export function SuccessRateGraph({
   scores,
@@ -148,17 +179,22 @@ export function SuccessRateGraph({
     const yAt = (score: number) =>
       PAD_TOP + plotH - (plotH * Math.min(score, yMax)) / yMax;
 
+    const currentSmoothed = smoothScoreValues(current.map((point) => point.score));
+    const previousSmoothed = smoothScoreValues(
+      previous.map((point) => point.score),
+    );
+
     const currentCoords: Point[] = current.map((point, index) => ({
       x: xAt(index),
-      y: yAt(point.score),
-      score: point.score,
+      y: yAt(currentSmoothed[index]),
+      score: currentSmoothed[index],
       slate: index + 1,
     }));
 
     const previousCoords: Point[] = previous.map((point, index) => ({
       x: xAt(index),
-      y: yAt(point.score),
-      score: point.score,
+      y: yAt(previousSmoothed[index]),
+      score: previousSmoothed[index],
       slate: index + 1,
     }));
 
@@ -203,13 +239,12 @@ export function SuccessRateGraph({
       accessibilityLabel={`${playerName} current round graph with last round overlay`}
     >
       <View style={styles.headerRow}>
-        <Text style={styles.kicker}>This round</Text>
+        <Text style={styles.correctSummary}>
+          {correct}/{matches} Correct
+        </Text>
         <View style={styles.summary}>
           <Text style={styles.rate}>{rateLabel}</Text>
           {showDelta ? <RateDeltaBadge delta={rateDelta} size="md" /> : null}
-          <Text style={styles.correct}>
-            {correct}/{matches} correct
-          </Text>
         </View>
       </View>
 
@@ -459,13 +494,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     gap: 12,
   },
-  kicker: {
+  correctSummary: {
     color: colors.textMuted,
-    fontSize: 11,
+    fontSize: 15,
     fontWeight: '700',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    marginTop: 4,
+    letterSpacing: 0.2,
+    marginTop: 6,
+    flexShrink: 1,
   },
   summary: {
     alignItems: 'flex-end',
@@ -477,11 +512,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.3,
     lineHeight: 28,
-  },
-  correct: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
   },
   legend: {
     flexDirection: 'row',
