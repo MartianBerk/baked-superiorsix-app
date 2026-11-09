@@ -111,13 +111,7 @@ export function MatchSelectRow({ match, busy, disabled, onToggle }: Props) {
         </View>
       </View>
 
-      {expanded ? (
-        <MatchDetailPanel
-          homeTeam={match.home_team}
-          awayTeam={match.away_team}
-          matchDateIso={match.match_date}
-        />
-      ) : null}
+      {expanded ? <MatchDetailPanel matchId={match.id} /> : null}
     </View>
   );
 }

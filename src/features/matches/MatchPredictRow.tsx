@@ -213,11 +213,7 @@ export function MatchPredictRow({
       </View>
 
       {open ? (
-        <MatchDetailPanel
-          homeTeam={match.home_team}
-          awayTeam={match.away_team}
-          matchDateIso={match.match_date}
-        >
+        <MatchDetailPanel matchId={match.id}>
           {canPredict ? (
             <PredictionPicker
               selection={prediction}

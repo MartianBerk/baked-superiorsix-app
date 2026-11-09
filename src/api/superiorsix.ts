@@ -149,7 +149,21 @@ export type LeagueInfo = {
 /** Result codes from `/game/matchdetail` form / H2H rows. */
 export type TeamResultCode = 'WIN' | 'DRAW' | 'LOSE';
 
+/**
+ * `GET /game/matchdetail?id=` payload.
+ * Form / table maps are keyed by `home_team_xref` / `away_team_xref`.
+ * Prefer xref fields for UI labels; keep provider names for identity.
+ */
 export type MatchDetailPayload = {
+  id: number;
+  /** Provider / canonical home name. */
+  home_team: string;
+  /** Provider / canonical away name. */
+  away_team: string;
+  /** team_xref display name for home (use in UI). */
+  home_team_xref: string;
+  /** team_xref display name for away (use in UI). */
+  away_team_xref: string;
   league_position: Record<string, string | null>;
   team_performance: Record<string, TeamResultCode[]>;
   head_to_head: Record<string, TeamResultCode[]>;
@@ -415,18 +429,14 @@ function gameUnreachable(): ApiError {
 }
 
 /**
- * `GET /game/matchdetail` — league position, recent form, head-to-head.
- * Public game route; `matchDate` is legacy `dd-mm-yyyy`.
+ * `GET /game/matchdetail?id=` — league position, recent form, head-to-head.
+ * Lookup is by match primary key (not home/away/date).
  */
 export async function fetchMatchDetail(opts: {
-  homeTeam: string;
-  awayTeam: string;
-  matchDate: string;
+  matchId: number;
 }): Promise<MatchDetailPayload> {
   const params = new URLSearchParams({
-    hometeam: opts.homeTeam,
-    awayteam: opts.awayTeam,
-    matchdate: opts.matchDate,
+    id: String(opts.matchId),
   });
   let response: Response;
   try {

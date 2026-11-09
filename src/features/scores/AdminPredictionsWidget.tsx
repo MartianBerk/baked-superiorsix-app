@@ -265,11 +265,7 @@ export function AdminPredictionsWidget() {
         const details = await Promise.all(
           all.map(async (match) => {
             try {
-              const detail = await fetchMatchDetail({
-                homeTeam: match.home_team,
-                awayTeam: match.away_team,
-                matchDate: toLegacyDateParam(utcDayKey(match.match_date)),
-              });
+              const detail = await fetchMatchDetail({ matchId: match.id });
               return { id: match.id, difficulty: detail.difficulty ?? null };
             } catch {
               return { id: match.id, difficulty: null };
