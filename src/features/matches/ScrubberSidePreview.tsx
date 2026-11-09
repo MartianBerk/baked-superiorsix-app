@@ -52,8 +52,11 @@ export function ScrubberSidePreview({
       accessibilityLabel={accessibilityLabel}
       disabled={!show}
       onPress={onPress}
+      // Keep side hits above centre / neighbouring chip overflow so date
+      // minis remain tappable next to the slate scrubber.
       style={({ pressed }) => [
         hitStyle,
+        scrubberChrome.sideHitElevated,
         !show && scrubberChrome.sideDisabled,
         pressed && show && scrubberChrome.pressed,
       ]}

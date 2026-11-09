@@ -135,6 +135,9 @@ export function ScrubberSlidingText({
 
   return (
     <Animated.Text
+      // Overflowing mini flight must not steal presses from neighbouring
+      // side slots (admin date scrubber sits beside the slate chip).
+      pointerEvents="none"
       style={[
         size === 'mini' ? styles.mini : styles.center,
         style,

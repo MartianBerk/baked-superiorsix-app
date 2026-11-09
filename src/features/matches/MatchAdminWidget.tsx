@@ -33,6 +33,7 @@ import { DateScrubber } from './DateScrubber';
 import { useFixturesTabMode } from './FixturesTabModeContext';
 import { KickoffGroup } from './KickoffGroup';
 import {
+  adminScrubberDayKeys,
   adminScrubberRange,
   toLegacyDateParam,
   utcDayKey,
@@ -40,7 +41,6 @@ import {
 import { aggregateSelectionDifficulty } from './matchDifficulty';
 import {
   addToLowestSlot,
-  distinctDayKeys,
   dropFromSlots,
   emptySlots,
   groupMatchesByKickoff,
@@ -194,7 +194,8 @@ export function MatchAdminWidget() {
     return map;
   }, [leagues]);
 
-  const dates = useMemo(() => distinctDayKeys(matches), [matches]);
+  /** Full admin window (today…+6), not only days that already have fixtures. */
+  const dates = adminScrubberDayKeys();
   const byId = useMemo(() => matchById(matches), [matches]);
 
   const displayMatches = useMemo(() => {
@@ -310,19 +311,24 @@ export function MatchAdminWidget() {
         setLeagues(nextLeagues);
         setMatches(nextMatches);
 
-        const dayKeys = distinctDayKeys(nextMatches);
+        const dayKeys = adminScrubberDayKeys();
+        const firstDayWithFixtures =
+          dayKeys.find((day) =>
+            nextMatches.some((match) => utcDayKey(match.match_date) === day),
+          ) ?? dayKeys[0];
         setSelectedDate((prev) =>
-          prev && dayKeys.includes(prev) ? prev : (dayKeys[0] ?? null),
+          prev && dayKeys.includes(prev)
+            ? prev
+            : (firstDayWithFixtures ?? null),
         );
         setExpanded((prev) => {
           if (Object.keys(prev).length > 0) {
             return prev;
           }
-          const firstDay = dayKeys[0];
-          const firstGroups = firstDay
+          const firstGroups = firstDayWithFixtures
             ? groupMatchesByKickoff(
                 nextMatches,
-                firstDay,
+                firstDayWithFixtures,
                 Object.fromEntries(
                   nextLeagues.map((league) => [league.id, league]),
                 ),
@@ -737,6 +743,9 @@ export function MatchAdminWidget() {
                 setSelectedDate(dayKey);
                 setError(null);
               }}
+              // Date chip is ~67% wide — medium fits `Sat 31 Oct` minis
+              // (compact 40px was for the narrow `# n` slate column).
+              sideDensity="medium"
               style={styles.scrubberFlush}
             />
           </View>
@@ -744,8 +753,9 @@ export function MatchAdminWidget() {
         {groups.length === 0 ? (
           needsRound ? null : (
             <Text style={styles.empty}>
-              No fixtures in the selection window. Ingest PL/ELC/EL1 matches via
-              local-dev, then pull to refresh.
+              {matches.length === 0
+                ? 'No fixtures in the selection window. Ingest PL/ELC/EL1 matches via local-dev, then pull to refresh.'
+                : 'No fixtures on this day. Scrub left/right for other dates in the window.'}
             </Text>
           )
         ) : (
