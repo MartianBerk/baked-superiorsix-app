@@ -18,6 +18,11 @@ type Props = {
   busy: boolean;
   disabled: boolean;
   readOnly: boolean;
+  /**
+   * When true, the selected badge / 90-ET-P control is green (correct).
+   * When false/null, selection uses lighter grey only — no tick mark.
+   */
+  correct?: boolean | null;
   onSelect: (choice: SideGamePredictionChoice) => void;
   onCycleKnockout: () => void;
 };
@@ -25,6 +30,7 @@ type Props = {
 /**
  * Inline mid-row H / D / A badges (same chrome as admin prediction rows).
  * Knockout replaces D with a compact 90 → ET → P cycle control.
+ * Selection = lighter grey; correct = green (no separate tick).
  */
 export function SideGamePredictionPicker({
   selection,
@@ -34,17 +40,20 @@ export function SideGamePredictionPicker({
   busy,
   disabled,
   readOnly,
+  correct = null,
   onSelect,
   onCycleKnockout,
 }: Props) {
   const locked = disabled || busy || readOnly;
+  const pickCorrect = correct === true;
 
   return (
     <View style={styles.picker}>
       {CHOICES.map(({ value, label }) => {
         if (knockout && value === 'draw') {
-          const cycleEnabled =
-            !locked && selection != null && selection !== 'draw';
+          const hasKnockoutPick =
+            selection != null && selection !== 'draw';
+          const cycleEnabled = !locked && hasKnockoutPick;
           return (
             <Pressable
               key="knockout-cycle"
@@ -55,9 +64,10 @@ export function SideGamePredictionPicker({
               style={({ pressed }) => [
                 styles.button,
                 styles.knockoutButton,
-                selection != null &&
-                  selection !== 'draw' &&
-                  styles.buttonActiveSoft,
+                hasKnockoutPick &&
+                  !pickCorrect &&
+                  styles.buttonSelected,
+                hasKnockoutPick && pickCorrect && styles.buttonCorrect,
                 pressed && cycleEnabled && styles.buttonPressed,
                 !cycleEnabled && styles.buttonDisabled,
               ]}
@@ -66,7 +76,10 @@ export function SideGamePredictionPicker({
                 <Text
                   style={[
                     styles.togglePart,
-                    selection && !extraTime && !penalties && styles.toggleActive,
+                    selection &&
+                      !extraTime &&
+                      !penalties &&
+                      styles.toggleActive,
                   ]}
                 >
                   90
@@ -74,7 +87,10 @@ export function SideGamePredictionPicker({
                 <Text
                   style={[
                     styles.togglePart,
-                    selection && extraTime && !penalties && styles.toggleActive,
+                    selection &&
+                      extraTime &&
+                      !penalties &&
+                      styles.toggleActive,
                   ]}
                 >
                   ET
@@ -93,18 +109,22 @@ export function SideGamePredictionPicker({
         }
 
         const active = selection === value;
+        const activeCorrect = active && pickCorrect;
         return (
           <Pressable
             key={value}
             accessibilityRole="button"
             accessibilityState={{ selected: active, disabled: locked }}
-            accessibilityLabel={`Predict ${label}`}
+            accessibilityLabel={
+              activeCorrect ? `Correct pick ${label}` : `Predict ${label}`
+            }
             disabled={locked}
             onPress={() => onSelect(value)}
             style={({ pressed }) => [
               styles.button,
               styles.choiceButton,
-              active && styles.buttonActive,
+              active && !activeCorrect && styles.buttonSelected,
+              activeCorrect && styles.buttonCorrect,
               pressed && !locked && styles.buttonPressed,
               locked && styles.buttonDisabled,
             ]}
@@ -112,7 +132,13 @@ export function SideGamePredictionPicker({
             {busy && active ? (
               <ActivityIndicator size="small" color={colors.text} />
             ) : (
-              <Text style={[styles.label, active && styles.labelActive]}>
+              <Text
+                style={[
+                  styles.label,
+                  active && styles.labelSelected,
+                  activeCorrect && styles.labelCorrect,
+                ]}
+              >
                 {label}
               </Text>
             )}
@@ -159,11 +185,14 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     paddingHorizontal: 8,
   },
-  buttonActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accentBright,
+  /** Selected pick — lighter grey (not green). */
+  buttonSelected: {
+    backgroundColor: colors.menuActive,
+    borderColor: colors.border,
   },
-  buttonActiveSoft: {
+  /** Correct pick — green. */
+  buttonCorrect: {
+    backgroundColor: colors.accent,
     borderColor: colors.accentBright,
   },
   buttonPressed: {
@@ -178,7 +207,10 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.3,
   },
-  labelActive: {
+  labelSelected: {
+    color: colors.text,
+  },
+  labelCorrect: {
     color: colors.text,
   },
   toggleRow: {
@@ -192,6 +224,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   toggleActive: {
-    color: colors.accentBright,
+    color: colors.text,
   },
 });

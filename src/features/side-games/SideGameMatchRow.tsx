@@ -61,7 +61,8 @@ function pickCorrect(
 
 /**
  * Side-game match row: teams, inline mid-row H/D/A (or knockout 90/ET/P),
- * score when locked, kickoff/minute. No expander.
+ * score when locked, kickoff/minute. No expander. Correctness is the badge
+ * going green (no tick mark).
  */
 export function SideGameMatchRow({
   match,
@@ -104,28 +105,11 @@ export function SideGameMatchRow({
   return (
     <View style={[styles.block, prediction != null && styles.blockPicked]}>
       <View style={styles.row}>
-        <View style={styles.correctSlot}>
-          {correct === true ? (
-            <Text style={styles.correctMark}>✓</Text>
-          ) : null}
-        </View>
         <View style={[styles.teams, { width: teamColumnWidth }]}>
-          <Text
-            style={[
-              styles.team,
-              prediction === 'home' && styles.teamPicked,
-            ]}
-            numberOfLines={1}
-          >
+          <Text style={styles.team} numberOfLines={1}>
             {match.home_team}
           </Text>
-          <Text
-            style={[
-              styles.team,
-              prediction === 'away' && styles.teamPicked,
-            ]}
-            numberOfLines={1}
-          >
+          <Text style={styles.team} numberOfLines={1}>
             {match.away_team}
             {postponed ? ' (P)' : ''}
           </Text>
@@ -139,6 +123,7 @@ export function SideGameMatchRow({
             busy={busy}
             disabled={locked || postponed}
             readOnly={!canSubmit}
+            correct={correct}
             onSelect={onPredict}
             onCycleKnockout={onCycleKnockout}
           />
@@ -167,15 +152,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  correctSlot: {
-    width: 16,
-    alignItems: 'center',
-  },
-  correctMark: {
-    color: colors.accentBright,
-    fontSize: 14,
-    fontWeight: '700',
-  },
   teams: {
     flexGrow: 0,
     flexShrink: 0,
@@ -185,9 +161,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 13,
     fontWeight: '600',
-  },
-  teamPicked: {
-    color: colors.accentBright,
   },
   mid: {
     flex: 1,

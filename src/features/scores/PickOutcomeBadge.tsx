@@ -15,8 +15,8 @@ type Props = {
 };
 
 /**
- * Shared H/D/A pick badge (Matches + Scores): grey until scores decide,
- * green accent when the pick matches the scoreline.
+ * Shared H/D/A pick badge (Matches + Scores): lighter grey for the
+ * selection, green when the pick matches the scoreline. No tick mark.
  */
 export function PickOutcomeBadge({
   prediction,
@@ -55,7 +55,8 @@ const styles = StyleSheet.create({
     width: 27,
     height: 27,
     borderRadius: 8,
-    backgroundColor: colors.menuBar,
+    /** Lighter grey = selected pick (not yet / not correct). */
+    backgroundColor: colors.menuActive,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     alignItems: 'center',
@@ -72,7 +73,7 @@ const styles = StyleSheet.create({
     borderColor: colors.accentBright,
   },
   badgeLabel: {
-    color: colors.textMuted,
+    color: colors.text,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.2,

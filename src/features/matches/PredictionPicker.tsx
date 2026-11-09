@@ -88,9 +88,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  /** Selected pick — lighter grey (correctness uses PickOutcomeBadge green). */
   buttonActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accentBright,
+    backgroundColor: colors.menuActive,
+    borderColor: colors.border,
   },
   buttonPressed: {
     backgroundColor: colors.surface,

@@ -119,9 +119,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  /** Selected pick — lighter grey (same as player PredictionPicker). */
   buttonActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accentBright,
+    backgroundColor: colors.menuActive,
+    borderColor: colors.border,
   },
   buttonPressed: {
     backgroundColor: colors.surface,
