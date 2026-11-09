@@ -1493,7 +1493,7 @@ export type AggregateScorePoint = {
 };
 
 /**
- * Player success-rate row for the previous closed round only (n−1).
+ * Player success-rate row for one aggregate scope (current n or previous n−1).
  * `playerid` is roster `auth_id`. Rates are precomputed — FE renders as-is.
  */
 export type AggregatePlayerStats = {
@@ -1504,6 +1504,9 @@ export type AggregatePlayerStats = {
   success_rate: number;
   scores: AggregateScorePoint[];
 };
+
+/** `GET /stats/aggregate` round scope (SS-18 + current-round Performance). */
+export type AggregateStatsScope = 'current' | 'previous';
 
 export type AggregateStatsResponse = {
   stats: AggregatePlayerStats[];
@@ -1573,14 +1576,19 @@ function normalizeHistoricRound(raw: Record<string, unknown>): HistoricRound {
 }
 
 /**
- * SS-18 `GET /stats/aggregate` — success rates for the previous closed round
- * only (n−1). Optional legacy `dd-mm-yyyy` day filters.
+ * SS-18 `GET /stats/aggregate` — success rates for one round scope.
+ * Default `previous` (n−1). Pass `scope: 'current'` for the open round (n).
+ * Optional legacy `dd-mm-yyyy` day filters.
  */
 export async function getStatsAggregate(opts?: {
+  scope?: AggregateStatsScope;
   startDate?: string | null;
   endDate?: string | null;
 }): Promise<AggregateStatsResponse> {
   const params = new URLSearchParams();
+  if (opts?.scope) {
+    params.set('scope', opts.scope);
+  }
   if (opts?.startDate) {
     params.set('start_date', opts.startDate);
   }
