@@ -36,6 +36,7 @@ import {
 } from '@/features/matches/scrubberChrome';
 import type { ScrubDirection } from '@/features/matches/scrubberSlide';
 import { formatPrizePounds } from '@/features/scores/gamedayHeader';
+import { scoreListChrome } from '@/features/scores/scoreListChrome';
 import { colors } from '@/theme';
 
 import {
@@ -458,26 +459,29 @@ export function SideGamePlayerWidget({ kind }: Props) {
             {dayMatches.length === 0 ? (
               <Text style={styles.empty}>No matches for this day.</Text>
             ) : (
-              dayMatches.map((match) => {
-                const pick = localPicks[match.id];
-                const locked = isMatchLocked(match, now);
-                return (
-                  <SideGameMatchRow
-                    key={match.id}
-                    match={match}
-                    prediction={pick?.prediction ?? null}
-                    extraTime={pick?.extraTime ?? false}
-                    penalties={pick?.penalties ?? false}
-                    busy={busyMatchId === match.id}
-                    locked={locked}
-                    canSubmit={canSubmit}
-                    onPredict={(choice) => onSelect(match, choice)}
-                    onCycleKnockout={() => onCycleKnockout(match)}
-                    teamColumnWidth={teamColumnWidth}
-                    now={now}
-                  />
-                );
-              })
+              <View style={scoreListChrome.sectionCard}>
+                {dayMatches.map((match, index) => {
+                  const pick = localPicks[match.id];
+                  const locked = isMatchLocked(match, now);
+                  return (
+                    <SideGameMatchRow
+                      key={match.id}
+                      match={match}
+                      prediction={pick?.prediction ?? null}
+                      extraTime={pick?.extraTime ?? false}
+                      penalties={pick?.penalties ?? false}
+                      busy={busyMatchId === match.id}
+                      locked={locked}
+                      canSubmit={canSubmit}
+                      onPredict={(choice) => onSelect(match, choice)}
+                      onCycleKnockout={() => onCycleKnockout(match)}
+                      teamColumnWidth={teamColumnWidth}
+                      now={now}
+                      isFirst={index === 0}
+                    />
+                  );
+                })}
+              </View>
             )}
             {!isAuthenticated ? (
               <Pressable

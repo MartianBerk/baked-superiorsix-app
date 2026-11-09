@@ -30,6 +30,8 @@ import { KickoffDateDisplay } from '@/features/scores/KickoffDateDisplay';
 import { LIVE_POLL_MS } from '@/features/scores/liveScoreDisplay';
 import { colors } from '@/theme';
 
+import { scoreListChrome } from '@/features/scores/scoreListChrome';
+
 import { aggregateSelectionDifficulty } from './matchDifficulty';
 import {
   MatchPredictRow,
@@ -614,8 +616,8 @@ export function MatchPlayerWidget() {
         ) : null}
 
         {matches.length > 0 ? (
-          <View style={styles.card}>
-            {matches.map((match) => (
+          <View style={scoreListChrome.sectionCard}>
+            {matches.map((match, index) => (
               <MatchPredictRow
                 key={match.id}
                 match={match}
@@ -625,6 +627,7 @@ export function MatchPlayerWidget() {
                 canPredict={canPredict}
                 teamColumnWidth={teamColumnWidth}
                 now={now}
+                isFirst={index === 0}
                 onPredict={(choice) => {
                   void onPredict(match, choice);
                 }}
@@ -698,12 +701,5 @@ const styles = StyleSheet.create({
   listLoading: {
     paddingVertical: 24,
     alignItems: 'center',
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    overflow: 'hidden',
   },
 });

@@ -9,6 +9,7 @@ import {
   formatAlignedScore,
   formatMatchMinute,
 } from '@/features/scores/liveScoreDisplay';
+import { scoreListChrome } from '@/features/scores/scoreListChrome';
 import { colors } from '@/theme';
 
 import { SideGamePredictionPicker } from './SideGamePredictionPicker';
@@ -25,6 +26,8 @@ type Props = {
   onCycleKnockout: () => void;
   teamColumnWidth: number;
   now?: Date;
+  /** First row in the day card — omit top rule (Scores list chrome). */
+  isFirst?: boolean;
 };
 
 function formatKickoffTime(iso: string): string {
@@ -61,8 +64,8 @@ function pickCorrect(
 
 /**
  * Side-game match row: teams, inline mid-row H/D/A (or knockout 90/ET/P),
- * score when locked, kickoff/minute. No expander. Correctness is the badge
- * going green (no tick mark).
+ * score when locked, kickoff/minute. Section/row chrome matches Scores
+ * `scoreListChrome` (same as Matches slate rows).
  */
 export function SideGameMatchRow({
   match,
@@ -76,6 +79,7 @@ export function SideGameMatchRow({
   onCycleKnockout,
   teamColumnWidth,
   now = new Date(),
+  isFirst = false,
 }: Props) {
   const postponed = match.status === 'POSTPONED';
   const knockout = isKnockoutMatchday(match.matchday);
@@ -103,65 +107,49 @@ export function SideGameMatchRow({
     : formatKickoffTime(match.match_date);
 
   return (
-    <View style={[styles.block, prediction != null && styles.blockPicked]}>
-      <View style={styles.row}>
-        <View style={[styles.teams, { width: teamColumnWidth }]}>
-          <Text style={styles.team} numberOfLines={1}>
-            {match.home_team}
-          </Text>
-          <Text style={styles.team} numberOfLines={1}>
-            {match.away_team}
-            {postponed ? ' (P)' : ''}
-          </Text>
-        </View>
-        <View style={styles.mid}>
-          <SideGamePredictionPicker
-            selection={prediction}
-            extraTime={extraTime}
-            penalties={penalties}
-            knockout={knockout}
-            busy={busy}
-            disabled={locked || postponed}
-            readOnly={!canSubmit}
-            correct={correct}
-            onSelect={onPredict}
-            onCycleKnockout={onCycleKnockout}
-          />
-        </View>
-        {locked && scoreLine ? (
-          <Text style={styles.score}>{scoreLine}</Text>
-        ) : null}
-        <Text style={styles.minute}>{minuteLabel}</Text>
+    <View
+      style={[
+        scoreListChrome.row,
+        isFirst && scoreListChrome.rowFirst,
+        prediction != null && scoreListChrome.rowPicked,
+      ]}
+    >
+      <View style={[styles.teams, { width: teamColumnWidth }]}>
+        <Text style={scoreListChrome.team} numberOfLines={1}>
+          {match.home_team}
+        </Text>
+        <Text style={scoreListChrome.team} numberOfLines={1}>
+          {match.away_team}
+          {postponed ? ' (P)' : ''}
+        </Text>
       </View>
+      <View style={styles.mid}>
+        <SideGamePredictionPicker
+          selection={prediction}
+          extraTime={extraTime}
+          penalties={penalties}
+          knockout={knockout}
+          busy={busy}
+          disabled={locked || postponed}
+          readOnly={!canSubmit}
+          correct={correct}
+          onSelect={onPredict}
+          onCycleKnockout={onCycleKnockout}
+        />
+      </View>
+      {locked && scoreLine ? (
+        <Text style={styles.score}>{scoreLine}</Text>
+      ) : null}
+      <Text style={styles.minute}>{minuteLabel}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  block: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  /** Same selected-row wash as Matches / Scores. */
-  blockPicked: {
-    backgroundColor: colors.menuActive,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   teams: {
     flexGrow: 0,
     flexShrink: 0,
-    gap: 2,
-  },
-  team: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '600',
+    gap: 1,
   },
   mid: {
     flex: 1,
@@ -171,15 +159,17 @@ const styles = StyleSheet.create({
   },
   score: {
     color: colors.text,
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.2,
     fontVariant: ['tabular-nums'],
   },
   minute: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
-    minWidth: 40,
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '700',
+    minWidth: 36,
     textAlign: 'right',
+    fontVariant: ['tabular-nums'],
   },
 });

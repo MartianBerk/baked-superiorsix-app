@@ -7,6 +7,7 @@ import { colors } from '@/theme';
 import { PickOutcomeBadge } from './PickOutcomeBadge';
 import { isPickCurrentlyCorrect, PICK_BADGE_LABEL } from './pickOutcome';
 import { ScoreMatchRow } from './ScoreMatchRow';
+import { scoreListChrome } from './scoreListChrome';
 
 const CHEVRON_DOWN = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
 const CHEVRON_UP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>`;
@@ -57,7 +58,7 @@ export function PlayerScoreSection({
     .join(' ');
 
   return (
-    <View style={styles.card}>
+    <View style={scoreListChrome.sectionCard}>
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded }}
@@ -112,14 +113,6 @@ export function PlayerScoreSection({
 }
 
 const styles = StyleSheet.create({
-  card: {
-    marginBottom: 10,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
