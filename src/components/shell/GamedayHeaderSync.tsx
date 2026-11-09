@@ -11,7 +11,8 @@ import {
 import { useRoundStatus } from './RoundStatusContext';
 
 /**
- * Keeps shell Round / Prize pot labels in sync with SS-16 `GET /game/meta`.
+ * Loads shell Round / Prize pot labels once from SS-16 `GET /game/meta`.
+ * No interval — pot/round change only on remount / refresh, not every 60s.
  * Prefers BE `prize_pot_pence` / `round_number`; falls back to FE formula
  * buy_in × full_roster × slate (14×£2 → £28 / £56 / £84…).
  * Runs on all Super Six tabs (including Euros / World Cup) — tournament pot
@@ -60,12 +61,8 @@ export function GamedayHeaderSync() {
     }
 
     void refresh();
-    const id = setInterval(() => {
-      void refresh();
-    }, 60_000);
     return () => {
       cancelled = true;
-      clearInterval(id);
     };
   }, [setGamedayHeader]);
 

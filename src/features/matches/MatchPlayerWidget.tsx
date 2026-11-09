@@ -10,12 +10,9 @@ import {
 
 import {
   addPrediction,
-  fetchMatchDetail,
   getLiveScores,
-  getPrediction,
   isNoRoundInProgressError,
   listGameSubrounds,
-  listLiveMatches,
   type LiveScoreFixture,
   type LiveScoresBoard,
   type PredictionChoice,
@@ -33,11 +30,6 @@ import { KickoffDateDisplay } from '@/features/scores/KickoffDateDisplay';
 import { LIVE_POLL_MS } from '@/features/scores/liveScoreDisplay';
 import { colors } from '@/theme';
 
-import {
-  discoveryDayKeys,
-  toLegacyDateParam,
-  utcDayKey,
-} from './formatMatchDate';
 import { aggregateSelectionDifficulty } from './matchDifficulty';
 import {
   MatchPredictRow,
@@ -71,25 +63,6 @@ function sortPlayerMatches(matches: PlayerMatch[]): PlayerMatch[] {
   });
 }
 
-function groupBySubround(
-  matches: PlayerMatch[],
-): Record<number, PlayerMatch[]> {
-  const byId: Record<number, PlayerMatch[]> = {};
-  for (const match of matches) {
-    const subroundId = match.subround_id;
-    if (subroundId == null) {
-      continue;
-    }
-    const bucket = byId[subroundId] ?? [];
-    bucket.push(match);
-    byId[subroundId] = bucket;
-  }
-  for (const key of Object.keys(byId)) {
-    byId[Number(key)] = sortPlayerMatches(byId[Number(key)]);
-  }
-  return byId;
-}
-
 /** Prefer open-for-editing with matches; else latest active; else latest. */
 function pickPlayerSubround(
   list: Subround[],
@@ -116,10 +89,7 @@ function pickPlayerSubround(
   return withMatches[withMatches.length - 1];
 }
 
-function fixtureToPlayerMatch(
-  fixture: LiveScoreFixture,
-  difficulty?: PlayerMatch['difficulty'],
-): PlayerMatch {
+function fixtureToPlayerMatch(fixture: LiveScoreFixture): PlayerMatch {
   return {
     id: fixture.id,
     home_team: fixture.home_team,
@@ -131,7 +101,7 @@ function fixtureToPlayerMatch(
     game_number: fixture.game_number,
     match_date: fixture.match_date,
     subround_id: fixture.subround_id,
-    difficulty: difficulty ?? null,
+    difficulty: fixture.difficulty ?? null,
   };
 }
 
@@ -147,9 +117,32 @@ function mergeBoardFixtures(
   );
   return sortPlayerMatches(
     boardMatches.map((fixture) =>
-      fixtureToPlayerMatch(fixture, difficultyById.get(fixture.id) ?? null),
+      fixtureToPlayerMatch({
+        ...fixture,
+        difficulty:
+          fixture.difficulty ?? difficultyById.get(fixture.id) ?? null,
+      }),
     ),
   );
+}
+
+/** Viewer picks from one livescores board (avoids N× getprediction). */
+function draftFromBoard(
+  board: LiveScoresBoard,
+  viewerAuthId: string | null | undefined,
+): Record<number, PredictionChoice | null> {
+  const next: Record<number, PredictionChoice | null> = {};
+  if (!viewerAuthId) {
+    return next;
+  }
+  const mine = board.scores.find((row) => row.auth_id === viewerAuthId);
+  if (!mine) {
+    return next;
+  }
+  for (const row of mine.matches) {
+    next[row.match_id] = row.prediction;
+  }
+  return next;
 }
 
 function displayNameFromLiveScore(row: {
@@ -329,57 +322,47 @@ export function MatchPlayerWidget() {
         ...prev,
         [targetId]: mergeBoardFixtures(prev[targetId] ?? [], board.matches),
       }));
+      if (canPredict) {
+        setDraft(draftFromBoard(board, authId));
+      } else {
+        setDraft({});
+      }
     },
-    [session?.userId, matches.length],
+    [session?.userId, matches.length, canPredict],
   );
 
-  const loadLiveBoard = useCallback(
-    async (subroundId: number | null) => {
+  /** One `livescores?subroundId=` call — slate, difficulty, live chrome, picks. */
+  const loadSlate = useCallback(
+    async (subroundId: number | null, opts?: { quiet?: boolean }) => {
       if (subroundId == null) {
         setBoardLive(false);
         setNextKickoff(null);
         setViewerCorrect(null);
         setPerfectSix([]);
+        setDraft({});
         return;
+      }
+      if (!opts?.quiet) {
+        setPredictionsLoading(true);
       }
       try {
         const board = await getLiveScores({ subroundId });
         applyLiveBoard(board);
-      } catch {
-        // Livematches still drive the slate; live chrome is best-effort.
+      } catch (err) {
+        if (!opts?.quiet) {
+          setError(
+            err instanceof ApiError
+              ? err.message
+              : 'Could not load selected matches.',
+          );
+        }
+      } finally {
+        if (!opts?.quiet) {
+          setPredictionsLoading(false);
+        }
       }
     },
     [applyLiveBoard],
-  );
-
-  const loadPredictions = useCallback(
-    async (slateMatches: PlayerMatch[]) => {
-      if (!token || !canPredict || slateMatches.length === 0) {
-        setDraft({});
-        return;
-      }
-      setPredictionsLoading(true);
-      try {
-        const predictions = await Promise.all(
-          slateMatches.map(async (match) => {
-            try {
-              const choice = await getPrediction(token, match.id);
-              return [match.id, choice] as const;
-            } catch {
-              return [match.id, null] as const;
-            }
-          }),
-        );
-        const nextDraft: Record<number, PredictionChoice | null> = {};
-        for (const [id, choice] of predictions) {
-          nextDraft[id] = choice;
-        }
-        setDraft(nextDraft);
-      } finally {
-        setPredictionsLoading(false);
-      }
-    },
-    [token, canPredict],
   );
 
   const loadCatalog = useCallback(
@@ -404,51 +387,14 @@ export function MatchPlayerWidget() {
           }
         }
 
-        const dayResults = await Promise.all(
-          discoveryDayKeys().map((dayKey) =>
-            listLiveMatches(toLegacyDateParam(dayKey)),
-          ),
-        );
-
-        const byId = new Map<number, PlayerMatch>();
-        for (const dayMatches of dayResults) {
-          for (const match of dayMatches) {
-            byId.set(match.id, match);
-          }
-        }
-        let all = [...byId.values()];
-
-        const details = await Promise.all(
-          all.map(async (match) => {
-            try {
-              const detail = await fetchMatchDetail({
-                homeTeam: match.home_team,
-                awayTeam: match.away_team,
-                matchDate: toLegacyDateParam(utcDayKey(match.match_date)),
-              });
-              return { id: match.id, difficulty: detail.difficulty ?? null };
-            } catch {
-              return { id: match.id, difficulty: null };
-            }
-          }),
-        );
-        const difficultyById = new Map(
-          details.map((row) => [row.id, row.difficulty]),
-        );
-        all = all.map((match) => ({
-          ...match,
-          difficulty: difficultyById.get(match.id) ?? null,
-        }));
-
-        const bySubround = groupBySubround(all);
         const navigable = listed
           .filter((row) => row.match_count > 0)
           .sort((a, b) => a.sequence - b.sequence);
 
         setSubrounds(navigable);
-        setMatchesBySubround(bySubround);
 
         if (noRound) {
+          setMatchesBySubround({});
           setSelectedSubroundId(null);
           setDraft({});
           setBoardLive(false);
@@ -462,8 +408,7 @@ export function MatchPlayerWidget() {
           selectedSubroundIdRef.current,
         );
         setSelectedSubroundId(next?.id ?? null);
-        await loadPredictions(next ? (bySubround[next.id] ?? []) : []);
-        await loadLiveBoard(next?.id ?? null);
+        await loadSlate(next?.id ?? null);
       } catch (err) {
         const message =
           err instanceof ApiError
@@ -479,7 +424,7 @@ export function MatchPlayerWidget() {
         setRefreshing(false);
       }
     },
-    [loadPredictions, loadLiveBoard],
+    [loadSlate],
   );
 
   useEffect(() => {
@@ -533,7 +478,7 @@ export function MatchPlayerWidget() {
 
     if (boardLive) {
       pollTimer = setInterval(() => {
-        void loadLiveBoard(subroundId);
+        void loadSlate(subroundId, { quiet: true });
       }, LIVE_POLL_MS);
       return () => clearAll();
     }
@@ -542,23 +487,22 @@ export function MatchPlayerWidget() {
       const wait = new Date(nextKickoff).getTime() - Date.now();
       if (Number.isFinite(wait) && wait > 0 && wait < 24 * 60 * 60 * 1000) {
         wakeTimer = setTimeout(() => {
-          void loadLiveBoard(subroundId);
+          void loadSlate(subroundId, { quiet: true });
         }, wait + 250);
       }
     }
 
     return () => clearAll();
-  }, [selectedSubroundId, boardLive, nextKickoff, loadLiveBoard]);
+  }, [selectedSubroundId, boardLive, nextKickoff, loadSlate]);
 
   const onSelectSubround = useCallback(
     (next: Subround) => {
       setSelectedSubroundId(next.id);
       setError(null);
       setRowError(null);
-      void loadPredictions(matchesBySubround[next.id] ?? []);
-      void loadLiveBoard(next.id);
+      void loadSlate(next.id);
     },
-    [matchesBySubround, loadPredictions, loadLiveBoard],
+    [loadSlate],
   );
 
   const onPredict = useCallback(

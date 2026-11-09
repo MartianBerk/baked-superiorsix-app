@@ -249,7 +249,7 @@ export function AdminPredictionsWidget() {
         const [roster, ...dayResults] = await Promise.all([
           listPlayers(token, true),
           ...discoveryDayKeys().map((dayKey) =>
-            listLiveMatches(toLegacyDateParam(dayKey)),
+            listLiveMatches({ matchDate: toLegacyDateParam(dayKey) }),
           ),
         ]);
 
@@ -425,7 +425,7 @@ export function AdminPredictionsWidget() {
             Sign in with a superiorsix admin account to enter predictions on
             behalf of players.
           </Text>
-          <LoginForm heading="Admin sign in" />
+          <LoginForm />
           <Text
             style={styles.backLink}
             onPress={() => setMode('normal')}

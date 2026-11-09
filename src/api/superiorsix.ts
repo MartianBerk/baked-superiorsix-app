@@ -161,7 +161,7 @@ export type PredictionChoice = 'home' | 'draw' | 'away';
 
 /**
  * Selected Super Six fixture from `GET /game/livematches` (public).
- * No difficulty — hydrate from `/game/matchdetail` when needed.
+ * Frozen difficulty is included when persisted on the match row.
  */
 export type LiveMatch = {
   id: number;
@@ -175,6 +175,7 @@ export type LiveMatch = {
   match_date: string;
   /** SS-82 slate id when selected for Super Six. */
   subround_id?: number | null;
+  difficulty?: MatchDifficulty | null;
 };
 
 /** `POST /user/acceptinvite` — no invitee bearer; BFF grants roles then returns JWT. */
@@ -438,11 +439,21 @@ export async function fetchMatchDetail(opts: {
 }
 
 /**
- * `GET /game/livematches?matchDate=` — Super Six selections (`use_match`) for one
- * UTC calendar day. Public. `matchDate` is legacy `dd-mm-yyyy`.
+ * `GET /game/livematches` — Super Six selections (`use_match`).
+ * Prefer `subroundId` (one slate). Legacy `matchDate` (`dd-mm-yyyy`) for a UTC day.
  */
-export async function listLiveMatches(matchDate: string): Promise<LiveMatch[]> {
-  const params = new URLSearchParams({ matchDate });
+export async function listLiveMatches(opts: {
+  matchDate?: string;
+  subroundId?: number;
+}): Promise<LiveMatch[]> {
+  const params = new URLSearchParams();
+  if (opts.subroundId != null) {
+    params.set('subroundId', String(opts.subroundId));
+  } else if (opts.matchDate) {
+    params.set('matchDate', opts.matchDate);
+  } else {
+    throw new ApiError(400, 'listLiveMatches requires subroundId or matchDate');
+  }
   let response: Response;
   try {
     response = await apiFetch('game', `/game/livematches?${params.toString()}`);
@@ -960,6 +971,19 @@ function asFiniteNumber(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function asMatchDifficulty(value: unknown): MatchDifficulty | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+  const row = value as Record<string, unknown>;
+  const score = asFiniteNumber(row.score);
+  const band = asFiniteNumber(row.band);
+  if (score == null || band == null) {
+    return null;
+  }
+  return { score, band };
+}
+
 function normalizeSubround(raw: unknown): Subround | null {
   if (!raw || typeof raw !== 'object') {
     return null;
@@ -1201,6 +1225,7 @@ export type LiveScoreFixture = {
   match_minute: number | null;
   game_number: number | null;
   subround_id: number | null;
+  difficulty?: MatchDifficulty | null;
 };
 
 /** Full `GET /game/livescores` board (SS-16). */
@@ -1307,6 +1332,7 @@ function normalizeLiveScoreFixture(
     match_minute: asFiniteNumber(raw.match_minute),
     game_number: asFiniteNumber(raw.game_number),
     subround_id: asFiniteNumber(raw.subround_id),
+    difficulty: asMatchDifficulty(raw.difficulty),
   };
 }
 
