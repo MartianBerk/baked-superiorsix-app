@@ -39,10 +39,6 @@ import { formatPrizePounds } from '@/features/scores/gamedayHeader';
 import { scoreListChrome } from '@/features/scores/scoreListChrome';
 import { colors } from '@/theme';
 
-import {
-  isEurosMockEnabled,
-  MOCK_EUROS_VIEWER_PICKS,
-} from './eurosMock';
 import { SideGameMatchRow } from './SideGameMatchRow';
 import { SideGameScoresTable } from './SideGameScoresTable';
 import { useSideGamesOpen } from './SideGamesOpenContext';
@@ -170,16 +166,6 @@ export function SideGamePlayerWidget({ kind }: Props) {
               prediction: pred.prediction,
               extraTime: pred.extra_time,
               penalties: pred.penalties,
-            };
-          }
-        }
-        // DEV mock: seed viewer picks (grey selections + one correct green).
-        if (kind === 'euros' && isEurosMockEnabled()) {
-          for (const [matchId, pick] of Object.entries(MOCK_EUROS_VIEWER_PICKS)) {
-            fromMine[Number(matchId)] = {
-              prediction: pick.prediction,
-              extraTime: pick.extraTime,
-              penalties: pick.penalties,
             };
           }
         }

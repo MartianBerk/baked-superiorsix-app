@@ -9,14 +9,6 @@
  * non-empty). Server sets `end_date`; admin UI does not send it.
  */
 
-import {
-  isEurosMockEnabled,
-  MOCK_EUROS_MATCHES,
-  MOCK_EUROS_META,
-  MOCK_EUROS_PREDICTIONS,
-  MOCK_EUROS_SCORES,
-} from '@/features/side-games/eurosMock';
-
 import { apiFetch, readApiJson } from './client';
 import { ApiError } from './errors';
 
@@ -251,9 +243,6 @@ export function isEurosOpen(meta: EurosMeta | null | undefined): boolean {
 }
 
 export async function getEurosMeta(): Promise<EurosMeta> {
-  if (isEurosMockEnabled()) {
-    return MOCK_EUROS_META;
-  }
   let response: Response;
   try {
     response = await apiFetch('game', '/euros/meta');
@@ -278,9 +267,6 @@ export async function getWorldcupMeta(): Promise<WorldcupMeta> {
 export async function listSideGameMatches(
   kind: SideGameKind,
 ): Promise<SideGameMatch[]> {
-  if (kind === 'euros' && isEurosMockEnabled()) {
-    return MOCK_EUROS_MATCHES.filter((m) => m.use_match);
-  }
   const path = kind === 'euros' ? '/euros/matches' : '/worldcup/matches';
   let response: Response;
   try {
@@ -300,9 +286,6 @@ export async function listSideGameScores(
   kind: SideGameKind,
   token?: string | null,
 ): Promise<SideGameScoreRow[]> {
-  if (kind === 'euros' && isEurosMockEnabled()) {
-    return MOCK_EUROS_SCORES;
-  }
   const path = kind === 'euros' ? '/euros/scores' : '/worldcup/scores';
   let response: Response;
   try {
@@ -320,9 +303,6 @@ export async function listSideGameScores(
 export async function listSideGamePredictions(
   kind: SideGameKind,
 ): Promise<SideGamePrediction[]> {
-  if (kind === 'euros' && isEurosMockEnabled()) {
-    return MOCK_EUROS_PREDICTIONS.filter((p) => !p.dropped);
-  }
   const path =
     kind === 'euros' ? '/euros/listpredictions' : '/worldcup/listpredictions';
   let response: Response;
