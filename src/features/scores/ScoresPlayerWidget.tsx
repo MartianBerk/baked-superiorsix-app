@@ -9,11 +9,9 @@ import {
 } from 'react-native';
 
 import {
-  fetchMatchDetail,
   getLiveScores,
   isNoRoundInProgressError,
   listGameSubrounds,
-  listLiveMatches,
   type LiveMatch,
   type LiveScoreFixture,
   type LiveScorePlayer,
@@ -30,11 +28,6 @@ import {
   resolvePlayerRoundPhase,
 } from '@/components/shell/playerRoundStatus';
 import { useRoundStatus } from '@/components/shell/RoundStatusContext';
-import {
-  discoveryDayKeys,
-  toLegacyDateParam,
-  utcDayKey,
-} from '@/features/matches/formatMatchDate';
 import { aggregateSelectionDifficulty } from '@/features/matches/matchDifficulty';
 import { SubroundScrubber } from '@/features/matches/SubroundScrubber';
 import { colors } from '@/theme';
@@ -69,23 +62,6 @@ function sortMatches(matches: SlateMatch[]): SlateMatch[] {
     }
     return a.match_date.localeCompare(b.match_date) || a.id - b.id;
   });
-}
-
-function groupBySubround(matches: SlateMatch[]): Record<number, SlateMatch[]> {
-  const byId: Record<number, SlateMatch[]> = {};
-  for (const match of matches) {
-    const subroundId = match.subround_id;
-    if (subroundId == null) {
-      continue;
-    }
-    const bucket = byId[subroundId] ?? [];
-    bucket.push(match);
-    byId[subroundId] = bucket;
-  }
-  for (const key of Object.keys(byId)) {
-    byId[Number(key)] = sortMatches(byId[Number(key)]);
-  }
-  return byId;
 }
 
 /** Prefer latest active slate with matches; else latest overall. */
@@ -195,10 +171,7 @@ function sortBoardsByCorrect(boards: PlayerBoard[]): PlayerBoard[] {
   });
 }
 
-function fixtureToSlateMatch(
-  fixture: LiveScoreFixture,
-  difficulty?: SlateMatch['difficulty'],
-): SlateMatch {
+function fixtureToSlateMatch(fixture: LiveScoreFixture): SlateMatch {
   return {
     id: fixture.id,
     home_team: fixture.home_team,
@@ -210,7 +183,7 @@ function fixtureToSlateMatch(
     game_number: fixture.game_number,
     match_date: fixture.match_date,
     subround_id: fixture.subround_id,
-    difficulty: difficulty ?? null,
+    difficulty: fixture.difficulty ?? null,
   };
 }
 
@@ -226,7 +199,11 @@ function mergeBoardFixtures(
   );
   return sortMatches(
     boardMatches.map((fixture) =>
-      fixtureToSlateMatch(fixture, difficultyById.get(fixture.id) ?? null),
+      fixtureToSlateMatch({
+        ...fixture,
+        difficulty:
+          fixture.difficulty ?? difficultyById.get(fixture.id) ?? null,
+      }),
     ),
   );
 }
@@ -431,49 +408,14 @@ export function ScoresPlayerWidget() {
         }
         setNoActiveRound(noRound);
 
-        const dayResults = await Promise.all(
-          discoveryDayKeys().map((dayKey) =>
-            listLiveMatches(toLegacyDateParam(dayKey)),
-          ),
-        );
-        const byId = new Map<number, SlateMatch>();
-        for (const dayMatches of dayResults) {
-          for (const match of dayMatches) {
-            byId.set(match.id, match);
-          }
-        }
-        let all = [...byId.values()];
-        const details = await Promise.all(
-          all.map(async (match) => {
-            try {
-              const detail = await fetchMatchDetail({
-                homeTeam: match.home_team,
-                awayTeam: match.away_team,
-                matchDate: toLegacyDateParam(utcDayKey(match.match_date)),
-              });
-              return { id: match.id, difficulty: detail.difficulty ?? null };
-            } catch {
-              return { id: match.id, difficulty: null };
-            }
-          }),
-        );
-        const difficultyById = new Map(
-          details.map((row) => [row.id, row.difficulty]),
-        );
-        all = all.map((match) => ({
-          ...match,
-          difficulty: difficultyById.get(match.id) ?? null,
-        }));
-
-        const bySubround = groupBySubround(all);
         const navigable = listed
           .filter((row) => row.match_count > 0)
           .sort((a, b) => a.sequence - b.sequence);
 
         setSubrounds(navigable);
-        setMatchesBySubround(bySubround);
 
         if (noRound) {
+          setMatchesBySubround({});
           setSelectedSubroundId(null);
           setBoards([]);
           setBoardLive(false);

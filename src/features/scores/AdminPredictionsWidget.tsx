@@ -249,7 +249,7 @@ export function AdminPredictionsWidget() {
         const [roster, ...dayResults] = await Promise.all([
           listPlayers(token, true),
           ...discoveryDayKeys().map((dayKey) =>
-            listLiveMatches(toLegacyDateParam(dayKey)),
+            listLiveMatches({ matchDate: toLegacyDateParam(dayKey) }),
           ),
         ]);
 
