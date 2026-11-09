@@ -45,7 +45,6 @@ export function MatchSelectRow({ match, busy, disabled, onToggle }: Props) {
   return (
     <View
       style={[
-        styles.block,
         selected && styles.blockSelected,
         selectionLocked && styles.blockLocked,
       ]}
@@ -117,10 +116,6 @@ export function MatchSelectRow({ match, busy, disabled, onToggle }: Props) {
 }
 
 const styles = StyleSheet.create({
-  block: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
   blockSelected: {
     backgroundColor: colors.menuActive,
   },

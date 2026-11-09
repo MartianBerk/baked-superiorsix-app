@@ -618,26 +618,25 @@ export function MatchPlayerWidget() {
           </View>
         ) : null}
 
-        {matches.length > 0 ? (
-          <View style={scoreListChrome.sectionCard}>
-            {matches.map((match, index) => (
-              <MatchPredictRow
-                key={match.id}
-                match={match}
-                prediction={draft[match.id] ?? null}
-                busy={busyId === match.id}
-                locked={subroundLocked}
-                canPredict={canPredict}
-                teamColumnWidth={teamColumnWidth}
-                now={now}
-                isFirst={index === 0}
-                onPredict={(choice) => {
-                  void onPredict(match, choice);
-                }}
-              />
-            ))}
-          </View>
-        ) : null}
+        {matches.length > 0
+          ? matches.map((match) => (
+              <View key={match.id} style={scoreListChrome.sectionCard}>
+                <MatchPredictRow
+                  match={match}
+                  prediction={draft[match.id] ?? null}
+                  busy={busyId === match.id}
+                  locked={subroundLocked}
+                  canPredict={canPredict}
+                  teamColumnWidth={teamColumnWidth}
+                  now={now}
+                  isFirst
+                  onPredict={(choice) => {
+                    void onPredict(match, choice);
+                  }}
+                />
+              </View>
+            ))
+          : null}
       </View>
     </ScrollView>
   );

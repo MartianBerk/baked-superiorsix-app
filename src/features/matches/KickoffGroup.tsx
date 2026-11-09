@@ -3,6 +3,7 @@ import { SvgXml } from 'react-native-svg';
 
 import type { AdminMatch } from '@/api/superiorsix';
 import { isPostponedStatus } from '@/features/scores/liveScoreDisplay';
+import { scoreListChrome } from '@/features/scores/scoreListChrome';
 import { colors } from '@/theme';
 
 import {
@@ -43,28 +44,34 @@ export function KickoffGroup({
   const parts = groupHeaderParts(group);
 
   return (
-    <View style={styles.card}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ expanded }}
-        accessibilityLabel={formatGroupHeader(group)}
-        onPress={onToggleExpand}
-        style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
-      >
-        <View style={styles.headerLeft}>
-          <Text style={styles.part}>{parts.time}</Text>
-          {parts.leagues ? (
-            <Text style={styles.part}>{parts.leagues}</Text>
-          ) : null}
-        </View>
-        {/* Count sits left of expand chevron — roughly over the add/drop column. */}
-        <View style={styles.headerRight}>
-          <Text style={styles.selectedCount}>{parts.selected}</Text>
-          <View style={styles.chevronSlot}>
-            <SvgXml xml={chevron} width={18} height={18} />
+    <View>
+      {/* Kickoff header — same section chrome as Scores player blocks. */}
+      <View style={scoreListChrome.sectionCard}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded }}
+          accessibilityLabel={formatGroupHeader(group)}
+          onPress={onToggleExpand}
+          style={({ pressed }) => [
+            styles.header,
+            pressed && styles.headerPressed,
+          ]}
+        >
+          <View style={styles.headerLeft}>
+            <Text style={styles.part}>{parts.time}</Text>
+            {parts.leagues ? (
+              <Text style={styles.part}>{parts.leagues}</Text>
+            ) : null}
           </View>
-        </View>
-      </Pressable>
+          {/* Count sits left of expand chevron — roughly over the add/drop column. */}
+          <View style={styles.headerRight}>
+            <Text style={styles.selectedCount}>{parts.selected}</Text>
+            <View style={styles.chevronSlot}>
+              <SvgXml xml={chevron} width={18} height={18} />
+            </View>
+          </View>
+        </Pressable>
+      </View>
       {expanded
         ? group.matches.map((match) => {
             const selected = match.use_match;
@@ -75,13 +82,14 @@ export function KickoffGroup({
               readOnly ||
               (postponed ? !selected : !selected && selectionsFull);
             return (
-              <MatchSelectRow
-                key={match.id}
-                match={match}
-                busy={busyMatchId === match.id}
-                disabled={disabled}
-                onToggle={onToggleMatch}
-              />
+              <View key={match.id} style={scoreListChrome.sectionCard}>
+                <MatchSelectRow
+                  match={match}
+                  busy={busyMatchId === match.id}
+                  disabled={disabled}
+                  onToggle={onToggleMatch}
+                />
+              </View>
             );
           })
         : null}
@@ -90,14 +98,6 @@ export function KickoffGroup({
 }
 
 const styles = StyleSheet.create({
-  card: {
-    marginBottom: 10,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
