@@ -438,6 +438,7 @@ export function SideGamePlayerWidget({ kind }: Props) {
               dates={dayKeys}
               selectedDate={effectiveDay}
               onChange={setSelectedDay}
+              sideDensity="wide"
               style={styles.scrubberFlush}
             />
           </View>
@@ -542,14 +543,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  /** Left tournament SVG+pot — content-sized so Matches↔Table can use the rest. */
+  /** Left tournament SVG+pot — ~33% (same as Super Six Matches/Scores slate chip). */
   potCol: {
-    flexGrow: 0,
-    flexShrink: 0,
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+    minWidth: 0,
   },
-  /** Right Matches↔Table scrubber — fills remaining row (full Matches / Table labels). */
+  /** Right Matches↔Table scrubber — ~66%. */
   viewCol: {
-    flex: 1,
+    flexGrow: 2,
+    flexShrink: 1,
+    flexBasis: 0,
     minWidth: 0,
   },
   scrubberFlush: {
