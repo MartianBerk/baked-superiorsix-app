@@ -64,6 +64,10 @@ export const scrubberChrome = StyleSheet.create({
   sideDisabled: {
     opacity: 0.35,
   },
+  /** Stack side pressables above centre / sibling-chip overflow for taps. */
+  sideHitElevated: {
+    zIndex: 2,
+  },
   /** Invisible stand-in when there is no destination on that side. */
   sideSpacer: {
     width: 18,
@@ -80,6 +84,7 @@ export const scrubberChrome = StyleSheet.create({
     overflow: 'hidden',
     paddingHorizontal: 4,
     minHeight: 22,
+    zIndex: 0,
   },
   pressed: {
     backgroundColor: colors.menuActive,

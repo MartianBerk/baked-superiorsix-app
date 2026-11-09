@@ -194,6 +194,7 @@ export function MatchAdminWidget() {
     return map;
   }, [leagues]);
 
+  /** Only days that have fixtures — empty calendar days stay hidden. */
   const dates = useMemo(() => distinctDayKeys(matches), [matches]);
   const byId = useMemo(() => matchById(matches), [matches]);
 
@@ -737,6 +738,9 @@ export function MatchAdminWidget() {
                 setSelectedDate(dayKey);
                 setError(null);
               }}
+              // Date chip is ~67% wide — medium fits `Sat 31 Oct` minis
+              // (compact 40px was for the narrow `# n` slate column).
+              sideDensity="medium"
               style={styles.scrubberFlush}
             />
           </View>

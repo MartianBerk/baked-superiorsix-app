@@ -60,7 +60,8 @@ export function toLegacyDateParam(dayKey: string): string {
 
 /**
  * Admin listmatches scrubber window: UTC today … today+6 (7 calendar days).
- * Single fetch — DateScrubber is derived from the loaded payload; API caps at 7d.
+ * Single fetch — DateScrubber options are the fixture days inside this
+ * payload (empty calendar days stay hidden). API caps at 7d.
  */
 export function adminScrubberRange(now: Date = new Date()): {
   fromDate: string;
