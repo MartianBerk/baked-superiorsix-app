@@ -1,23 +1,22 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
-  Pressable,
   StyleSheet,
-  Text,
   View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 
 import type { Subround } from '@/api/superiorsix';
-import { ChevronIcon } from '@/components/icons/ChevronIcon';
-import { colors } from '@/theme';
 
 import {
   formatKickoffLabel,
   formatScrubberDate,
   utcDayKey,
 } from './formatMatchDate';
-import { SCRUBBER_CHEVRON_SIZE, scrubberChrome } from './scrubberChrome';
+import { ScrubberSidePreview } from './ScrubberSidePreview';
+import { ScrubberSlidingText } from './ScrubberSlidingText';
+import { scrubberChrome } from './scrubberChrome';
+import type { ScrubDirection } from './scrubberSlide';
 
 export type SubroundLabelMode = 'sequence' | 'kickoff';
 
@@ -30,7 +29,13 @@ type Props = {
    * `kickoff` (player): earliest kickoff date/time in the slate.
    */
   labelMode?: SubroundLabelMode;
-  /** Optional trailing control (e.g. admin “New slate”). */
+  /**
+   * Matches Admin only: when selected is the last row, the right side preview
+   * shows “+” and this fires (same press as scrubbing to a side mini).
+   * Omit on player / Scores scrubbers.
+   */
+  onStartNew?: () => void;
+  /** @deprecated Unused — prefer `onStartNew` for admin force-next. */
   trailing?: ReactNode;
   /** Outer wrap style (e.g. clear margin when nested in a side-by-side row). */
   style?: StyleProp<ViewStyle>;
@@ -66,9 +71,12 @@ export function SubroundScrubber({
   selectedId,
   onChange,
   labelMode = 'sequence',
+  onStartNew,
   trailing,
   style,
 }: Props) {
+  const [direction, setDirection] = useState<ScrubDirection | null>(null);
+
   if (subrounds.length === 0 || selectedId == null) {
     return null;
   }
@@ -81,7 +89,16 @@ export function SubroundScrubber({
 
   const canLeft = index > 0;
   const canRight = index >= 0 && index < subrounds.length - 1;
+  const showStartNew = !canRight && onStartNew != null;
   const label = subroundLabel(selected, labelMode);
+  const leftLabel = canLeft
+    ? subroundLabel(subrounds[index - 1], labelMode)
+    : null;
+  const rightLabel = canRight
+    ? subroundLabel(subrounds[index + 1], labelMode)
+    : showStartNew
+      ? '+'
+      : null;
 
   return (
     <View style={[styles.wrap, style]}>
@@ -89,61 +106,59 @@ export function SubroundScrubber({
         style={[scrubberChrome.row, styles.rowTight]}
         accessibilityRole="adjustable"
       >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Previous subround"
-          disabled={!canLeft}
-          onPress={() => {
-            if (canLeft) {
-              onChange(subrounds[index - 1]);
-            }
-          }}
-          style={({ pressed }) => [
-            scrubberChrome.chevronHit,
-            !canLeft && scrubberChrome.chevronDisabled,
-            pressed && canLeft && scrubberChrome.pressed,
-          ]}
-        >
-          {canLeft ? (
-            <ChevronIcon direction="left" size={SCRUBBER_CHEVRON_SIZE} />
-          ) : (
-            <View style={scrubberChrome.chevronSpacer} />
-          )}
-        </Pressable>
-
-        <Text
-          style={styles.label}
+        <ScrubberSidePreview
+          label={leftLabel}
           accessibilityLabel={
-            labelMode === 'kickoff'
-              ? `Subround ${selected.sequence}, ${label}`
-              : `Subround ${selected.sequence}`
+            leftLabel
+              ? `Previous subround, ${leftLabel}`
+              : 'Previous subround'
           }
-          numberOfLines={1}
-        >
-          {label}
-        </Text>
+          disabled={!canLeft}
+          direction={direction}
+          onPress={() => {
+            if (!canLeft) {
+              return;
+            }
+            setDirection('left');
+            onChange(subrounds[index - 1]);
+          }}
+        />
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Next subround"
-          disabled={!canRight}
+        <View style={scrubberChrome.centerSlot}>
+          <ScrubberSlidingText
+            label={label}
+            direction={direction}
+            accessibilityLabel={
+              labelMode === 'kickoff'
+                ? `Subround ${selected.sequence}, ${label}`
+                : `Subround ${selected.sequence}`
+            }
+          />
+        </View>
+
+        <ScrubberSidePreview
+          label={rightLabel}
+          accessibilityLabel={
+            showStartNew
+              ? 'Start new subround'
+              : rightLabel
+                ? `Next subround, ${rightLabel}`
+                : 'Next subround'
+          }
+          disabled={!canRight && !showStartNew}
+          direction={direction}
           onPress={() => {
             if (canRight) {
+              setDirection('right');
               onChange(subrounds[index + 1]);
+              return;
+            }
+            if (showStartNew && onStartNew) {
+              setDirection('right');
+              onStartNew();
             }
           }}
-          style={({ pressed }) => [
-            scrubberChrome.chevronHit,
-            !canRight && scrubberChrome.chevronDisabled,
-            pressed && canRight && scrubberChrome.pressed,
-          ]}
-        >
-          {canRight ? (
-            <ChevronIcon direction="right" size={SCRUBBER_CHEVRON_SIZE} />
-          ) : (
-            <View style={scrubberChrome.chevronSpacer} />
-          )}
-        </Pressable>
+        />
       </View>
       {trailing}
     </View>
@@ -157,12 +172,5 @@ const styles = StyleSheet.create({
   },
   rowTight: {
     marginBottom: 0,
-  },
-  label: {
-    flexShrink: 1,
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: 0.3,
   },
 });

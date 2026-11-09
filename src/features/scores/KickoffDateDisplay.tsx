@@ -77,15 +77,15 @@ export function KickoffDateDisplay({ kickoffIso, live = false, style }: Props) {
       accessibilityRole="text"
       accessibilityLabel={`Earliest kickoff ${label}${live ? ', live' : ''}`}
     >
-      {/* Spacers match DateScrubber chevron slots so the label centres with the slate scrubber. */}
-      <View style={scrubberChrome.chevronHit}>
-        <View style={scrubberChrome.chevronSpacer} />
+      {/* Spacers match scrubber side slots so the label centres with the slate scrubber. */}
+      <View style={scrubberChrome.sideHit}>
+        <View style={scrubberChrome.sideSpacer} />
       </View>
       <Animated.Text style={[styles.label, { color }]} numberOfLines={1}>
         {label}
       </Animated.Text>
-      <View style={scrubberChrome.chevronHit}>
-        <View style={scrubberChrome.chevronSpacer} />
+      <View style={scrubberChrome.sideHit}>
+        <View style={scrubberChrome.sideSpacer} />
       </View>
     </View>
   );

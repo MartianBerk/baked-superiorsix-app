@@ -18,6 +18,7 @@ import {
   listAdminSubrounds,
   listLeagues,
   listMatches,
+  openSubround,
   type AdminMatch,
   type LeagueInfo,
   type Subround,
@@ -151,6 +152,7 @@ export function MatchAdminWidget() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [openingSubround, setOpeningSubround] = useState(false);
   /** True until admin opens a parent Round via leaders → Admin (SS-84). */
   const [needsRound, setNeedsRound] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -161,6 +163,25 @@ export function MatchAdminWidget() {
     () => subrounds.find((row) => row.id === selectedSubroundId) ?? null,
     [subrounds, selectedSubroundId],
   );
+
+  /** Highest-sequence real subround (ignore pending virtual id=-1). */
+  const latestRealSubround = useMemo(() => {
+    for (let i = subrounds.length - 1; i >= 0; i -= 1) {
+      const row = subrounds[i];
+      if (!isPendingSubroundId(row.id)) {
+        return row;
+      }
+    }
+    return null;
+  }, [subrounds]);
+
+  /**
+   * Right side preview shows “+” only on the latest real slate
+   * (not older scrub, not pending id=-1).
+   */
+  const canStartNewSubround =
+    latestRealSubround != null &&
+    selectedSubroundId === latestRealSubround.id;
 
   const canEdit =
     selectedSubround != null && selectedSubround.is_open_for_editing;
@@ -402,6 +423,37 @@ export function MatchAdminWidget() {
     },
     [applySubroundSelection, matches],
   );
+
+  const onStartNewSubround = useCallback(async () => {
+    if (!token || !canStartNewSubround || openingSubround) {
+      return;
+    }
+    setOpeningSubround(true);
+    setError(null);
+    try {
+      const created = await openSubround(token);
+      const refreshed = await listAdminSubrounds(token);
+      const nextList = withPendingCurrent(refreshed, created.round_id);
+      setSubrounds(nextList);
+      const selected =
+        nextList.find((row) => row.id === created.id) ?? created;
+      applySubroundSelection(selected, matches);
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : 'Could not start a new subround.';
+      setError(message);
+    } finally {
+      setOpeningSubround(false);
+    }
+  }, [
+    token,
+    canStartNewSubround,
+    openingSubround,
+    matches,
+    applySubroundSelection,
+  ]);
 
   const onToggleMatch = useCallback(
     (match: AdminMatch) => {
@@ -658,6 +710,13 @@ export function MatchAdminWidget() {
                 subrounds={subrounds}
                 selectedId={selectedSubroundId}
                 onChange={onSelectSubround}
+                onStartNew={
+                  canStartNewSubround
+                    ? () => {
+                        void onStartNewSubround();
+                      }
+                    : undefined
+                }
                 style={styles.scrubberFlush}
               />
             </View>
