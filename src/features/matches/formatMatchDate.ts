@@ -60,27 +60,20 @@ export function toLegacyDateParam(dayKey: string): string {
 
 /**
  * Admin listmatches scrubber window: UTC today … today+6 (7 calendar days).
- * Single fetch for the whole window; DateScrubber walks these calendar days
- * (including empty ones). API caps at 7d.
+ * Single fetch — DateScrubber options are the fixture days inside this
+ * payload (empty calendar days stay hidden). API caps at 7d.
  */
 export function adminScrubberRange(now: Date = new Date()): {
   fromDate: string;
   toDate: string;
 } {
-  const keys = adminScrubberDayKeys(now);
-  return {
-    fromDate: toLegacyDateParam(keys[0]),
-    toDate: toLegacyDateParam(keys[keys.length - 1]),
-  };
-}
-
-/** UTC day keys for the admin match-picker date scrubber (today … today+6). */
-export function adminScrubberDayKeys(now: Date = new Date()): string[] {
   const fromKey = utcDayKey(now);
   const [y, m, d] = fromKey.split('-').map(Number);
-  return Array.from({ length: 7 }, (_, i) =>
-    utcDayKey(new Date(Date.UTC(y, m - 1, d + i, 12))),
-  );
+  const end = new Date(Date.UTC(y, m - 1, d + 6, 12));
+  return {
+    fromDate: toLegacyDateParam(fromKey),
+    toDate: toLegacyDateParam(utcDayKey(end)),
+  };
 }
 
 /** Monday (UTC) of the week containing `dayKey` / `now`. */
