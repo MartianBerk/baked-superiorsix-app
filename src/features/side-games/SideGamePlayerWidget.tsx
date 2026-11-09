@@ -600,9 +600,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 24,
   },
-  /** Same chrome as MatchPredictRow Sign in (routes to profile/login). */
+  /** Guest Sign in — right-aligned (routes to profile/login). */
   signInButton: {
-    alignSelf: 'flex-start',
+    alignSelf: 'flex-end',
     marginTop: 16,
     paddingHorizontal: 12,
     paddingVertical: 7,
