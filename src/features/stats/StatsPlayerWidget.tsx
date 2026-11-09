@@ -80,7 +80,13 @@ export function StatsPlayerWidget() {
         getStatsAggregate({ scope: 'previous' }),
         getStatsWinners(),
       ]);
-      if (current.stats.length > 0) {
+      if (current.stale_backend) {
+        // BE image lacks scope=current — do not paint n−1 as this round.
+        setCompareRows([]);
+        setError(
+          'Stats backend is missing scope=current (need baked-superiorsix #45 on master). Rebuild after merge.',
+        );
+      } else if (current.stats.length > 0) {
         setCompareRows(mergeCompareRows(current.stats, previous.stats));
       } else if (previous.stats.length > 0) {
         setCompareRows(rowsWithoutDelta(previous.stats));

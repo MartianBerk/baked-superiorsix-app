@@ -1514,6 +1514,11 @@ export type AggregateStatsResponse = {
   /** Resolved `rounds.id`, or null when empty. */
   round_id?: number | null;
   stats: AggregatePlayerStats[];
+  /**
+   * True when `scope=current` was requested but the BE omitted the scope echo
+   * (pre-#44 / #45 image). Callers must not fall back to previous as “this round”.
+   */
+  stale_backend?: boolean;
 };
 
 /** One closed round in the full winners archive (`GET /stats/winners`). */
@@ -1618,7 +1623,12 @@ export async function getStatsAggregate(opts?: {
     body?.round_id == null ? body?.round_id : asFiniteNumber(body.round_id);
   // Stale BE ignores `scope` and omits the echo — do not treat n−1 as current.
   if (opts?.scope === 'current' && scope !== 'current') {
-    return { scope: 'current', round_id: null, stats: [] };
+    return {
+      scope: 'current',
+      round_id: null,
+      stats: [],
+      stale_backend: true,
+    };
   }
   return {
     scope,
