@@ -2,10 +2,20 @@ FROM node:22-alpine AS build
 
 WORKDIR /app
 
+ARG EXPO_PUBLIC_AUTH_URL=/auth
+ARG EXPO_PUBLIC_USER_URL=/user
+ARG EXPO_PUBLIC_SUPERSIX_URL=/superiorsix
+ARG EXPO_BASE_URL=/super
+
+ENV EXPO_PUBLIC_AUTH_URL=$EXPO_PUBLIC_AUTH_URL
+ENV EXPO_PUBLIC_USER_URL=$EXPO_PUBLIC_USER_URL
+ENV EXPO_PUBLIC_SUPERSIX_URL=$EXPO_PUBLIC_SUPERSIX_URL
+ENV EXPO_BASE_URL=$EXPO_BASE_URL
+
 COPY package.json package-lock.json ./
 RUN npm ci
 
-COPY app.json tsconfig.json ./
+COPY app.json app.config.js tsconfig.json index.js ./
 COPY app ./app
 COPY assets ./assets
 COPY src ./src

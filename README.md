@@ -52,6 +52,14 @@ npm run build:web
 
 Native later: `npm run ios` / `npm run android` (Expo Go or EAS). Store builds and push credentials are out of scope for SS-8 — add via **EAS** + `app.json` plugins when ready.
 
+## Production subpath (`/super`)
+
+Transitional production on Martin's server is wired in
+[`baked-superiorsix/local-prod`](../baked-superiorsix/local-prod): one compose
+stack, Expo `EXPO_BASE_URL=/super`, same-origin `EXPO_PUBLIC_*` paths (`/auth`,
+`/user`, `/superiorsix`), and host nginx stripping `/super/` to the inner nginx
+on `:8040`.
+
 ## Docker (optional web UI)
 
 This repo owns front-end compose only. Multi-stage Node build → nginx static host with API proxies to **host-published** backend ports. Prefer host Expo for day-to-day UI.

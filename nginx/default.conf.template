@@ -43,6 +43,17 @@ server {
         proxy_read_timeout 30s;
     }
 
+    # Prod subpath (/super): mirror host nginx prefix strip for direct :8040 checks.
+    location = /super {
+        return 301 /super/;
+    }
+
+    location /super/ {
+        rewrite ^/super/(.*)$ /$1 break;
+        root /usr/share/nginx/html;
+        try_files $uri $uri/ /index.html;
+    }
+
     location / {
         try_files $uri $uri/ /index.html;
     }
