@@ -47,7 +47,6 @@ const TIP_OPACITY_MIN = 0.25;
 const TIP_OPACITY_MAX = 1;
 
 const DOT_PREV = 2.4;
-const DOT_CURRENT = 2.6;
 const DOT_TIP = 5;
 const DOT_TIP_HALO = 9;
 const PREV_LINE_OPACITY = 0.42;
@@ -362,7 +361,7 @@ export function SuccessRateGraph({
             <Path d={chart.areaPath} fill="url(#statsAreaFill)" />
           ) : null}
 
-          {/* Last round: lighter green, dotted, solid (non-flashing) dots */}
+          {/* Last round: lighter green dotted line — end dot only */}
           {chart.previousCoords.slice(0, -1).map((coord, index) => {
             const next = chart.previousCoords[index + 1];
             return (
@@ -381,16 +380,16 @@ export function SuccessRateGraph({
             );
           })}
 
-          {chart.previousCoords.map((coord) => (
+          {chart.previousCoords.length > 0 ? (
             <Circle
-              key={`prev-dot-${coord.slate}`}
-              cx={coord.x}
-              cy={coord.y}
+              key="prev-dot-end"
+              cx={chart.previousCoords[chart.previousCoords.length - 1].x}
+              cy={chart.previousCoords[chart.previousCoords.length - 1].y}
               r={DOT_PREV}
               fill={LAST_ROUND_GREEN}
               opacity={PREV_LINE_OPACITY + 0.2}
             />
-          ))}
+          ) : null}
 
           {chart.currentLine ? (
             <Path
@@ -403,18 +402,7 @@ export function SuccessRateGraph({
             />
           ) : null}
 
-          {/* Current: small solid dots for completed slates except the live tip */}
-          {chart.currentCoords.slice(0, -1).map((coord) => (
-            <Circle
-              key={`dot-${coord.slate}`}
-              cx={coord.x}
-              cy={coord.y}
-              r={DOT_CURRENT}
-              fill={colors.accentBright}
-            />
-          ))}
-
-          {/* Current tip: larger flashing end dot */}
+          {/* Current: flashing end dot only (smooth line, no per-slate dots) */}
           {chart.endDot ? (
             <>
               <Circle
