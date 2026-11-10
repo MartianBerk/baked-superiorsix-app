@@ -322,6 +322,102 @@ export async function updatePlayerRoles(
   };
 }
 
+function normalizePlayerProfile(raw: PlayerProfile): PlayerProfile {
+  return {
+    ...raw,
+    id: String(raw.id),
+    auth_id: String(raw.auth_id),
+    nickname: raw.nickname ?? null,
+    email: raw.email ?? null,
+    avatar_url: raw.avatar_url ?? null,
+  };
+}
+
+/**
+ * Mark a roster profile inactive (`GET /admin/dropplayer?authId=`).
+ */
+export async function deactivatePlayer(
+  token: string,
+  authId: string,
+): Promise<PlayerProfile> {
+  let response: Response;
+  try {
+    response = await apiFetch(
+      'game',
+      `/admin/dropplayer?authId=${encodeURIComponent(authId)}`,
+      { token },
+    );
+  } catch {
+    throw new ApiError(
+      0,
+      'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+    );
+  }
+  const body = await readApiJson<PlayerProfile>(response);
+  return normalizePlayerProfile(body);
+}
+
+/**
+ * Restore a dropped roster profile (`GET /admin/reactivateplayer?authId=`).
+ */
+export async function reactivatePlayer(
+  token: string,
+  authId: string,
+): Promise<PlayerProfile> {
+  let response: Response;
+  try {
+    response = await apiFetch(
+      'game',
+      `/admin/reactivateplayer?authId=${encodeURIComponent(authId)}`,
+      { token },
+    );
+  } catch {
+    throw new ApiError(
+      0,
+      'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+    );
+  }
+  const body = await readApiJson<PlayerProfile>(response);
+  return normalizePlayerProfile(body);
+}
+
+export type ResetPlayerPasswordResult = {
+  email: string;
+  message?: string;
+};
+
+/**
+ * Clear auth password so the player must claim via First login (SS-205).
+ * Expected: `POST /admin/resetplayerpassword` with roster email — adjust when BE
+ * finalises the contract.
+ */
+export async function resetPlayerPassword(
+  token: string,
+  payload: { email: string },
+): Promise<ResetPlayerPasswordResult> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/admin/resetplayerpassword', {
+      method: 'POST',
+      token,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: payload.email.trim().toLowerCase(),
+      }),
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+    );
+  }
+  const body = await readApiJson<ResetPlayerPasswordResult>(response);
+  return {
+    email: body.email ?? payload.email.trim().toLowerCase(),
+    message: body.message,
+  };
+}
+
 /**
  * List roster invites via baked-user (`GET /superiorsix/invites`).
  * Requires superiorsix JWT with admin. Includes invite.roles.

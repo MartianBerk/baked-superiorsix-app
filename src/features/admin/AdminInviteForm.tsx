@@ -12,10 +12,13 @@ import {
   ApiError,
   INVITE_PERMISSION_ROLES,
   formatPermissionRoleLabel,
+  deactivatePlayer,
   getPlayerRoles,
   invitePlayer,
   listInvites,
   listPlayers,
+  reactivatePlayer,
+  resetPlayerPassword,
   updatePlayerRoles,
   type InvitePermissionRole,
   type PendingInvite,
@@ -96,6 +99,9 @@ export function AdminInviteForm({ panel }: Props) {
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [editNote, setEditNote] = useState<string | null>(null);
+  const [accountBusy, setAccountBusy] = useState(false);
+  const [accountError, setAccountError] = useState<string | null>(null);
+  const [accountNote, setAccountNote] = useState<string | null>(null);
 
   const refreshInvites = useCallback(async () => {
     if (!token) {
@@ -161,6 +167,9 @@ export function AdminInviteForm({ panel }: Props) {
     setEditNote(null);
     setEditLoading(false);
     setEditBusy(false);
+    setAccountBusy(false);
+    setAccountError(null);
+    setAccountNote(null);
   };
 
   const openEditor = async (player: PlayerProfile) => {
@@ -181,6 +190,8 @@ export function AdminInviteForm({ panel }: Props) {
     setEditEmail(mail);
     setEditError(null);
     setEditNote(null);
+    setAccountError(null);
+    setAccountNote(null);
     setEditLoading(true);
     try {
       const result = await getPlayerRoles(token, mail);
@@ -234,6 +245,74 @@ export function AdminInviteForm({ panel }: Props) {
       }
     } finally {
       setEditBusy(false);
+    }
+  };
+
+  const patchRosterPlayer = (updated: PlayerProfile) => {
+    setRoster((prev) =>
+      prev.map((row) =>
+        row.auth_id === updated.auth_id ? { ...row, ...updated } : row,
+      ),
+    );
+  };
+
+  const onResetPassword = async () => {
+    setAccountError(null);
+    setAccountNote(null);
+    if (!token) {
+      setAccountError('Not signed in.');
+      return;
+    }
+    if (!editEmail) {
+      setAccountError('Email is required to reset password.');
+      return;
+    }
+    setAccountBusy(true);
+    try {
+      const result = await resetPlayerPassword(token, { email: editEmail });
+      setAccountNote(
+        result.message ??
+          'Password cleared — player must use First login to claim again.',
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setAccountError(err.message);
+      } else if (err instanceof Error) {
+        setAccountError(err.message);
+      } else {
+        setAccountError('Password reset failed.');
+      }
+    } finally {
+      setAccountBusy(false);
+    }
+  };
+
+  const onToggleActive = async (player: PlayerProfile) => {
+    setAccountError(null);
+    setAccountNote(null);
+    if (!token) {
+      setAccountError('Not signed in.');
+      return;
+    }
+    setAccountBusy(true);
+    try {
+      const updated = player.active
+        ? await deactivatePlayer(token, player.auth_id)
+        : await reactivatePlayer(token, player.auth_id);
+      patchRosterPlayer(updated);
+      setAccountNote(
+        updated.active ? 'Player reactivated.' : 'Player marked inactive.',
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setAccountError(err.message);
+      } else if (err instanceof Error) {
+        setAccountError(err.message);
+      } else {
+        setAccountError('Could not update player status.');
+      }
+    } finally {
+      setAccountBusy(false);
     }
   };
 
@@ -423,7 +502,9 @@ export function AdminInviteForm({ panel }: Props) {
       {roster.map((player) => {
         const isEditing = editingAuthId === player.auth_id;
         const rowDisabled =
-          busy || ((editBusy || editLoading) && !isEditing);
+          busy ||
+          accountBusy ||
+          ((editBusy || editLoading) && !isEditing);
         return (
           <AdminRosterPlayerSection
             key={player.auth_id}
@@ -443,9 +524,18 @@ export function AdminInviteForm({ panel }: Props) {
             editBusy={isEditing && editBusy}
             editError={isEditing ? editError : null}
             editNote={isEditing ? editNote : null}
+            accountBusy={isEditing && accountBusy}
+            accountError={isEditing ? accountError : null}
+            accountNote={isEditing ? accountNote : null}
             onToggleEditRole={toggleEditRole}
             onSaveRoles={() => {
               void onSaveRoles();
+            }}
+            onResetPassword={() => {
+              void onResetPassword();
+            }}
+            onToggleActive={() => {
+              void onToggleActive(player);
             }}
             onCloseEditor={closeEditor}
           />

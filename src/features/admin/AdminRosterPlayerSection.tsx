@@ -27,8 +27,13 @@ type Props = {
   editBusy: boolean;
   editError: string | null;
   editNote: string | null;
+  accountBusy: boolean;
+  accountError: string | null;
+  accountNote: string | null;
   onToggleEditRole: (role: InvitePermissionRole) => void;
   onSaveRoles: () => void;
+  onResetPassword: () => void;
+  onToggleActive: () => void;
   onCloseEditor: () => void;
 };
 
@@ -51,10 +56,16 @@ export function AdminRosterPlayerSection({
   editBusy,
   editError,
   editNote,
+  accountBusy,
+  accountError,
+  accountNote,
   onToggleEditRole,
   onSaveRoles,
+  onResetPassword,
+  onToggleActive,
   onCloseEditor,
 }: Props) {
+  const panelBusy = editBusy || editLoading || accountBusy;
   const chevron = (expanded ? CHEVRON_UP : CHEVRON_DOWN).replaceAll(
     'CURRENT',
     colors.textMuted,
@@ -108,23 +119,61 @@ export function AdminRosterPlayerSection({
           ) : (
             <RoleChips
               value={editRoles}
-              disabled={editBusy || !editEmail}
+              disabled={panelBusy || !editEmail}
               onToggle={onToggleEditRole}
             />
           )}
 
+          <Text style={styles.label}>Account</Text>
+          <View style={styles.accountRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Reset password for first login"
+              disabled={panelBusy || !editEmail}
+              onPress={onResetPassword}
+              style={({ pressed }) => [
+                styles.accountButton,
+                (pressed || panelBusy || !editEmail) && styles.pressed,
+                (panelBusy || !editEmail) && styles.accountButtonDisabled,
+              ]}
+            >
+              <Text style={styles.accountButtonText}>Reset password</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                player.active ? 'Mark player inactive' : 'Reactivate player'
+              }
+              disabled={panelBusy}
+              onPress={onToggleActive}
+              style={({ pressed }) => [
+                styles.accountButton,
+                player.active && styles.accountButtonWarn,
+                (pressed || panelBusy) && styles.pressed,
+                panelBusy && styles.accountButtonDisabled,
+              ]}
+            >
+              <Text style={styles.accountButtonText}>
+                {player.active ? 'Mark inactive' : 'Reactivate'}
+              </Text>
+            </Pressable>
+          </View>
+
           {editError ? <Text style={styles.error}>{editError}</Text> : null}
           {editNote ? <Text style={styles.saved}>{editNote}</Text> : null}
+          {accountError ? (
+            <Text style={styles.error}>{accountError}</Text>
+          ) : null}
+          {accountNote ? <Text style={styles.saved}>{accountNote}</Text> : null}
 
           <View style={styles.editActions}>
             <Pressable
               accessibilityRole="button"
-              disabled={editBusy || editLoading || !editEmail}
+              disabled={panelBusy || !editEmail}
               onPress={onSaveRoles}
               style={({ pressed }) => [
                 styles.button,
-                (pressed || editBusy || editLoading || !editEmail) &&
-                  styles.pressed,
+                (pressed || panelBusy || !editEmail) && styles.pressed,
               ]}
             >
               {editBusy ? (
@@ -135,11 +184,11 @@ export function AdminRosterPlayerSection({
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              disabled={editBusy}
+              disabled={panelBusy}
               onPress={onCloseEditor}
               style={({ pressed }) => [
                 styles.cancelButton,
-                (pressed || editBusy) && styles.pressed,
+                (pressed || panelBusy) && styles.pressed,
               ]}
             >
               <Text style={styles.cancelText}>Close</Text>
@@ -219,6 +268,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 12,
+  },
+  accountRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  accountButton: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    minWidth: 120,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
+  accountButtonWarn: {
+    borderColor: colors.resultLose,
+  },
+  accountButtonDisabled: {
+    opacity: 0.45,
+  },
+  accountButtonText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   editActions: {
     gap: 10,
