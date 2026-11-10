@@ -2,13 +2,12 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import type { PredictionChoice } from '@/api/superiorsix';
 import { pickBadgeChrome } from '@/features/scores/pickBadgeChrome';
+import { PICK_SELECTION_LABEL } from '@/features/scores/pickOutcome';
 import { colors } from '@/theme';
 
-const CHOICES: { value: PredictionChoice; label: string }[] = [
-  { value: 'home', label: 'H' },
-  { value: 'draw', label: 'D' },
-  { value: 'away', label: 'A' },
-];
+const CHOICES: { value: PredictionChoice; label: string }[] = (
+  ['home', 'draw', 'away'] as const
+).map((value) => ({ value, label: PICK_SELECTION_LABEL[value] }));
 
 type Props = {
   selection: PredictionChoice | null;
@@ -18,8 +17,8 @@ type Props = {
 };
 
 /**
- * H / D / A badges for the expanded match-detail panel.
- * Selected / idle chrome matches Scores `PickOutcomeBadge` exactly.
+ * HOME / DRAW / AWAY badges for the expanded match-detail panel.
+ * Chrome matches selection badges elsewhere (lighter grey idle, shared radius).
  */
 export function PredictionPicker({
   selection,
@@ -43,7 +42,9 @@ export function PredictionPicker({
               disabled={locked}
               onPress={() => onSelect(value)}
               style={({ pressed }) => [
-                active ? pickBadgeChrome.badge : pickBadgeChrome.badgeIdle,
+                active
+                  ? pickBadgeChrome.badgeSelection
+                  : pickBadgeChrome.badgeSelectionIdle,
                 pressed && !locked && styles.buttonPressed,
                 locked && styles.buttonDisabled,
               ]}
@@ -54,8 +55,8 @@ export function PredictionPicker({
                 <Text
                   style={
                     active
-                      ? pickBadgeChrome.badgeLabel
-                      : pickBadgeChrome.badgeLabelIdle
+                      ? pickBadgeChrome.badgeSelectionLabel
+                      : pickBadgeChrome.badgeSelectionLabelIdle
                   }
                 >
                   {label}
@@ -76,13 +77,13 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
-  /** Badges spaced across the middle ~33% of the expanded panel only. */
   row: {
-    width: '33%',
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
   },
   buttonPressed: {
     backgroundColor: colors.surface,

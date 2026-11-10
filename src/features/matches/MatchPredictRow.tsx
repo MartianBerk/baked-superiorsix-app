@@ -22,8 +22,9 @@ import {
 } from '@/features/scores/liveScoreDisplay';
 import {
   isPickCurrentlyCorrect,
-  PICK_BADGE_LABEL,
+  PICK_SELECTION_LABEL,
 } from '@/features/scores/pickOutcome';
+import { pickBadgeChrome } from '@/features/scores/pickBadgeChrome';
 import { scoreListChrome } from '@/features/scores/scoreListChrome';
 import { colors } from '@/theme';
 
@@ -102,7 +103,9 @@ export function MatchPredictRow({
   const pickCorrect =
     showPick && isPickCurrentlyCorrect(prediction, match, now);
   const pickLabel =
-    showPick && prediction != null ? PICK_BADGE_LABEL[prediction] : null;
+    showPick && prediction != null
+      ? PICK_SELECTION_LABEL[prediction]
+      : null;
 
   const scoreLine = locked
     ? formatAlignedScore(
@@ -171,6 +174,7 @@ export function MatchPredictRow({
               </View>
             ) : (
               <PickOutcomeBadge
+                variant="selection"
                 prediction={prediction}
                 correct={pickCorrect}
                 accessibilityLabel={
@@ -303,11 +307,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeBusy: {
-    width: 27,
-    height: 27,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+    ...pickBadgeChrome.badgeSelection,
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
   },
   actions: {
     // Keep pick badge + score + minute from being squeezed off by long names.

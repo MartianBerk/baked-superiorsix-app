@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import type { PredictionChoice } from '@/api/superiorsix';
 
 import { pickBadgeChrome } from './pickBadgeChrome';
-import { PICK_BADGE_LABEL } from './pickOutcome';
+import { PICK_BADGE_LABEL, PICK_SELECTION_LABEL } from './pickOutcome';
 
 type Props = {
   prediction: PredictionChoice;
@@ -12,6 +12,8 @@ type Props = {
   accessibilityLabel?: string;
   /** Tighter 22px badge for collapsed Scores strip. */
   compact?: boolean;
+  /** Scores rows use H/D/A; Matches & side games use HOME/DRAW/AWAY. */
+  variant?: 'scores' | 'selection';
 };
 
 /**
@@ -23,13 +25,18 @@ export function PickOutcomeBadge({
   correct,
   accessibilityLabel,
   compact = false,
+  variant = 'scores',
 }: Props) {
-  const label = PICK_BADGE_LABEL[prediction];
+  const label =
+    variant === 'selection'
+      ? PICK_SELECTION_LABEL[prediction]
+      : PICK_BADGE_LABEL[prediction];
+  const selection = variant === 'selection';
   return (
     <View
       style={[
-        pickBadgeChrome.badge,
-        compact && pickBadgeChrome.badgeCompact,
+        selection ? pickBadgeChrome.badgeSelection : pickBadgeChrome.badge,
+        !selection && compact && pickBadgeChrome.badgeCompact,
         correct && pickBadgeChrome.badgeCorrect,
       ]}
       accessibilityLabel={
@@ -39,8 +46,10 @@ export function PickOutcomeBadge({
     >
       <Text
         style={[
-          pickBadgeChrome.badgeLabel,
-          compact && pickBadgeChrome.badgeLabelCompact,
+          selection
+            ? pickBadgeChrome.badgeSelectionLabel
+            : pickBadgeChrome.badgeLabel,
+          !selection && compact && pickBadgeChrome.badgeLabelCompact,
         ]}
       >
         {label}

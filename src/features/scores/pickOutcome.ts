@@ -13,6 +13,13 @@ export const PICK_BADGE_LABEL: Record<PredictionChoice, string> = {
   away: 'A',
 };
 
+/** Full-word labels for Matches / Euros / World Cup selection badges. */
+export const PICK_SELECTION_LABEL: Record<PredictionChoice, string> = {
+  home: 'HOME',
+  draw: 'DRAW',
+  away: 'AWAY',
+};
+
 export function outcomeFromScores(
   homeScore: number,
   awayScore: number,
