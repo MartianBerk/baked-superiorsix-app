@@ -12,12 +12,12 @@ import {
   ApiError,
   INVITE_PERMISSION_ROLES,
   formatPermissionRoleLabel,
-  deactivatePlayer,
+  getPlayerAuthState,
   getPlayerRoles,
   invitePlayer,
   listInvites,
   listPlayers,
-  reactivatePlayer,
+  patchPlayerAuthState,
   resetPlayerPassword,
   updatePlayerRoles,
   type InvitePermissionRole,
@@ -102,6 +102,8 @@ export function AdminInviteForm({ panel }: Props) {
   const [accountBusy, setAccountBusy] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
   const [accountNote, setAccountNote] = useState<string | null>(null);
+  const [editAuthActive, setEditAuthActive] = useState<boolean | null>(null);
+  const [editMustSetPassword, setEditMustSetPassword] = useState(false);
 
   const refreshInvites = useCallback(async () => {
     if (!token) {
@@ -170,6 +172,8 @@ export function AdminInviteForm({ panel }: Props) {
     setAccountBusy(false);
     setAccountError(null);
     setAccountNote(null);
+    setEditAuthActive(null);
+    setEditMustSetPassword(false);
   };
 
   const openEditor = async (player: PlayerProfile) => {
@@ -183,6 +187,24 @@ export function AdminInviteForm({ panel }: Props) {
       setEditingAuthId(player.auth_id);
       setEditEmail('');
       setEditRoles(emptyRoleFlags());
+      setEditAuthActive(null);
+      setEditMustSetPassword(false);
+      setEditLoading(true);
+      try {
+        const authState = await getPlayerAuthState(token, player.auth_id);
+        setEditAuthActive(authState.is_active);
+        setEditMustSetPassword(authState.must_set_password);
+      } catch (err) {
+        if (err instanceof ApiError) {
+          setAccountError(err.message);
+        } else if (err instanceof Error) {
+          setAccountError(err.message);
+        } else {
+          setAccountError('Could not load auth state.');
+        }
+      } finally {
+        setEditLoading(false);
+      }
       return;
     }
 
@@ -192,10 +214,17 @@ export function AdminInviteForm({ panel }: Props) {
     setEditNote(null);
     setAccountError(null);
     setAccountNote(null);
+    setEditAuthActive(null);
+    setEditMustSetPassword(false);
     setEditLoading(true);
     try {
-      const result = await getPlayerRoles(token, mail);
-      setEditRoles(flagsFromRoles(result.roles));
+      const [rolesResult, authState] = await Promise.all([
+        getPlayerRoles(token, mail),
+        getPlayerAuthState(token, player.auth_id),
+      ]);
+      setEditRoles(flagsFromRoles(rolesResult.roles));
+      setEditAuthActive(authState.is_active);
+      setEditMustSetPassword(authState.must_set_password);
     } catch (err) {
       setEditRoles(emptyRoleFlags());
       if (err instanceof ApiError) {
@@ -248,31 +277,20 @@ export function AdminInviteForm({ panel }: Props) {
     }
   };
 
-  const patchRosterPlayer = (updated: PlayerProfile) => {
-    setRoster((prev) =>
-      prev.map((row) =>
-        row.auth_id === updated.auth_id ? { ...row, ...updated } : row,
-      ),
-    );
-  };
-
-  const onResetPassword = async () => {
+  const onResetPassword = async (authId: string) => {
     setAccountError(null);
     setAccountNote(null);
     if (!token) {
       setAccountError('Not signed in.');
       return;
     }
-    if (!editEmail) {
-      setAccountError('Email is required to reset password.');
-      return;
-    }
     setAccountBusy(true);
     try {
-      const result = await resetPlayerPassword(token, { email: editEmail });
+      const result = await resetPlayerPassword(token, authId);
+      setEditAuthActive(result.is_active);
+      setEditMustSetPassword(result.must_set_password);
       setAccountNote(
-        result.message ??
-          'Password cleared — player must use First login to claim again.',
+        'Password cleared — player must use First login to claim again.',
       );
     } catch (err) {
       if (err instanceof ApiError) {
@@ -287,21 +305,30 @@ export function AdminInviteForm({ panel }: Props) {
     }
   };
 
-  const onToggleActive = async (player: PlayerProfile) => {
+  const onToggleAuthActive = async (authId: string) => {
     setAccountError(null);
     setAccountNote(null);
     if (!token) {
       setAccountError('Not signed in.');
       return;
     }
+    if (editAuthActive == null) {
+      setAccountError('Auth state not loaded yet.');
+      return;
+    }
     setAccountBusy(true);
     try {
-      const updated = player.active
-        ? await deactivatePlayer(token, player.auth_id)
-        : await reactivatePlayer(token, player.auth_id);
-      patchRosterPlayer(updated);
+      const updated = await patchPlayerAuthState(
+        token,
+        authId,
+        !editAuthActive,
+      );
+      setEditAuthActive(updated.is_active);
+      setEditMustSetPassword(updated.must_set_password);
       setAccountNote(
-        updated.active ? 'Player reactivated.' : 'Player marked inactive.',
+        updated.is_active
+          ? 'Login reactivated.'
+          : 'Login disabled (inactive).',
       );
     } catch (err) {
       if (err instanceof ApiError) {
@@ -524,6 +551,8 @@ export function AdminInviteForm({ panel }: Props) {
             editBusy={isEditing && editBusy}
             editError={isEditing ? editError : null}
             editNote={isEditing ? editNote : null}
+            authActive={isEditing ? editAuthActive : null}
+            mustSetPassword={isEditing && editMustSetPassword}
             accountBusy={isEditing && accountBusy}
             accountError={isEditing ? accountError : null}
             accountNote={isEditing ? accountNote : null}
@@ -532,10 +561,10 @@ export function AdminInviteForm({ panel }: Props) {
               void onSaveRoles();
             }}
             onResetPassword={() => {
-              void onResetPassword();
+              void onResetPassword(player.auth_id);
             }}
-            onToggleActive={() => {
-              void onToggleActive(player);
+            onToggleAuthActive={() => {
+              void onToggleAuthActive(player.auth_id);
             }}
             onCloseEditor={closeEditor}
           />

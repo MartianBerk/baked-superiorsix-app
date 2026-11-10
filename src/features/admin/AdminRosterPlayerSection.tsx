@@ -30,10 +30,13 @@ type Props = {
   accountBusy: boolean;
   accountError: string | null;
   accountNote: string | null;
+  /** Baked-auth login flag (null while loading). */
+  authActive: boolean | null;
+  mustSetPassword: boolean;
   onToggleEditRole: (role: InvitePermissionRole) => void;
   onSaveRoles: () => void;
   onResetPassword: () => void;
-  onToggleActive: () => void;
+  onToggleAuthActive: () => void;
   onCloseEditor: () => void;
 };
 
@@ -59,12 +62,15 @@ export function AdminRosterPlayerSection({
   accountBusy,
   accountError,
   accountNote,
+  authActive,
+  mustSetPassword,
   onToggleEditRole,
   onSaveRoles,
   onResetPassword,
-  onToggleActive,
+  onToggleAuthActive,
   onCloseEditor,
 }: Props) {
+  const loginActive = authActive !== false;
   const panelBusy = editBusy || editLoading || accountBusy;
   const chevron = (expanded ? CHEVRON_UP : CHEVRON_DOWN).replaceAll(
     'CURRENT',
@@ -95,7 +101,10 @@ export function AdminRosterPlayerSection({
           </Text>
           <Text style={styles.meta} numberOfLines={2}>
             {player.email ? `${player.email} · ` : ''}
-            {player.active ? 'active' : 'inactive'}
+            roster {player.active ? 'active' : 'inactive'}
+            {authActive != null
+              ? ` · login ${authActive ? 'active' : 'inactive'}`
+              : ''}
           </Text>
         </View>
         <View style={styles.chevronSlot}>
@@ -129,12 +138,12 @@ export function AdminRosterPlayerSection({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Reset password for first login"
-              disabled={panelBusy || !editEmail}
+              disabled={panelBusy}
               onPress={onResetPassword}
               style={({ pressed }) => [
                 styles.accountButton,
-                (pressed || panelBusy || !editEmail) && styles.pressed,
-                (panelBusy || !editEmail) && styles.accountButtonDisabled,
+                (pressed || panelBusy) && styles.pressed,
+                panelBusy && styles.accountButtonDisabled,
               ]}
             >
               <Text style={styles.accountButtonText}>Reset password</Text>
@@ -142,22 +151,25 @@ export function AdminRosterPlayerSection({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={
-                player.active ? 'Mark player inactive' : 'Reactivate player'
+                loginActive ? 'Disable player login' : 'Reactivate player login'
               }
-              disabled={panelBusy}
-              onPress={onToggleActive}
+              disabled={panelBusy || authActive == null}
+              onPress={onToggleAuthActive}
               style={({ pressed }) => [
                 styles.accountButton,
-                player.active && styles.accountButtonWarn,
+                loginActive && styles.accountButtonWarn,
                 (pressed || panelBusy) && styles.pressed,
-                panelBusy && styles.accountButtonDisabled,
+                (panelBusy || authActive == null) && styles.accountButtonDisabled,
               ]}
             >
               <Text style={styles.accountButtonText}>
-                {player.active ? 'Mark inactive' : 'Reactivate'}
+                {loginActive ? 'Mark inactive' : 'Reactivate'}
               </Text>
             </Pressable>
           </View>
+          {mustSetPassword ? (
+            <Text style={styles.authHint}>First login required (no password).</Text>
+          ) : null}
 
           {editError ? <Text style={styles.error}>{editError}</Text> : null}
           {editNote ? <Text style={styles.saved}>{editNote}</Text> : null}
@@ -299,6 +311,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  authHint: {
+    color: colors.textMuted,
+    fontSize: 13,
+    marginBottom: 12,
+    lineHeight: 18,
   },
   editActions: {
     gap: 10,

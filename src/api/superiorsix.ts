@@ -322,29 +322,35 @@ export async function updatePlayerRoles(
   };
 }
 
-function normalizePlayerProfile(raw: PlayerProfile): PlayerProfile {
+/** Baked-auth account flags for a roster player (`/admin/players/{authId}/auth`). */
+export type AdminPlayerAuthState = {
+  auth_id: string;
+  email: string;
+  is_active: boolean;
+  must_set_password: boolean;
+};
+
+function normalizeAdminPlayerAuth(raw: AdminPlayerAuthState): AdminPlayerAuthState {
   return {
     ...raw,
-    id: String(raw.id),
     auth_id: String(raw.auth_id),
-    nickname: raw.nickname ?? null,
-    email: raw.email ?? null,
-    avatar_url: raw.avatar_url ?? null,
+    email: raw.email.trim().toLowerCase(),
   };
 }
 
 /**
- * Mark a roster profile inactive (`GET /admin/dropplayer?authId=`).
+ * Read baked-auth login flags for a rostered player
+ * (`GET /admin/players/{authId}/auth`).
  */
-export async function deactivatePlayer(
+export async function getPlayerAuthState(
   token: string,
   authId: string,
-): Promise<PlayerProfile> {
+): Promise<AdminPlayerAuthState> {
   let response: Response;
   try {
     response = await apiFetch(
       'game',
-      `/admin/dropplayer?authId=${encodeURIComponent(authId)}`,
+      `/admin/players/${encodeURIComponent(authId)}/auth`,
       { token },
     );
   } catch {
@@ -353,23 +359,30 @@ export async function deactivatePlayer(
       'Could not reach baked-superiorsix. Is local-dev up on :8030?',
     );
   }
-  const body = await readApiJson<PlayerProfile>(response);
-  return normalizePlayerProfile(body);
+  const body = await readApiJson<AdminPlayerAuthState>(response);
+  return normalizeAdminPlayerAuth(body);
 }
 
 /**
- * Restore a dropped roster profile (`GET /admin/reactivateplayer?authId=`).
+ * Set baked-auth `is_active` (blocks login when false)
+ * (`PATCH /admin/players/{authId}/auth`).
  */
-export async function reactivatePlayer(
+export async function patchPlayerAuthState(
   token: string,
   authId: string,
-): Promise<PlayerProfile> {
+  isActive: boolean,
+): Promise<AdminPlayerAuthState> {
   let response: Response;
   try {
     response = await apiFetch(
       'game',
-      `/admin/reactivateplayer?authId=${encodeURIComponent(authId)}`,
-      { token },
+      `/admin/players/${encodeURIComponent(authId)}/auth`,
+      {
+        method: 'PATCH',
+        token,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: isActive }),
+      },
     );
   } catch {
     throw new ApiError(
@@ -377,45 +390,36 @@ export async function reactivatePlayer(
       'Could not reach baked-superiorsix. Is local-dev up on :8030?',
     );
   }
-  const body = await readApiJson<PlayerProfile>(response);
-  return normalizePlayerProfile(body);
+  const body = await readApiJson<AdminPlayerAuthState>(response);
+  return normalizeAdminPlayerAuth(body);
 }
 
-export type ResetPlayerPasswordResult = {
-  email: string;
-  message?: string;
-};
-
 /**
- * Clear auth password so the player must claim via First login (SS-205).
- * Expected: `POST /admin/resetplayerpassword` with roster email — adjust when BE
- * finalises the contract.
+ * Clear auth password so the player must claim via First login
+ * (`POST /admin/players/{authId}/reset-password`).
  */
 export async function resetPlayerPassword(
   token: string,
-  payload: { email: string },
-): Promise<ResetPlayerPasswordResult> {
+  authId: string,
+): Promise<AdminPlayerAuthState> {
   let response: Response;
   try {
-    response = await apiFetch('game', '/admin/resetplayerpassword', {
-      method: 'POST',
-      token,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: payload.email.trim().toLowerCase(),
-      }),
-    });
+    response = await apiFetch(
+      'game',
+      `/admin/players/${encodeURIComponent(authId)}/reset-password`,
+      {
+        method: 'POST',
+        token,
+      },
+    );
   } catch {
     throw new ApiError(
       0,
       'Could not reach baked-superiorsix. Is local-dev up on :8030?',
     );
   }
-  const body = await readApiJson<ResetPlayerPasswordResult>(response);
-  return {
-    email: body.email ?? payload.email.trim().toLowerCase(),
-    message: body.message,
-  };
+  const body = await readApiJson<AdminPlayerAuthState>(response);
+  return normalizeAdminPlayerAuth(body);
 }
 
 /**
