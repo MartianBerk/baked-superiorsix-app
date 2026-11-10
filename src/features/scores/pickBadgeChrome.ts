@@ -7,6 +7,9 @@ import { colors } from '@/theme';
  * Matches expand picker + Euros/WC mid-row pickers reuse these tokens
  * so selected grey and correct green look identical everywhere.
  */
+/** Horizontal gap between HOME / DRAW / AWAY on player selection rows (3× prior 10). */
+export const pickBadgeSelectionRowGap = 30;
+
 export const pickBadgeChrome = StyleSheet.create({
   /** Selected (not correct) — lighter grey fill. */
   badge: {
@@ -62,5 +65,47 @@ export const pickBadgeChrome = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.2,
     lineHeight: 14,
+  },
+  /**
+   * Wider footprint for HOME / DRAW / AWAY on player pickers (legacy
+   * GamePrediction / PlayerPrediction wording).
+   */
+  badgeSelection: {
+    minWidth: 50,
+    height: 27,
+    paddingHorizontal: 7,
+    borderRadius: 8,
+    backgroundColor: colors.menuActive,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  badgeSelectionIdle: {
+    minWidth: 50,
+    height: 27,
+    paddingHorizontal: 7,
+    borderRadius: 8,
+    backgroundColor: colors.menuBar,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  badgeSelectionLabel: {
+    color: colors.text,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.1,
+    lineHeight: 11,
+  },
+  badgeSelectionLabelIdle: {
+    color: colors.textMuted,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.1,
+    lineHeight: 11,
   },
 });

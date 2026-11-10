@@ -31,6 +31,7 @@ import { isPostponedStatus } from '@/features/scores/liveScoreDisplay';
 import { colors } from '@/theme';
 
 import { DateScrubber } from './DateScrubber';
+import { SCRUBBER_ROW_TAIL_GAP } from './scrubberChrome';
 import { useFixturesTabMode } from './FixturesTabModeContext';
 import { KickoffGroup } from './KickoffGroup';
 import {
@@ -676,27 +677,6 @@ export function MatchAdminWidget() {
       }
     >
       <View style={styles.wrap}>
-        <View style={styles.headerStrip}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Submit match selections"
-            disabled={!canSubmit}
-            onPress={() => {
-              void onSubmit();
-            }}
-            style={({ pressed }) => [
-              styles.submit,
-              !canSubmit && styles.submitDisabled,
-              pressed && canSubmit && styles.submitPressed,
-            ]}
-          >
-            {submitting ? (
-              <ActivityIndicator size="small" color={colors.text} />
-            ) : (
-              <Text style={styles.submitLabel}>Submit</Text>
-            )}
-          </Pressable>
-        </View>
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {needsRound ? (
           <Text style={styles.lede}>
@@ -784,6 +764,28 @@ export function MatchAdminWidget() {
             />
           ))
         )}
+
+        <View style={styles.footerStrip}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Submit match selections"
+            disabled={!canSubmit}
+            onPress={() => {
+              void onSubmit();
+            }}
+            style={({ pressed }) => [
+              styles.submit,
+              !canSubmit && styles.submitDisabled,
+              pressed && canSubmit && styles.submitPressed,
+            ]}
+          >
+            {submitting ? (
+              <ActivityIndicator size="small" color={colors.text} />
+            ) : (
+              <Text style={styles.submitLabel}>Submit</Text>
+            )}
+          </Pressable>
+        </View>
       </View>
     </ScrollView>
   );
@@ -807,18 +809,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: '3%',
     paddingTop: 12,
   },
-  headerStrip: {
+  footerStrip: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 12,
-    marginBottom: 12,
+    marginTop: 12,
   },
   scrubberRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    marginBottom: 6,
+    marginBottom: SCRUBBER_ROW_TAIL_GAP,
   },
   /** Left slate `# n` chip — ~33% (same as Scores / player Matches). */
   subroundCol: {

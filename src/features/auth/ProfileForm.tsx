@@ -146,10 +146,8 @@ export function ProfileForm() {
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.heading}>Your profile</Text>
-      <Text style={styles.lede}>
-        {session?.email ? `${session.email} · ` : ''}
-        email, first name, last name, and nickname.
+      <Text accessible={false} style={styles.headingSpacer}>
+        {'\u00a0'}
       </Text>
 
       {loadState === 'missing' || loadState === 'error' ? (
@@ -262,17 +260,10 @@ const styles = StyleSheet.create({
   wrap: {
     width: '100%',
   },
-  heading: {
-    color: colors.text,
+  /** Invisible rhythm after removed heading; margin below opens the form. */
+  headingSpacer: {
     fontSize: 22,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-    marginBottom: 8,
-  },
-  lede: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 22,
     marginBottom: 16,
   },
   warn: {

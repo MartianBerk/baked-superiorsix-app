@@ -22,8 +22,9 @@ import {
 } from '@/features/scores/liveScoreDisplay';
 import {
   isPickCurrentlyCorrect,
-  PICK_BADGE_LABEL,
+  PICK_SELECTION_LABEL,
 } from '@/features/scores/pickOutcome';
+import { pickBadgeChrome } from '@/features/scores/pickBadgeChrome';
 import { scoreListChrome } from '@/features/scores/scoreListChrome';
 import { colors } from '@/theme';
 
@@ -70,9 +71,9 @@ type Props = {
 
 /**
  * Player fixture row: #N leftmost, then league code above difficulty pips,
- * home/away stack, expand for detail / PredictionPicker. Trailing meta is
- * pick badge (if any) + score + match minute once started (+ chevron when
- * unlocked).
+ * home/away stack; tap row to expand for detail / PredictionPicker (Scores-
+ * style), except the collapsed pick badge (display-only). Trailing meta is
+ * pick badge + score + minute + chevron when unlocked.
  */
 export function MatchPredictRow({
   match,
@@ -102,7 +103,9 @@ export function MatchPredictRow({
   const pickCorrect =
     showPick && isPickCurrentlyCorrect(prediction, match, now);
   const pickLabel =
-    showPick && prediction != null ? PICK_BADGE_LABEL[prediction] : null;
+    showPick && prediction != null
+      ? PICK_SELECTION_LABEL[prediction]
+      : null;
 
   const scoreLine = locked
     ? formatAlignedScore(
@@ -123,46 +126,54 @@ export function MatchPredictRow({
     now,
   );
 
-  return (
-    <View>
-      <View
-        style={[
-          scoreListChrome.row,
-          isFirst && scoreListChrome.rowFirst,
-        ]}
-      >
-        <View style={styles.leading}>
-          <View style={styles.gameAndPips}>
-            {match.game_number != null ? (
-              <Text style={styles.gameNumber}>#{match.game_number}</Text>
-            ) : (
-              <View style={styles.gameNumberSpacer} />
-            )}
-            <View style={styles.leagueAndPips}>
-              {leagueCode ? (
-                <Text style={styles.leagueCode} numberOfLines={1}>
-                  {leagueCode}
-                </Text>
-              ) : null}
-              <DifficultyPips difficulty={match.difficulty} />
-            </View>
-          </View>
-          <View style={[styles.teams, { maxWidth: teamColumnWidth }]}>
-            <Text style={scoreListChrome.team} numberOfLines={1}>
-              {match.home_team}
-            </Text>
-            <Text style={scoreListChrome.team} numberOfLines={1}>
-              {match.away_team}
-              {postponed ? (
-                <Text style={styles.postponedMark}> (P)</Text>
-              ) : null}
-            </Text>
+  const toggleExpand = () => setExpanded((prev) => !prev);
+
+  const expandA11yLabel = open
+    ? `Collapse ${match.home_team} vs ${match.away_team}`
+    : `Expand ${match.home_team} vs ${match.away_team}`;
+
+  const rowBody = (
+    <>
+      <View style={styles.leading}>
+        <View style={styles.gameAndPips}>
+          {match.game_number != null ? (
+            <Text style={styles.gameNumber}>#{match.game_number}</Text>
+          ) : (
+            <View style={styles.gameNumberSpacer} />
+          )}
+          <View style={styles.leagueAndPips}>
+            {leagueCode ? (
+              <Text style={styles.leagueCode} numberOfLines={1}>
+                {leagueCode}
+              </Text>
+            ) : null}
+            <DifficultyPips difficulty={match.difficulty} />
           </View>
         </View>
+        <View style={[styles.teams, { maxWidth: teamColumnWidth }]}>
+          <Text style={scoreListChrome.team} numberOfLines={1}>
+            {match.home_team}
+          </Text>
+          <Text style={scoreListChrome.team} numberOfLines={1}>
+            {match.away_team}
+            {postponed ? (
+              <Text style={styles.postponedMark}> (P)</Text>
+            ) : null}
+          </Text>
+        </View>
+      </View>
 
-        <View style={styles.actions}>
-          {showPick && prediction != null ? (
-            busy ? (
+      <View style={styles.actions}>
+        {showPick && prediction != null ? (
+          <Pressable
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
+            onPress={() => {
+              /* Absorb taps — collapsed pick badge is display-only, not expand. */
+            }}
+            style={styles.pickBadgeHit}
+          >
+            {busy ? (
               <View style={styles.badgeBusy}>
                 <ActivityIndicator
                   size="small"
@@ -171,6 +182,7 @@ export function MatchPredictRow({
               </View>
             ) : (
               <PickOutcomeBadge
+                variant="selection"
                 prediction={prediction}
                 correct={pickCorrect}
                 accessibilityLabel={
@@ -179,50 +191,63 @@ export function MatchPredictRow({
                     : `Pick ${pickLabel} for ${match.home_team} vs ${match.away_team}`
                 }
               />
-            )
-          ) : null}
-          {scoreLine ? (
-            <Text
-              style={styles.score}
-              accessibilityLabel={`Score ${scoreLine}`}
-            >
-              {scoreLine}
-            </Text>
-          ) : null}
-          {minuteLabel ? (
-            <Text
-              style={styles.minute}
-              accessibilityLabel={
-                minuteLabel === 'HT'
-                  ? 'Half-time'
-                  : minuteLabel === 'FT'
-                    ? 'Full-time'
-                    : `Minute ${minuteLabel}`
-              }
-            >
-              {minuteLabel}
-            </Text>
-          ) : null}
-          {!locked ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ expanded: open }}
-              accessibilityLabel={
-                open
-                  ? `Collapse ${match.home_team} vs ${match.away_team}`
-                  : `Expand ${match.home_team} vs ${match.away_team}`
-              }
-              onPress={() => setExpanded((prev) => !prev)}
-              style={({ pressed }) => [
-                styles.actionHit,
-                pressed && styles.actionPressed,
-              ]}
-            >
-              <SvgXml xml={chevron} width={18} height={18} />
-            </Pressable>
-          ) : null}
-        </View>
+            )}
+          </Pressable>
+        ) : null}
+        {scoreLine ? (
+          <Text
+            style={styles.score}
+            accessibilityLabel={`Score ${scoreLine}`}
+          >
+            {scoreLine}
+          </Text>
+        ) : null}
+        {minuteLabel ? (
+          <Text
+            style={styles.minute}
+            accessibilityLabel={
+              minuteLabel === 'HT'
+                ? 'Half-time'
+                : minuteLabel === 'FT'
+                  ? 'Full-time'
+                  : `Minute ${minuteLabel}`
+            }
+          >
+            {minuteLabel}
+          </Text>
+        ) : null}
+        {!locked ? (
+          <View style={styles.chevronSlot}>
+            <SvgXml xml={chevron} width={18} height={18} />
+          </View>
+        ) : null}
       </View>
+    </>
+  );
+
+  const rowChrome = [
+    scoreListChrome.row,
+    isFirst && scoreListChrome.rowFirst,
+  ];
+
+  return (
+    <View>
+      {locked ? (
+        <View style={rowChrome}>{rowBody}</View>
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: open }}
+          accessibilityLabel={expandA11yLabel}
+          onPress={toggleExpand}
+          style={({ pressed }) => [
+            ...rowChrome,
+            pressed && styles.rowPressed,
+          ]}
+        >
+          {rowBody}
+        </Pressable>
+      )}
 
       {open ? (
         <MatchDetailPanel matchId={match.id}>
@@ -303,11 +328,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeBusy: {
-    width: 27,
-    height: 27,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+    ...pickBadgeChrome.badgeSelection,
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
   },
   actions: {
     // Keep pick badge + score + minute from being squeezed off by long names.
@@ -335,15 +358,18 @@ const styles = StyleSheet.create({
     minWidth: 44,
     textAlign: 'center',
   },
-  actionHit: {
+  rowPressed: {
+    backgroundColor: colors.menuActive,
+  },
+  pickBadgeHit: {
+    flexShrink: 0,
+  },
+  chevronSlot: {
     width: 28,
     height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
-  },
-  actionPressed: {
-    backgroundColor: colors.surface,
+    flexShrink: 0,
   },
   signInButton: {
     alignSelf: 'flex-end',

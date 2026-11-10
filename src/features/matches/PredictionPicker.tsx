@@ -1,49 +1,70 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { PredictionChoice } from '@/api/superiorsix';
-import { pickBadgeChrome } from '@/features/scores/pickBadgeChrome';
+import {
+  pickBadgeChrome,
+  pickBadgeSelectionRowGap,
+} from '@/features/scores/pickBadgeChrome';
+import { PICK_SELECTION_LABEL } from '@/features/scores/pickOutcome';
 import { colors } from '@/theme';
 
-const CHOICES: { value: PredictionChoice; label: string }[] = [
-  { value: 'home', label: 'H' },
-  { value: 'draw', label: 'D' },
-  { value: 'away', label: 'A' },
-];
+const CHOICES: { value: PredictionChoice; label: string }[] = (
+  ['home', 'draw', 'away'] as const
+).map((value) => ({ value, label: PICK_SELECTION_LABEL[value] }));
 
 type Props = {
   selection: PredictionChoice | null;
   busy: boolean;
   disabled: boolean;
   onSelect: (choice: PredictionChoice) => void;
+  /** Inline row (e.g. Scores admin); omit match-detail panel top rule. */
+  embedded?: boolean;
+  /** `${home} vs ${away}` for richer accessibility labels. */
+  fixtureLabel?: string;
+  postponed?: boolean;
 };
 
 /**
- * H / D / A badges for the expanded match-detail panel.
- * Selected / idle chrome matches Scores `PickOutcomeBadge` exactly.
+ * HOME / DRAW / AWAY badges for the expanded match-detail panel.
+ * Chrome matches selection badges elsewhere (lighter grey idle, shared radius).
  */
 export function PredictionPicker({
   selection,
   busy,
   disabled,
   onSelect,
+  embedded = false,
+  fixtureLabel,
+  postponed = false,
 }: Props) {
   const locked = disabled || busy;
 
-  return (
-    <View style={styles.wrap}>
-      <View style={styles.row}>
-        {CHOICES.map(({ value, label }) => {
-          const active = selection === value;
-          return (
-            <Pressable
-              key={value}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active, disabled: locked }}
-              accessibilityLabel={`Predict ${label}`}
-              disabled={locked}
+  const choiceA11y = (label: string) => {
+    if (postponed && fixtureLabel) {
+      return `Postponed — cannot predict ${fixtureLabel}`;
+    }
+    if (fixtureLabel) {
+      return `Predict ${label} for ${fixtureLabel}`;
+    }
+    return `Predict ${label}`;
+  };
+
+  const picker = (
+    <View style={[styles.row, embedded && styles.rowEmbedded]}>
+      {CHOICES.map(({ value, label }) => {
+        const active = selection === value;
+        return (
+          <Pressable
+            key={value}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active, disabled: locked }}
+            accessibilityLabel={choiceA11y(label)}
+            disabled={locked}
               onPress={() => onSelect(value)}
               style={({ pressed }) => [
-                active ? pickBadgeChrome.badge : pickBadgeChrome.badgeIdle,
+                active
+                  ? pickBadgeChrome.badgeSelection
+                  : pickBadgeChrome.badgeSelectionIdle,
                 pressed && !locked && styles.buttonPressed,
                 locked && styles.buttonDisabled,
               ]}
@@ -54,19 +75,24 @@ export function PredictionPicker({
                 <Text
                   style={
                     active
-                      ? pickBadgeChrome.badgeLabel
-                      : pickBadgeChrome.badgeLabelIdle
+                      ? pickBadgeChrome.badgeSelectionLabel
+                      : pickBadgeChrome.badgeSelectionLabelIdle
                   }
                 >
                   {label}
                 </Text>
               )}
             </Pressable>
-          );
-        })}
-      </View>
+        );
+      })}
     </View>
   );
+
+  if (embedded) {
+    return picker;
+  }
+
+  return <View style={styles.wrap}>{picker}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -76,13 +102,17 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
-  /** Badges spaced across the middle ~33% of the expanded panel only. */
   row: {
-    width: '33%',
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: pickBadgeSelectionRowGap,
+    flexWrap: 'wrap',
+  },
+  rowEmbedded: {
+    alignSelf: 'auto',
+    flexShrink: 0,
   },
   buttonPressed: {
     backgroundColor: colors.surface,

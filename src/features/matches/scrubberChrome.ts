@@ -4,6 +4,8 @@ import { colors } from '@/theme';
 
 /** Compact side slot — fits `# n` / short date minis in the narrow slate column. */
 export const SCRUBBER_SIDE_COMPACT = 40;
+/** Space below paired scrubber row; balances admin tab `wrap` paddingTop (12). */
+export const SCRUBBER_ROW_TAIL_GAP = 12;
 /** Medium side slot — fits word minis like “Matches” / “Table” without eating the centre. */
 export const SCRUBBER_SIDE_MEDIUM = 64;
 /** Wide side slot — fits muted “Performance” on the full-width Leaders scrubber. */

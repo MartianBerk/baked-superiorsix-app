@@ -2,14 +2,16 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import type { SideGamePredictionChoice } from '@/api/sideGames';
 import { PickOutcomeBadge } from '@/features/scores/PickOutcomeBadge';
-import { pickBadgeChrome } from '@/features/scores/pickBadgeChrome';
+import {
+  pickBadgeChrome,
+  pickBadgeSelectionRowGap,
+} from '@/features/scores/pickBadgeChrome';
+import { PICK_SELECTION_LABEL } from '@/features/scores/pickOutcome';
 import { colors } from '@/theme';
 
-const CHOICES: { value: SideGamePredictionChoice; label: string }[] = [
-  { value: 'home', label: 'H' },
-  { value: 'draw', label: 'D' },
-  { value: 'away', label: 'A' },
-];
+const CHOICES: { value: SideGamePredictionChoice; label: string }[] = (
+  ['home', 'draw', 'away'] as const
+).map((value) => ({ value, label: PICK_SELECTION_LABEL[value] }));
 
 type Props = {
   selection: SideGamePredictionChoice | null;
@@ -30,8 +32,8 @@ type Props = {
 };
 
 /**
- * Inline mid-row H / D / A (or knockout 90/ET/P).
- * Selected / correct badges are Scores `PickOutcomeBadge` (no locked opacity).
+ * Inline mid-row HOME / DRAW / AWAY (or knockout 90/ET/P).
+ * Selected / correct badges reuse `PickOutcomeBadge` selection styling.
  */
 export function SideGamePredictionPicker({
   selection,
@@ -64,13 +66,16 @@ export function SideGamePredictionPicker({
               onPress={onCycleKnockout}
               style={({ pressed }) => [
                 hasKnockoutPick && !pickCorrect
-                  ? pickBadgeChrome.badge
+                  ? pickBadgeChrome.badgeSelection
                   : null,
                 hasKnockoutPick && pickCorrect
-                  ? [pickBadgeChrome.badge, pickBadgeChrome.badgeCorrect]
+                  ? [
+                      pickBadgeChrome.badgeSelection,
+                      pickBadgeChrome.badgeCorrect,
+                    ]
                   : null,
-                !hasKnockoutPick ? pickBadgeChrome.badgeIdle : null,
-                // Width after chrome so 90/ET/P stays wider than H/D/A.
+                !hasKnockoutPick ? pickBadgeChrome.badgeSelectionIdle : null,
+                // Width after chrome so 90/ET/P stays wider than HOME/AWAY.
                 styles.knockoutButton,
                 pressed && cycleEnabled && styles.buttonPressed,
                 // Never fade a selected/correct knockout control.
@@ -121,6 +126,7 @@ export function SideGamePredictionPicker({
           return (
             <PickOutcomeBadge
               key={value}
+              variant="selection"
               prediction={value}
               correct={activeCorrect}
               accessibilityLabel={
@@ -140,8 +146,8 @@ export function SideGamePredictionPicker({
             onPress={() => onSelect(value)}
             style={({ pressed }) => [
               active
-                ? pickBadgeChrome.badge
-                : pickBadgeChrome.badgeIdle,
+                ? pickBadgeChrome.badgeSelection
+                : pickBadgeChrome.badgeSelectionIdle,
               activeCorrect && pickBadgeChrome.badgeCorrect,
               pressed && !locked && styles.buttonPressed,
               // Idle only — selected never gets opacity (matches PickOutcomeBadge).
@@ -154,8 +160,8 @@ export function SideGamePredictionPicker({
               <Text
                 style={
                   active
-                    ? pickBadgeChrome.badgeLabel
-                    : pickBadgeChrome.badgeLabelIdle
+                    ? pickBadgeChrome.badgeSelectionLabel
+                    : pickBadgeChrome.badgeSelectionLabelIdle
                 }
               >
                 {label}
@@ -179,12 +185,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: pickBadgeSelectionRowGap,
     flexShrink: 0,
   },
   /**
    * Wider middle control; height/radius/fill come from `pickBadgeChrome`
-   * so selected/correct match Scores H/D/A badges.
+   * so selected/correct match selection HOME/DRAW/AWAY badges.
    */
   knockoutButton: {
     width: 84,

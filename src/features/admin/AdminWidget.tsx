@@ -1,11 +1,23 @@
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { useAuth } from '@/auth';
 import { useUserTabMode } from '@/features/auth/UserTabModeContext';
+import { SCRUBBER_ROW_TAIL_GAP } from '@/features/matches/scrubberChrome';
 import { colors } from '@/theme';
 
 import { AdminInviteForm } from './AdminInviteForm';
 import { LoginForm } from '../auth/LoginForm';
+import {
+  UserAdminViewScrubber,
+  type UserAdminViewMode,
+} from './UserAdminViewScrubber';
 
 const ADMIN_ROLE = 'admin';
 
@@ -16,6 +28,7 @@ const ADMIN_ROLE = 'admin';
 export function AdminWidget() {
   const { status, isAuthenticated, hasRole } = useAuth();
   const { setMode } = useUserTabMode();
+  const [view, setView] = useState<UserAdminViewMode>('invite');
 
   if (status === 'loading') {
     return (
@@ -54,25 +67,38 @@ export function AdminWidget() {
   }
 
   return (
-    <ScrollView
-      style={styles.scrollView}
-      contentContainerStyle={styles.scroll}
-      keyboardShouldPersistTaps="handled"
-    >
-      <View style={styles.wrap}>
-        <Text style={styles.kicker}>Admin</Text>
-        <AdminInviteForm />
+    <View style={styles.root}>
+      <View style={styles.scrubberWrap}>
+        <UserAdminViewScrubber mode={view} onChange={setView} />
       </View>
-    </ScrollView>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.panelWrap}>
+          <AdminInviteForm panel={view} />
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   center: {
     flex: 1,
     backgroundColor: colors.background,
     justifyContent: 'center',
     paddingVertical: 24,
+  },
+  scrubberWrap: {
+    paddingHorizontal: '3%',
+    paddingTop: 12,
+    marginBottom: SCRUBBER_ROW_TAIL_GAP,
   },
   scrollView: {
     flex: 1,
@@ -80,21 +106,19 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flexGrow: 1,
-    paddingVertical: 24,
-    backgroundColor: colors.background,
+    paddingBottom: 32,
+  },
+  panelWrap: {
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
+    paddingHorizontal: 24,
   },
   wrap: {
     width: '100%',
     maxWidth: 440,
     alignSelf: 'center',
     paddingHorizontal: 24,
-  },
-  kicker: {
-    color: colors.textMuted,
-    fontSize: 12,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginBottom: 8,
   },
   heading: {
     color: colors.text,
