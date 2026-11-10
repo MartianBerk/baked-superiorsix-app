@@ -17,6 +17,11 @@ type Props = {
   busy: boolean;
   disabled: boolean;
   onSelect: (choice: PredictionChoice) => void;
+  /** Inline row (e.g. Scores admin); omit match-detail panel top rule. */
+  embedded?: boolean;
+  /** `${home} vs ${away}` for richer accessibility labels. */
+  fixtureLabel?: string;
+  postponed?: boolean;
 };
 
 /**
@@ -28,21 +33,33 @@ export function PredictionPicker({
   busy,
   disabled,
   onSelect,
+  embedded = false,
+  fixtureLabel,
+  postponed = false,
 }: Props) {
   const locked = disabled || busy;
 
-  return (
-    <View style={styles.wrap}>
-      <View style={styles.row}>
-        {CHOICES.map(({ value, label }) => {
-          const active = selection === value;
-          return (
-            <Pressable
-              key={value}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active, disabled: locked }}
-              accessibilityLabel={`Predict ${label}`}
-              disabled={locked}
+  const choiceA11y = (label: string) => {
+    if (postponed && fixtureLabel) {
+      return `Postponed — cannot predict ${fixtureLabel}`;
+    }
+    if (fixtureLabel) {
+      return `Predict ${label} for ${fixtureLabel}`;
+    }
+    return `Predict ${label}`;
+  };
+
+  const picker = (
+    <View style={[styles.row, embedded && styles.rowEmbedded]}>
+      {CHOICES.map(({ value, label }) => {
+        const active = selection === value;
+        return (
+          <Pressable
+            key={value}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active, disabled: locked }}
+            accessibilityLabel={choiceA11y(label)}
+            disabled={locked}
               onPress={() => onSelect(value)}
               style={({ pressed }) => [
                 active
@@ -66,11 +83,16 @@ export function PredictionPicker({
                 </Text>
               )}
             </Pressable>
-          );
-        })}
-      </View>
+        );
+      })}
     </View>
   );
+
+  if (embedded) {
+    return picker;
+  }
+
+  return <View style={styles.wrap}>{picker}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -87,6 +109,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: pickBadgeSelectionRowGap,
     flexWrap: 'wrap',
+  },
+  rowEmbedded: {
+    alignSelf: 'auto',
+    flexShrink: 0,
   },
   buttonPressed: {
     backgroundColor: colors.surface,

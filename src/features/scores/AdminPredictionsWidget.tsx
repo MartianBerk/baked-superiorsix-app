@@ -111,7 +111,7 @@ function uniqueMatchDates(matches: LiveMatch[]): string[] {
 
 /**
  * Admin Scores mode: expandable per-player prediction editor for the current
- * Super Six slate. Tapping H/D/A submits via `/admin/addprediction` (SS-17).
+ * Super Six slate. Tapping HOME/DRAW/AWAY submits via `/admin/addprediction` (SS-17).
  */
 export function AdminPredictionsWidget() {
   const { status, isAuthenticated, token, hasRole } = useAuth();

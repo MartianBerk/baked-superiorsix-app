@@ -1,16 +1,10 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import type { LiveMatch, PredictionChoice } from '@/api/superiorsix';
+import { PredictionPicker } from '@/features/matches/PredictionPicker';
 import { colors } from '@/theme';
 
 import { isPostponedStatus } from './liveScoreDisplay';
-import { pickBadgeChrome } from './pickBadgeChrome';
-
-const CHOICES: { value: PredictionChoice; label: string }[] = [
-  { value: 'home', label: 'H' },
-  { value: 'draw', label: 'D' },
-  { value: 'away', label: 'A' },
-];
 
 type Props = {
   match: LiveMatch;
@@ -21,8 +15,8 @@ type Props = {
 };
 
 /**
- * Expanded admin prediction row: Home | H D A | Away.
- * Badge chrome matches Scores `PickOutcomeBadge` exactly.
+ * Expanded admin prediction row: home | HOME/DRAW/AWAY picker | away.
+ * Picker chrome matches player Matches `PredictionPicker`.
  */
 export function AdminPredictionMatchRow({
   match,
@@ -33,53 +27,22 @@ export function AdminPredictionMatchRow({
 }: Props) {
   const postponed = isPostponedStatus(match.status);
   const locked = disabled || postponed;
+  const fixtureLabel = `${match.home_team} vs ${match.away_team}`;
 
   return (
     <View style={[styles.row, prediction != null && styles.rowPicked]}>
       <Text style={[styles.team, styles.teamHome]} numberOfLines={2}>
         {match.home_team}
       </Text>
-      <View style={styles.picker}>
-        {CHOICES.map(({ value, label }) => {
-          const active = prediction === value;
-          return (
-            <Pressable
-              key={value}
-              accessibilityRole="button"
-              accessibilityState={{
-                selected: active,
-                disabled: locked || busy,
-              }}
-              accessibilityLabel={
-                postponed
-                  ? `Postponed — cannot predict ${match.home_team} vs ${match.away_team}`
-                  : `Predict ${label} for ${match.home_team} vs ${match.away_team}`
-              }
-              disabled={locked || busy}
-              onPress={() => onSelect(value)}
-              style={({ pressed }) => [
-                active ? pickBadgeChrome.badge : pickBadgeChrome.badgeIdle,
-                pressed && !locked && !busy && styles.buttonPressed,
-                (locked || busy) && styles.buttonDisabled,
-              ]}
-            >
-              {busy && active ? (
-                <ActivityIndicator size="small" color={colors.text} />
-              ) : (
-                <Text
-                  style={
-                    active
-                      ? pickBadgeChrome.badgeLabel
-                      : pickBadgeChrome.badgeLabelIdle
-                  }
-                >
-                  {label}
-                </Text>
-              )}
-            </Pressable>
-          );
-        })}
-      </View>
+      <PredictionPicker
+        embedded
+        selection={prediction}
+        busy={busy}
+        disabled={locked}
+        postponed={postponed}
+        fixtureLabel={fixtureLabel}
+        onSelect={onSelect}
+      />
       <Text style={[styles.team, styles.teamAway]} numberOfLines={2}>
         {match.away_team}
         {postponed ? (
@@ -116,18 +79,6 @@ const styles = StyleSheet.create({
   },
   teamAway: {
     textAlign: 'right',
-  },
-  picker: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flexShrink: 0,
-  },
-  buttonPressed: {
-    backgroundColor: colors.surface,
-  },
-  buttonDisabled: {
-    opacity: 0.45,
   },
   postponedMark: {
     color: colors.resultLose,

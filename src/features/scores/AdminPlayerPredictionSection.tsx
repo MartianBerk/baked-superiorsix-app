@@ -18,7 +18,7 @@ type Props = {
   onToggleExpand: () => void;
   /** Match id currently saving for this player, if any. */
   busyMatchId: number | null;
-  /** When true, H/D/A taps are disabled (e.g. no admin token). */
+  /** When true, HOME/DRAW/AWAY taps are disabled (e.g. no admin token). */
   disabled: boolean;
   onSelect: (match: LiveMatch, choice: PredictionChoice) => void;
 };
@@ -26,7 +26,7 @@ type Props = {
 /**
  * Expandable player section for admin predictions (matches KickoffGroup chrome).
  * Collapsed: name left, n/X right, chevron (X = current slate size).
- * Expanded: match rows with H/D/A (no per-match difficulty).
+ * Expanded: match rows with HOME/DRAW/AWAY (no per-match difficulty).
  * Slate difficulty lives in the under-header strip, not per player row.
  */
 export function AdminPlayerPredictionSection({
