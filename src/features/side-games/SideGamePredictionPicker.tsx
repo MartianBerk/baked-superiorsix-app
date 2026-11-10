@@ -2,7 +2,10 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import type { SideGamePredictionChoice } from '@/api/sideGames';
 import { PickOutcomeBadge } from '@/features/scores/PickOutcomeBadge';
-import { pickBadgeChrome } from '@/features/scores/pickBadgeChrome';
+import {
+  pickBadgeChrome,
+  pickBadgeSelectionRowGap,
+} from '@/features/scores/pickBadgeChrome';
 import { PICK_SELECTION_LABEL } from '@/features/scores/pickOutcome';
 import { colors } from '@/theme';
 
@@ -182,7 +185,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: pickBadgeSelectionRowGap,
     flexShrink: 0,
   },
   /**

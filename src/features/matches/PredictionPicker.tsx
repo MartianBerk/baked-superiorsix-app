@@ -1,7 +1,10 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { PredictionChoice } from '@/api/superiorsix';
-import { pickBadgeChrome } from '@/features/scores/pickBadgeChrome';
+import {
+  pickBadgeChrome,
+  pickBadgeSelectionRowGap,
+} from '@/features/scores/pickBadgeChrome';
 import { PICK_SELECTION_LABEL } from '@/features/scores/pickOutcome';
 import { colors } from '@/theme';
 
@@ -82,7 +85,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: pickBadgeSelectionRowGap,
     flexWrap: 'wrap',
   },
   buttonPressed: {

@@ -7,6 +7,9 @@ import { colors } from '@/theme';
  * Matches expand picker + Euros/WC mid-row pickers reuse these tokens
  * so selected grey and correct green look identical everywhere.
  */
+/** Horizontal gap between HOME / DRAW / AWAY on player selection rows (3× prior 10). */
+export const pickBadgeSelectionRowGap = 30;
+
 export const pickBadgeChrome = StyleSheet.create({
   /** Selected (not correct) — lighter grey fill. */
   badge: {
