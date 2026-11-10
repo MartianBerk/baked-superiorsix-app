@@ -146,6 +146,10 @@ export function ProfileForm() {
 
   return (
     <View style={styles.wrap}>
+      <Text accessible={false} style={styles.headingSpacer}>
+        {'\u00a0'}
+      </Text>
+
       {loadState === 'missing' || loadState === 'error' ? (
         <Text style={styles.warn}>{loadError}</Text>
       ) : null}
@@ -255,6 +259,12 @@ const styles = StyleSheet.create({
   },
   wrap: {
     width: '100%',
+  },
+  /** Invisible rhythm after removed heading; margin below opens the form. */
+  headingSpacer: {
+    fontSize: 22,
+    lineHeight: 22,
+    marginBottom: 16,
   },
   warn: {
     color: '#E0C07A',

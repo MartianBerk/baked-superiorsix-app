@@ -30,6 +30,7 @@ import {
   toLegacyDateParam,
   utcDayKey,
 } from '@/features/matches/formatMatchDate';
+import { SCRUBBER_ROW_TAIL_GAP } from '@/features/matches/scrubberChrome';
 import { SubroundScrubber } from '@/features/matches/SubroundScrubber';
 import { colors } from '@/theme';
 
@@ -559,7 +560,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    marginBottom: 6,
+    marginBottom: SCRUBBER_ROW_TAIL_GAP,
   },
   /** ~33% — navigable slate scrubber. */
   subroundCol: {
