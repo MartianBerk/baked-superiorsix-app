@@ -97,6 +97,13 @@ function RoleChips({ value, disabled, onToggle }: RoleChipsProps) {
   );
 }
 
+export type AdminUserPanel = 'invite' | 'roster';
+
+type Props = {
+  /** Scrubbed profile-admin screen — invite form or roster only. */
+  panel: AdminUserPanel;
+};
+
 /**
  * Admin invite form: email + name/nickname seed + role chips.
  * Invite-only — creates passwordless auth user + membership; invitee claims
@@ -104,7 +111,7 @@ function RoleChips({ value, disabled, onToggle }: RoleChipsProps) {
  * Roster rows open an in-place role editor (same chips). Any superiorsix
  * admin can grant the app-scoped `admin` role via these chips (SS-98).
  */
-export function AdminInviteForm() {
+export function AdminInviteForm({ panel }: Props) {
   const { token } = useAuth();
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -332,17 +339,18 @@ export function AdminInviteForm() {
 
   const pendingInvites = invites.filter((invite) => invite.status === 'pending');
 
-  return (
-    <View style={styles.wrap}>
-      <Text style={styles.heading}>Invite player</Text>
-      <Text style={styles.lede}>
-        Reserve an email, profile seed, and roles. Profile edit access is always
-        granted. Auth user + membership are created now; the invitee sets a
-        password on first login, then joins the roster. Toggle Admin to grant
-        app-scoped superiorsix admin (match day, rounds, invites).
-      </Text>
+  if (panel === 'invite') {
+    return (
+      <View style={styles.wrap}>
+        <Text style={styles.heading}>Invite player</Text>
+        <Text style={styles.lede}>
+          Reserve an email, profile seed, and roles. Profile edit access is always
+          granted. Auth user + membership are created now; the invitee sets a
+          password on first login, then joins the roster. Toggle Admin to grant
+          app-scoped superiorsix admin (match day, rounds, invites).
+        </Text>
 
-      <Text style={styles.label}>Email</Text>
+        <Text style={styles.label}>Email</Text>
       <TextInput
         style={styles.input}
         autoCapitalize="none"
@@ -443,8 +451,13 @@ export function AdminInviteForm() {
           </View>
         ))}
       </View>
+    </View>
+    );
+  }
 
-      <View style={styles.listBlock}>
+  return (
+    <View style={styles.wrap}>
+      <View style={[styles.listBlock, styles.listBlockFlush]}>
         <View style={styles.listHeader}>
           <Text style={styles.listTitle}>Roster</Text>
           <Pressable
@@ -659,6 +672,11 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     paddingTop: 18,
+  },
+  listBlockFlush: {
+    marginTop: 0,
+    borderTopWidth: 0,
+    paddingTop: 0,
   },
   listHeader: {
     flexDirection: 'row',
