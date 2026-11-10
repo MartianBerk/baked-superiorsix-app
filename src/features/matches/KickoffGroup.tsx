@@ -1,7 +1,9 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 
-import type { AdminMatch } from '@/api/superiorsix';
+import type { AdminMatch, LeagueInfo } from '@/api/superiorsix';
+import { isPostponedStatus } from '@/features/scores/liveScoreDisplay';
+import { scoreListChrome } from '@/features/scores/scoreListChrome';
 import { colors } from '@/theme';
 
 import {
@@ -22,6 +24,8 @@ type Props = {
   selectionsFull: boolean;
   /** Closed / historical subround — disable add/drop. */
   readOnly?: boolean;
+  /** league_id → catalog row (for per-match PL / ELC codes). */
+  leaguesById: Record<number, LeagueInfo>;
   onToggleMatch: (match: AdminMatch) => void;
 };
 
@@ -33,6 +37,7 @@ export function KickoffGroup({
   busyMatchId,
   selectionsFull,
   readOnly = false,
+  leaguesById,
   onToggleMatch,
 }: Props) {
   const chevron = (expanded ? CHEVRON_UP : CHEVRON_DOWN).replaceAll(
@@ -42,44 +47,60 @@ export function KickoffGroup({
   const parts = groupHeaderParts(group);
 
   return (
-    <View style={styles.card}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ expanded }}
-        accessibilityLabel={formatGroupHeader(group)}
-        onPress={onToggleExpand}
-        style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
-      >
-        <View style={styles.headerLeft}>
-          <Text style={styles.part}>{parts.time}</Text>
-          {parts.leagues ? (
-            <Text style={styles.part}>{parts.leagues}</Text>
-          ) : null}
-        </View>
-        {/* Count sits left of expand chevron — roughly over the add/drop column. */}
-        <View style={styles.headerRight}>
-          <Text style={styles.selectedCount}>{parts.selected}</Text>
-          <View style={styles.chevronSlot}>
-            <SvgXml xml={chevron} width={18} height={18} />
+    <View>
+      {/* Kickoff header — same section chrome as Scores player blocks. */}
+      <View style={scoreListChrome.sectionCard}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded }}
+          accessibilityLabel={formatGroupHeader(group)}
+          onPress={onToggleExpand}
+          style={({ pressed }) => [
+            styles.header,
+            pressed && styles.headerPressed,
+          ]}
+        >
+          <View style={styles.headerLeft}>
+            <Text style={styles.part}>{parts.time}</Text>
+            {parts.leagues ? (
+              <Text style={styles.part}>{parts.leagues}</Text>
+            ) : null}
           </View>
-        </View>
-      </Pressable>
+          {/* Count sits left of expand chevron — roughly over the add/drop column. */}
+          <View style={styles.headerRight}>
+            <Text style={styles.selectedCount}>{parts.selected}</Text>
+            <View style={styles.chevronSlot}>
+              <SvgXml xml={chevron} width={18} height={18} />
+            </View>
+          </View>
+        </Pressable>
+      </View>
       {expanded
         ? group.matches.map((match) => {
             const selected = match.use_match;
+            const postponed = isPostponedStatus(match.status);
+            // Postponed: block add, allow drop if already on the slate.
+            // Otherwise block add only when all 6 slots are full.
             const disabled =
               readOnly ||
-              (match.status === 'POSTPONED'
-                ? !selected
-                : !selected && selectionsFull);
+              (postponed ? !selected : !selected && selectionsFull);
+            const leagueCode =
+              (typeof match.league_code === 'string' &&
+              match.league_code.trim()
+                ? match.league_code.trim()
+                : null) ??
+              leaguesById[match.league_id]?.code ??
+              null;
             return (
-              <MatchSelectRow
-                key={match.id}
-                match={match}
-                busy={busyMatchId === match.id}
-                disabled={disabled}
-                onToggle={onToggleMatch}
-              />
+              <View key={match.id} style={scoreListChrome.sectionCard}>
+                <MatchSelectRow
+                  match={match}
+                  leagueCode={leagueCode}
+                  busy={busyMatchId === match.id}
+                  disabled={disabled}
+                  onToggle={onToggleMatch}
+                />
+              </View>
             );
           })
         : null}
@@ -88,14 +109,6 @@ export function KickoffGroup({
 }
 
 const styles = StyleSheet.create({
-  card: {
-    marginBottom: 10,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

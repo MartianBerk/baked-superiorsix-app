@@ -35,6 +35,7 @@ import { colors } from '@/theme';
 
 import { AdminPlayerPredictionSection } from './AdminPlayerPredictionSection';
 import { KickoffDateDisplay } from './KickoffDateDisplay';
+import { isPostponedStatus } from './liveScoreDisplay';
 import { playerLabel } from './playerLabel';
 import { useScoresTabMode } from './ScoresTabModeContext';
 
@@ -264,11 +265,7 @@ export function AdminPredictionsWidget() {
         const details = await Promise.all(
           all.map(async (match) => {
             try {
-              const detail = await fetchMatchDetail({
-                homeTeam: match.home_team,
-                awayTeam: match.away_team,
-                matchDate: toLegacyDateParam(utcDayKey(match.match_date)),
-              });
+              const detail = await fetchMatchDetail({ matchId: match.id });
               return { id: match.id, difficulty: detail.difficulty ?? null };
             } catch {
               return { id: match.id, difficulty: null };
@@ -358,8 +355,8 @@ export function AdminPredictionsWidget() {
       if (previous === choice) {
         return;
       }
-      if (match.status === 'POSTPONED') {
-        setRowError('Past cutoff for prediction set.');
+      if (isPostponedStatus(match.status)) {
+        setRowError('This match is postponed.');
         return;
       }
       const key = `${player.auth_id}:${match.id}`;

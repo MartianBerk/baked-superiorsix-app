@@ -27,7 +27,10 @@ import {
 } from '@/components/shell/playerRoundStatus';
 import { useRoundStatus } from '@/components/shell/RoundStatusContext';
 import { KickoffDateDisplay } from '@/features/scores/KickoffDateDisplay';
-import { LIVE_POLL_MS } from '@/features/scores/liveScoreDisplay';
+import {
+  isPostponedStatus,
+  LIVE_POLL_MS,
+} from '@/features/scores/liveScoreDisplay';
 import { colors } from '@/theme';
 
 import { scoreListChrome } from '@/features/scores/scoreListChrome';
@@ -103,6 +106,8 @@ function fixtureToPlayerMatch(fixture: LiveScoreFixture): PlayerMatch {
     game_number: fixture.game_number,
     match_date: fixture.match_date,
     subround_id: fixture.subround_id,
+    league_id: fixture.league_id,
+    league_code: fixture.league_code,
     difficulty: fixture.difficulty ?? null,
   };
 }
@@ -517,11 +522,11 @@ export function MatchPlayerWidget() {
       if (draft[match.id] === choice) {
         return;
       }
-      if (subroundLocked || match.status === 'POSTPONED') {
+      if (subroundLocked || isPostponedStatus(match.status)) {
         setRowError(
-          subroundLocked
-            ? 'Past cutoff for this subround\'s predictions.'
-            : 'Past cutoff for prediction set.',
+          isPostponedStatus(match.status)
+            ? 'This match is postponed.'
+            : 'Past cutoff for this subround\'s predictions.',
         );
         return;
       }
@@ -615,26 +620,25 @@ export function MatchPlayerWidget() {
           </View>
         ) : null}
 
-        {matches.length > 0 ? (
-          <View style={scoreListChrome.sectionCard}>
-            {matches.map((match, index) => (
-              <MatchPredictRow
-                key={match.id}
-                match={match}
-                prediction={draft[match.id] ?? null}
-                busy={busyId === match.id}
-                locked={subroundLocked}
-                canPredict={canPredict}
-                teamColumnWidth={teamColumnWidth}
-                now={now}
-                isFirst={index === 0}
-                onPredict={(choice) => {
-                  void onPredict(match, choice);
-                }}
-              />
-            ))}
-          </View>
-        ) : null}
+        {matches.length > 0
+          ? matches.map((match) => (
+              <View key={match.id} style={scoreListChrome.sectionCard}>
+                <MatchPredictRow
+                  match={match}
+                  prediction={draft[match.id] ?? null}
+                  busy={busyId === match.id}
+                  locked={subroundLocked}
+                  canPredict={canPredict}
+                  teamColumnWidth={teamColumnWidth}
+                  now={now}
+                  isFirst
+                  onPredict={(choice) => {
+                    void onPredict(match, choice);
+                  }}
+                />
+              </View>
+            ))
+          : null}
       </View>
     </ScrollView>
   );

@@ -9,12 +9,8 @@ import {
 import { ApiError } from '@/api/errors';
 import { colors } from '@/theme';
 
-import { toLegacyDateParam, utcDayKey } from './formatMatchDate';
-
 type Props = {
-  homeTeam: string;
-  awayTeam: string;
-  matchDateIso: string;
+  matchId: number;
   /** Optional footer (e.g. player Home/Draw/Away picker). */
   children?: ReactNode;
 };
@@ -64,15 +60,11 @@ function DetailRow({
 }
 
 /**
- * Legacy-style expand panel: league position, recent form, head-to-head.
- * Loads from `GET /game/matchdetail`; stubs politely on failure.
+ * Expand panel: league position, recent form, head-to-head.
+ * Loads from `GET /game/matchdetail?id=`; stubs politely on failure.
+ * Form / table maps are keyed by team_xref display names.
  */
-export function MatchDetailPanel({
-  homeTeam,
-  awayTeam,
-  matchDateIso,
-  children,
-}: Props) {
+export function MatchDetailPanel({ matchId, children }: Props) {
   const [detail, setDetail] = useState<MatchDetailPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,11 +79,7 @@ export function MatchDetailPanel({
       setError(null);
       void (async () => {
         try {
-          const payload = await fetchMatchDetail({
-            homeTeam,
-            awayTeam,
-            matchDate: toLegacyDateParam(utcDayKey(matchDateIso)),
-          });
+          const payload = await fetchMatchDetail({ matchId });
           if (!cancelled) {
             setDetail(payload);
           }
@@ -114,7 +102,7 @@ export function MatchDetailPanel({
     return () => {
       cancelled = true;
     };
-  }, [homeTeam, awayTeam, matchDateIso]);
+  }, [matchId]);
 
   if (loading) {
     return (
@@ -136,8 +124,11 @@ export function MatchDetailPanel({
     );
   }
 
-  const homePos = detail.league_position[homeTeam] ?? '—';
-  const awayPos = detail.league_position[awayTeam] ?? '—';
+  // Maps are keyed by xref; keep provider names available on the payload.
+  const homeKey = detail.home_team_xref;
+  const awayKey = detail.away_team_xref;
+  const homePos = detail.league_position[homeKey] ?? '—';
+  const awayPos = detail.league_position[awayKey] ?? '—';
 
   return (
     <View style={styles.wrap}>
@@ -148,13 +139,13 @@ export function MatchDetailPanel({
       />
       <DetailRow
         title="Performance"
-        home={<ResultPips results={detail.team_performance[homeTeam]} />}
-        away={<ResultPips results={detail.team_performance[awayTeam]} />}
+        home={<ResultPips results={detail.team_performance[homeKey]} />}
+        away={<ResultPips results={detail.team_performance[awayKey]} />}
       />
       <DetailRow
         title="Head To Head"
-        home={<ResultPips results={detail.head_to_head[homeTeam]} />}
-        away={<ResultPips results={detail.head_to_head[awayTeam]} />}
+        home={<ResultPips results={detail.head_to_head[homeKey]} />}
+        away={<ResultPips results={detail.head_to_head[awayKey]} />}
       />
       {children}
     </View>

@@ -445,13 +445,12 @@ export function SideGamePlayerWidget({ kind }: Props) {
             {dayMatches.length === 0 ? (
               <Text style={styles.empty}>No matches for this day.</Text>
             ) : (
-              <View style={scoreListChrome.sectionCard}>
-                {dayMatches.map((match, index) => {
-                  const pick = localPicks[match.id];
-                  const locked = isMatchLocked(match, now);
-                  return (
+              dayMatches.map((match) => {
+                const pick = localPicks[match.id];
+                const locked = isMatchLocked(match, now);
+                return (
+                  <View key={match.id} style={scoreListChrome.sectionCard}>
                     <SideGameMatchRow
-                      key={match.id}
                       match={match}
                       prediction={pick?.prediction ?? null}
                       extraTime={pick?.extraTime ?? false}
@@ -463,11 +462,11 @@ export function SideGamePlayerWidget({ kind }: Props) {
                       onCycleKnockout={() => onCycleKnockout(match)}
                       teamColumnWidth={teamColumnWidth}
                       now={now}
-                      isFirst={index === 0}
+                      isFirst
                     />
-                  );
-                })}
-              </View>
+                  </View>
+                );
+              })
             )}
             {!isAuthenticated ? (
               <Pressable

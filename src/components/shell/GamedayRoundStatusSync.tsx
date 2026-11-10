@@ -13,7 +13,7 @@ import { useAuth } from '@/auth';
 import type { PerfectSixHolder } from '@/components/shell/potBanner';
 import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
 import { isPickCurrentlyCorrect } from '@/features/scores/pickOutcome';
-import { LIVE_POLL_MS, LOCK_BEFORE_KICKOFF_MS } from '@/features/scores/liveScoreDisplay';
+import { LOCK_BEFORE_KICKOFF_MS } from '@/features/scores/liveScoreDisplay';
 
 import {
   buildPlayerRoundStatus,
@@ -129,7 +129,8 @@ function isSideGamePath(pathname: string): boolean {
 
 /**
  * Single publisher for the shell n/X strip on Super Six player tabs.
- * Derives picking vs live/finished + counts from `/game/meta` + `/game/livescores`.
+ * Derives picking vs live/finished + counts from `/game/meta` + `/game/livescores`
+ * on mount / auth / tab-ownership changes — no timer poll of meta.
  * Matches may still push optimistic picking counts while the draft is open.
  * Skips fixtures admin on the fixtures tab, and Euros / World Cup tabs
  * (those publish tournament n / total from SideGamePlayerWidget).
@@ -159,16 +160,6 @@ export function GamedayRoundStatusSync() {
     }
 
     let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    const schedule = (ms: number) => {
-      if (timer) {
-        clearTimeout(timer);
-      }
-      timer = setTimeout(() => {
-        void refresh();
-      }, ms);
-    };
 
     async function refresh() {
       try {
@@ -185,7 +176,6 @@ export function GamedayRoundStatusSync() {
               }),
             );
           }
-          schedule(60_000);
           return;
         }
 
@@ -231,21 +221,14 @@ export function GamedayRoundStatusSync() {
             perfectSix,
           }),
         );
-
-        schedule(board.live ? LIVE_POLL_MS : 30_000);
       } catch {
-        if (!cancelled) {
-          schedule(60_000);
-        }
+        // Leave prior strip; next mount / ownership change retries.
       }
     }
 
     void refresh();
     return () => {
       cancelled = true;
-      if (timer) {
-        clearTimeout(timer);
-      }
     };
   }, [
     isAuthenticated,

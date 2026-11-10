@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import type { LiveMatch, PredictionChoice } from '@/api/superiorsix';
 import { colors } from '@/theme';
 
+import { isPostponedStatus } from './liveScoreDisplay';
 import { pickBadgeChrome } from './pickBadgeChrome';
 
 const CHOICES: { value: PredictionChoice; label: string }[] = [
@@ -30,7 +31,7 @@ export function AdminPredictionMatchRow({
   disabled,
   onSelect,
 }: Props) {
-  const postponed = match.status === 'POSTPONED';
+  const postponed = isPostponedStatus(match.status);
   const locked = disabled || postponed;
 
   return (
@@ -49,7 +50,11 @@ export function AdminPredictionMatchRow({
                 selected: active,
                 disabled: locked || busy,
               }}
-              accessibilityLabel={`Predict ${label} for ${match.home_team} vs ${match.away_team}`}
+              accessibilityLabel={
+                postponed
+                  ? `Postponed — cannot predict ${match.home_team} vs ${match.away_team}`
+                  : `Predict ${label} for ${match.home_team} vs ${match.away_team}`
+              }
               disabled={locked || busy}
               onPress={() => onSelect(value)}
               style={({ pressed }) => [
@@ -77,7 +82,9 @@ export function AdminPredictionMatchRow({
       </View>
       <Text style={[styles.team, styles.teamAway]} numberOfLines={2}>
         {match.away_team}
-        {postponed ? ' (P)' : ''}
+        {postponed ? (
+          <Text style={styles.postponedMark}> (P)</Text>
+        ) : null}
       </Text>
     </View>
   );
@@ -121,5 +128,9 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.45,
+  },
+  postponedMark: {
+    color: colors.resultLose,
+    fontWeight: '800',
   },
 });

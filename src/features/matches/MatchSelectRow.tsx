@@ -4,6 +4,7 @@ import { SvgXml } from 'react-native-svg';
 
 import type { AdminMatch } from '@/api/superiorsix';
 import { SelectionToggleIcon } from '@/components/icons/SelectionToggleIcon';
+import { isPostponedStatus } from '@/features/scores/liveScoreDisplay';
 import { colors } from '@/theme';
 
 import { DifficultyPips } from './DifficultyPips';
@@ -14,6 +15,8 @@ const CHEVRON_UP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" 
 
 type Props = {
   match: AdminMatch;
+  /** League catalog code (PL / ELC / …), shown above difficulty pips. */
+  leagueCode?: string | null;
   busy: boolean;
   disabled: boolean;
   onToggle: (match: AdminMatch) => void;
@@ -22,27 +25,56 @@ type Props = {
 /**
  * Fixture row: home above away (left); add/drop + expand/collapse
  * vertically centered on the right. Expand loads match detail.
+ * Postponed fixtures show `(P)` and cannot be added to the slate
+ * (already-selected postponed rows stay droppable).
  */
-export function MatchSelectRow({ match, busy, disabled, onToggle }: Props) {
+export function MatchSelectRow({
+  match,
+  leagueCode,
+  busy,
+  disabled,
+  onToggle,
+}: Props) {
   const [expanded, setExpanded] = useState(false);
   const selected = match.use_match;
-  const postponed = match.status === 'POSTPONED';
+  const postponed = isPostponedStatus(match.status);
+  /** Cannot add postponed fixtures; drop remains available if already selected. */
+  const selectionLocked = postponed && !selected;
+  const toggleDisabled = busy || disabled || selectionLocked;
   const chevron = (expanded ? CHEVRON_UP : CHEVRON_DOWN).replaceAll(
     'CURRENT',
     colors.textMuted,
   );
+  const teamStyle = [
+    styles.team,
+    selectionLocked && styles.teamLocked,
+  ];
 
   return (
-    <View style={[styles.block, selected && styles.blockSelected]}>
+    <View
+      style={[
+        selected && styles.blockSelected,
+        selectionLocked && styles.blockLocked,
+      ]}
+    >
       <View style={styles.row}>
-        <DifficultyPips difficulty={match.difficulty} />
+        <View style={styles.leagueAndPips}>
+          {leagueCode ? (
+            <Text style={styles.leagueCode} numberOfLines={1}>
+              {leagueCode}
+            </Text>
+          ) : null}
+          <DifficultyPips difficulty={match.difficulty} />
+        </View>
         <View style={styles.teams}>
-          <Text style={styles.team} numberOfLines={1}>
+          <Text style={teamStyle} numberOfLines={1}>
             {match.home_team}
           </Text>
-          <Text style={styles.team} numberOfLines={1}>
+          <Text style={teamStyle} numberOfLines={1}>
             {match.away_team}
-            {postponed ? ' (P)' : ''}
+            {postponed ? (
+              <Text style={styles.postponedMark}> (P)</Text>
+            ) : null}
           </Text>
         </View>
 
@@ -52,17 +84,20 @@ export function MatchSelectRow({ match, busy, disabled, onToggle }: Props) {
           ) : null}
           <Pressable
             accessibilityRole="button"
+            accessibilityState={{ disabled: toggleDisabled }}
             accessibilityLabel={
-              selected
-                ? `Drop ${match.home_team} vs ${match.away_team}`
-                : `Add ${match.home_team} vs ${match.away_team}`
+              postponed && !selected
+                ? `Postponed — cannot add ${match.home_team} vs ${match.away_team}`
+                : selected
+                  ? `Drop ${match.home_team} vs ${match.away_team}`
+                  : `Add ${match.home_team} vs ${match.away_team}`
             }
-            disabled={busy || disabled}
+            disabled={toggleDisabled}
             onPress={() => onToggle(match)}
             style={({ pressed }) => [
               styles.actionHit,
-              pressed && styles.actionPressed,
-              (busy || disabled) && styles.actionDisabled,
+              pressed && !toggleDisabled && styles.actionPressed,
+              toggleDisabled && styles.actionDisabled,
             ]}
           >
             {busy ? (
@@ -90,24 +125,18 @@ export function MatchSelectRow({ match, busy, disabled, onToggle }: Props) {
         </View>
       </View>
 
-      {expanded ? (
-        <MatchDetailPanel
-          homeTeam={match.home_team}
-          awayTeam={match.away_team}
-          matchDateIso={match.match_date}
-        />
-      ) : null}
+      {expanded ? <MatchDetailPanel matchId={match.id} /> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  block: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
   blockSelected: {
     backgroundColor: colors.menuActive,
+  },
+  /** Same muted wash as other locked/disabled selection chrome. */
+  blockLocked: {
+    opacity: 0.72,
   },
   row: {
     flexDirection: 'row',
@@ -115,6 +144,21 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
+  },
+  leagueAndPips: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    gap: 2,
+    flexShrink: 0,
+    minWidth: 28,
+  },
+  leagueCode: {
+    color: colors.textMuted,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    lineHeight: 11,
   },
   teams: {
     flex: 1,
@@ -127,6 +171,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     lineHeight: 16,
+  },
+  teamLocked: {
+    color: colors.textMuted,
+  },
+  /** Legacy MatchSelector `.postponed` — muted red marker. */
+  postponedMark: {
+    color: colors.resultLose,
+    fontWeight: '800',
   },
   actions: {
     flexDirection: 'row',

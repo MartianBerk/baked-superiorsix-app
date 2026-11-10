@@ -27,6 +27,7 @@ import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
 import { useRoundStatus } from '@/components/shell/RoundStatusContext';
 import { LoginForm } from '@/features/auth/LoginForm';
+import { isPostponedStatus } from '@/features/scores/liveScoreDisplay';
 import { colors } from '@/theme';
 
 import { DateScrubber } from './DateScrubber';
@@ -468,8 +469,15 @@ export function MatchAdminWidget() {
       }
       setDraftSlots((prev) => {
         if (prev.includes(match.id)) {
+          // Drop always allowed — including postponed fixtures already on the slate.
           queueMicrotask(() => setError(null));
           return dropFromSlots(prev, match.id);
+        }
+        if (isPostponedStatus(match.status)) {
+          queueMicrotask(() =>
+            setError('Postponed matches cannot be added to the slate.'),
+          );
+          return prev;
         }
         // Hard cap at MAX_SLOTS — banner stays n/6; never allow a 7th pick.
         if (occupiedCount(prev) >= MAX_SLOTS) {
@@ -499,6 +507,16 @@ export function MatchAdminWidget() {
     setSubmitting(true);
     setError(null);
     try {
+      const postponedPick = selectionsFromSlots(draftSlots).find((item) => {
+        const match = byId.get(item.id);
+        return match != null && isPostponedStatus(match.status);
+      });
+      if (postponedPick != null) {
+        setError('Drop postponed matches before submitting the slate.');
+        setSubmitting(false);
+        return;
+      }
+
       const draftByDay = new Map<
         string,
         { id: number; game_number: number }[]
@@ -696,12 +714,6 @@ export function MatchAdminWidget() {
             selections.
           </Text>
         ) : null}
-        {!needsRound && isPendingSubroundId(selectedSubroundId) ? (
-          <Text style={styles.lede}>
-            Current slate — pick matches and Submit. The subround is created on
-            first submit.
-          </Text>
-        ) : null}
         <View style={styles.scrubberRow}>
           {!needsRound &&
           subrounds.length > 0 &&
@@ -767,6 +779,7 @@ export function MatchAdminWidget() {
               busyMatchId={null}
               selectionsFull={selectedCount >= MAX_SLOTS}
               readOnly={needsRound || !canEdit}
+              leaguesById={leaguesById}
               onToggleMatch={onToggleMatch}
             />
           ))

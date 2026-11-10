@@ -88,6 +88,8 @@ export type AdminMatch = {
   id: number;
   external_id: string;
   league_id: number;
+  /** League catalog code when BE embeds it (else resolve via listLeagues). */
+  league_code?: string | null;
   match_date: string;
   match_minute: number | null;
   status: string;
@@ -149,7 +151,21 @@ export type LeagueInfo = {
 /** Result codes from `/game/matchdetail` form / H2H rows. */
 export type TeamResultCode = 'WIN' | 'DRAW' | 'LOSE';
 
+/**
+ * `GET /game/matchdetail?id=` payload.
+ * Form / table maps are keyed by `home_team_xref` / `away_team_xref`.
+ * Prefer xref fields for UI labels; keep provider names for identity.
+ */
 export type MatchDetailPayload = {
+  id: number;
+  /** Provider / canonical home name. */
+  home_team: string;
+  /** Provider / canonical away name. */
+  away_team: string;
+  /** team_xref display name for home (use in UI). */
+  home_team_xref: string;
+  /** team_xref display name for away (use in UI). */
+  away_team_xref: string;
   league_position: Record<string, string | null>;
   team_performance: Record<string, TeamResultCode[]>;
   head_to_head: Record<string, TeamResultCode[]>;
@@ -175,6 +191,9 @@ export type LiveMatch = {
   match_date: string;
   /** SS-82 slate id when selected for Super Six. */
   subround_id?: number | null;
+  league_id?: number | null;
+  /** League catalog code (PL / ELC / …) when BE includes it. */
+  league_code?: string | null;
   difficulty?: MatchDifficulty | null;
 };
 
@@ -415,18 +434,14 @@ function gameUnreachable(): ApiError {
 }
 
 /**
- * `GET /game/matchdetail` — league position, recent form, head-to-head.
- * Public game route; `matchDate` is legacy `dd-mm-yyyy`.
+ * `GET /game/matchdetail?id=` — league position, recent form, head-to-head.
+ * Lookup is by match primary key (not home/away/date).
  */
 export async function fetchMatchDetail(opts: {
-  homeTeam: string;
-  awayTeam: string;
-  matchDate: string;
+  matchId: number;
 }): Promise<MatchDetailPayload> {
   const params = new URLSearchParams({
-    hometeam: opts.homeTeam,
-    awayteam: opts.awayTeam,
-    matchdate: opts.matchDate,
+    id: String(opts.matchId),
   });
   let response: Response;
   try {
@@ -1225,6 +1240,10 @@ export type LiveScoreFixture = {
   match_minute: number | null;
   game_number: number | null;
   subround_id: number | null;
+  /** Present on livescores `MatchResponse` rows. */
+  league_id: number | null;
+  /** League catalog code when BE embeds it on the fixture. */
+  league_code: string | null;
   difficulty?: MatchDifficulty | null;
 };
 
@@ -1321,6 +1340,10 @@ function normalizeLiveScoreFixture(
   ) {
     return null;
   }
+  const leagueCode =
+    typeof raw.league_code === 'string' && raw.league_code.trim()
+      ? raw.league_code.trim()
+      : null;
   return {
     id,
     home_team: raw.home_team,
@@ -1332,6 +1355,8 @@ function normalizeLiveScoreFixture(
     match_minute: asFiniteNumber(raw.match_minute),
     game_number: asFiniteNumber(raw.game_number),
     subround_id: asFiniteNumber(raw.subround_id),
+    league_id: asFiniteNumber(raw.league_id),
+    league_code: leagueCode,
     difficulty: asMatchDifficulty(raw.difficulty),
   };
 }

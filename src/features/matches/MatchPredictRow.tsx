@@ -18,6 +18,7 @@ import { PickOutcomeBadge } from '@/features/scores/PickOutcomeBadge';
 import {
   formatAlignedScore,
   formatMatchMinute,
+  isPostponedStatus,
 } from '@/features/scores/liveScoreDisplay';
 import {
   isPickCurrentlyCorrect,
@@ -37,7 +38,7 @@ const CHEVRON_UP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" 
 export function teamColumnWidthForMatches(matches: LiveMatch[]): number {
   let maxChars = 0;
   for (const match of matches) {
-    const awayExtra = match.status === 'POSTPONED' ? 4 : 0;
+    const awayExtra = isPostponedStatus(match.status) ? 4 : 0;
     maxChars = Math.max(
       maxChars,
       match.home_team.length,
@@ -68,9 +69,10 @@ type Props = {
 };
 
 /**
- * Player fixture row: #N leftmost, then difficulty pips, home/away stack,
- * expand for detail / PredictionPicker. Trailing meta is pick badge (if any)
- * + score + match minute once started (+ chevron when unlocked).
+ * Player fixture row: #N leftmost, then league code above difficulty pips,
+ * home/away stack, expand for detail / PredictionPicker. Trailing meta is
+ * pick badge (if any) + score + match minute once started (+ chevron when
+ * unlocked).
  */
 export function MatchPredictRow({
   match,
@@ -86,7 +88,11 @@ export function MatchPredictRow({
   const [expanded, setExpanded] = useState(false);
   /** Lock forces sections closed without a cascading setState effect. */
   const open = expanded && !locked;
-  const postponed = match.status === 'POSTPONED';
+  const postponed = isPostponedStatus(match.status);
+  const leagueCode =
+    typeof match.league_code === 'string' && match.league_code.trim()
+      ? match.league_code.trim()
+      : null;
   const chevron = (open ? CHEVRON_UP : CHEVRON_DOWN).replaceAll(
     'CURRENT',
     colors.textMuted,
@@ -132,7 +138,14 @@ export function MatchPredictRow({
             ) : (
               <View style={styles.gameNumberSpacer} />
             )}
-            <DifficultyPips difficulty={match.difficulty} />
+            <View style={styles.leagueAndPips}>
+              {leagueCode ? (
+                <Text style={styles.leagueCode} numberOfLines={1}>
+                  {leagueCode}
+                </Text>
+              ) : null}
+              <DifficultyPips difficulty={match.difficulty} />
+            </View>
           </View>
           <View style={[styles.teams, { maxWidth: teamColumnWidth }]}>
             <Text style={scoreListChrome.team} numberOfLines={1}>
@@ -140,7 +153,9 @@ export function MatchPredictRow({
             </Text>
             <Text style={scoreListChrome.team} numberOfLines={1}>
               {match.away_team}
-              {postponed ? ' (P)' : ''}
+              {postponed ? (
+                <Text style={styles.postponedMark}> (P)</Text>
+              ) : null}
             </Text>
           </View>
         </View>
@@ -210,11 +225,7 @@ export function MatchPredictRow({
       </View>
 
       {open ? (
-        <MatchDetailPanel
-          homeTeam={match.home_team}
-          awayTeam={match.away_team}
-          matchDateIso={match.match_date}
-        >
+        <MatchDetailPanel matchId={match.id}>
           {canPredict ? (
             <PredictionPicker
               selection={prediction}
@@ -269,6 +280,21 @@ const styles = StyleSheet.create({
   gameNumberSpacer: {
     width: 22,
     flexShrink: 0,
+  },
+  leagueAndPips: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    gap: 2,
+    flexShrink: 0,
+    minWidth: 28,
+  },
+  leagueCode: {
+    color: colors.textMuted,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    lineHeight: 11,
   },
   teams: {
     flexShrink: 1,
@@ -337,5 +363,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.2,
+  },
+  postponedMark: {
+    color: colors.resultLose,
+    fontWeight: '800',
   },
 });
