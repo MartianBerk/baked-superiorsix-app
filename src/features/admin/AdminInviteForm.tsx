@@ -10,7 +10,6 @@ import {
 
 import {
   ApiError,
-  INVITE_PERMISSION_ROLE_LABELS,
   INVITE_PERMISSION_ROLES,
   formatPermissionRoleLabel,
   getPlayerRoles,
@@ -25,7 +24,12 @@ import {
 import { useAuth } from '@/auth';
 import { colors } from '@/theme';
 
-type RoleFlags = Record<InvitePermissionRole, boolean>;
+import { AdminRosterPlayerSection } from './AdminRosterPlayerSection';
+import {
+  RoleChips,
+  emptyRoleFlags,
+  type RoleFlags,
+} from './roleChips';
 
 const DEFAULT_ROLES: RoleFlags = {
   player: true,
@@ -33,15 +37,6 @@ const DEFAULT_ROLES: RoleFlags = {
   euros: false,
   admin: false,
 };
-
-function emptyRoleFlags(): RoleFlags {
-  return {
-    player: false,
-    worldcup: false,
-    euros: false,
-    admin: false,
-  };
-}
 
 function selectedRoles(flags: RoleFlags): InvitePermissionRole[] {
   return INVITE_PERMISSION_ROLES.filter((role) => flags[role]);
@@ -61,40 +56,6 @@ function flagsFromRoles(roles: string[]): RoleFlags {
 function formatRolesList(roles: string[]): string {
   const labeled = roles.map(formatPermissionRoleLabel);
   return labeled.length ? labeled.join(', ') : '(no roles)';
-}
-
-type RoleChipsProps = {
-  value: RoleFlags;
-  disabled?: boolean;
-  onToggle: (role: InvitePermissionRole) => void;
-};
-
-function RoleChips({ value, disabled, onToggle }: RoleChipsProps) {
-  return (
-    <View style={styles.roleRow}>
-      {INVITE_PERMISSION_ROLES.map((role) => {
-        const on = value[role];
-        return (
-          <Pressable
-            key={role}
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: on }}
-            disabled={disabled}
-            onPress={() => onToggle(role)}
-            style={({ pressed }) => [
-              styles.roleChip,
-              on && styles.roleChipOn,
-              (pressed || disabled) && styles.pressed,
-            ]}
-          >
-            <Text style={[styles.roleChipText, on && styles.roleChipTextOn]}>
-              {INVITE_PERMISSION_ROLE_LABELS[role]}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
 }
 
 export type AdminUserPanel = 'invite' | 'roster';
@@ -449,118 +410,47 @@ export function AdminInviteForm({ panel }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <View style={[styles.listBlock, styles.listBlockFlush]}>
-        <View style={styles.listHeader}>
-          <Text style={styles.listTitle}>Roster</Text>
-          <Pressable
-            accessibilityRole="button"
-            disabled={rosterLoading || busy || editBusy}
-            onPress={() => {
-              void refreshRoster();
+      {rosterLoading && roster.length === 0 ? (
+        <ActivityIndicator
+          color={colors.textMuted}
+          style={styles.rosterLoading}
+        />
+      ) : null}
+      {rosterError ? <Text style={styles.error}>{rosterError}</Text> : null}
+      {roster.length === 0 && !rosterLoading && !rosterError ? (
+        <Text style={styles.emptyList}>No players yet.</Text>
+      ) : null}
+      {roster.map((player) => {
+        const isEditing = editingAuthId === player.auth_id;
+        const rowDisabled =
+          busy || ((editBusy || editLoading) && !isEditing);
+        return (
+          <AdminRosterPlayerSection
+            key={player.auth_id}
+            player={player}
+            expanded={isEditing}
+            rowDisabled={rowDisabled}
+            onToggleExpand={() => {
+              if (isEditing) {
+                closeEditor();
+                return;
+              }
+              void openEditor(player);
             }}
-          >
-            <Text style={styles.reload}>
-              {rosterLoading ? 'Loading…' : 'Reload'}
-            </Text>
-          </Pressable>
-        </View>
-        <Text style={styles.listHint}>Tap a player to edit roles.</Text>
-        {rosterError ? <Text style={styles.error}>{rosterError}</Text> : null}
-        {roster.length === 0 && !rosterLoading && !rosterError ? (
-          <Text style={styles.emptyList}>No players yet.</Text>
-        ) : null}
-        {roster.map((player) => {
-          const isEditing = editingAuthId === player.auth_id;
-          return (
-            <View key={player.auth_id} style={styles.listRow}>
-              <Pressable
-                accessibilityRole="button"
-                disabled={busy || editBusy || editLoading}
-                onPress={() => {
-                  if (isEditing) {
-                    closeEditor();
-                    return;
-                  }
-                  void openEditor(player);
-                }}
-              >
-                <Text style={styles.listName}>
-                  {player.first_name} {player.last_name}
-                  {player.nickname ? ` · ${player.nickname}` : ''}
-                </Text>
-                <Text style={styles.listMeta}>
-                  {player.email ? `${player.email} · ` : ''}
-                  {player.active ? 'active' : 'inactive'}
-                  {isEditing ? ' · editing' : ''}
-                </Text>
-              </Pressable>
-
-              {isEditing ? (
-                <View style={styles.editPanel}>
-                  <Text style={styles.label}>Email</Text>
-                  <Text style={styles.emailReadonly}>
-                    {editEmail || '(no email)'}
-                  </Text>
-
-                  <Text style={styles.label}>Roles</Text>
-                  {editLoading ? (
-                    <ActivityIndicator
-                      color={colors.textMuted}
-                      style={styles.editSpinner}
-                    />
-                  ) : (
-                    <RoleChips
-                      value={editRoles}
-                      disabled={editBusy || !editEmail}
-                      onToggle={toggleEditRole}
-                    />
-                  )}
-
-                  {editError ? (
-                    <Text style={styles.error}>{editError}</Text>
-                  ) : null}
-                  {editNote ? (
-                    <Text style={styles.saved}>{editNote}</Text>
-                  ) : null}
-
-                  <View style={styles.editActions}>
-                    <Pressable
-                      accessibilityRole="button"
-                      disabled={editBusy || editLoading || !editEmail}
-                      onPress={() => {
-                        void onSaveRoles();
-                      }}
-                      style={({ pressed }) => [
-                        styles.button,
-                        styles.editSave,
-                        (pressed || editBusy || editLoading || !editEmail) &&
-                          styles.pressed,
-                      ]}
-                    >
-                      {editBusy ? (
-                        <ActivityIndicator color={colors.text} />
-                      ) : (
-                        <Text style={styles.buttonText}>Save roles</Text>
-                      )}
-                    </Pressable>
-                    <Pressable
-                      accessibilityRole="button"
-                      disabled={editBusy}
-                      onPress={closeEditor}
-                      style={({ pressed }) => [
-                        styles.cancelButton,
-                        (pressed || editBusy) && styles.pressed,
-                      ]}
-                    >
-                      <Text style={styles.cancelText}>Close</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              ) : null}
-            </View>
-          );
-        })}
-      </View>
+            editEmail={isEditing ? editEmail : ''}
+            editRoles={isEditing ? editRoles : emptyRoleFlags()}
+            editLoading={isEditing && editLoading}
+            editBusy={isEditing && editBusy}
+            editError={isEditing ? editError : null}
+            editNote={isEditing ? editNote : null}
+            onToggleEditRole={toggleEditRole}
+            onSaveRoles={() => {
+              void onSaveRoles();
+            }}
+            onCloseEditor={closeEditor}
+          />
+        );
+      })}
     </View>
   );
 }
@@ -586,37 +476,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 14,
-  },
-  emailReadonly: {
-    color: colors.text,
-    fontSize: 16,
-    marginBottom: 14,
-  },
-  roleRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
-  },
-  roleChip: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: colors.surface,
-  },
-  roleChipOn: {
-    borderColor: colors.accentBright,
-    backgroundColor: colors.menuActive,
-  },
-  roleChipText: {
-    color: colors.textMuted,
-    fontSize: 14,
-  },
-  roleChipTextOn: {
-    color: colors.text,
-    fontWeight: '600',
   },
   error: {
     color: '#E8A0A0',
@@ -646,16 +505,15 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.85,
   },
+  rosterLoading: {
+    paddingVertical: 16,
+    alignSelf: 'center',
+  },
   listBlock: {
     marginTop: 28,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     paddingTop: 18,
-  },
-  listBlockFlush: {
-    marginTop: 0,
-    borderTopWidth: 0,
-    paddingTop: 0,
   },
   listHeader: {
     flexDirection: 'row',
@@ -667,11 +525,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 18,
     fontWeight: '600',
-  },
-  listHint: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginBottom: 12,
   },
   reload: {
     color: colors.accentBright,
@@ -694,30 +547,5 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 12,
     marginTop: 2,
-  },
-  editPanel: {
-    marginTop: 14,
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  editSpinner: {
-    marginBottom: 16,
-    alignSelf: 'flex-start',
-  },
-  editActions: {
-    gap: 10,
-  },
-  editSave: {
-    marginTop: 0,
-  },
-  cancelButton: {
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  cancelText: {
-    color: colors.accentBright,
-    fontSize: 15,
-    fontWeight: '500',
   },
 });
