@@ -39,10 +39,6 @@ export function SessionPanel() {
       <View style={styles.wrap}>
         <ProfileForm />
 
-        <Text style={styles.meta}>
-          roles · {session.roles.length ? session.roles.join(', ') : 'none'}
-        </Text>
-
         <Pressable
           accessibilityRole="button"
           disabled={busy}
@@ -77,13 +73,8 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: 24,
   },
-  meta: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginTop: 20,
-    marginBottom: 12,
-  },
   button: {
+    marginTop: 20,
     backgroundColor: colors.menuActive,
     borderRadius: 12,
     paddingVertical: 14,

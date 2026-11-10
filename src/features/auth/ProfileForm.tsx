@@ -146,12 +146,6 @@ export function ProfileForm() {
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.heading}>Your profile</Text>
-      <Text style={styles.lede}>
-        {session?.email ? `${session.email} · ` : ''}
-        email, first name, last name, and nickname.
-      </Text>
-
       {loadState === 'missing' || loadState === 'error' ? (
         <Text style={styles.warn}>{loadError}</Text>
       ) : null}
@@ -261,19 +255,6 @@ const styles = StyleSheet.create({
   },
   wrap: {
     width: '100%',
-  },
-  heading: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-    marginBottom: 8,
-  },
-  lede: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 16,
   },
   warn: {
     color: '#E0C07A',
