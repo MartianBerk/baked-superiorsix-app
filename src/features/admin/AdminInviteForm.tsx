@@ -342,14 +342,6 @@ export function AdminInviteForm({ panel }: Props) {
   if (panel === 'invite') {
     return (
       <View style={styles.wrap}>
-        <Text style={styles.heading}>Invite player</Text>
-        <Text style={styles.lede}>
-          Reserve an email, profile seed, and roles. Profile edit access is always
-          granted. Auth user + membership are created now; the invitee sets a
-          password on first login, then joins the roster. Toggle Admin to grant
-          app-scoped superiorsix admin (match day, rounds, invites).
-        </Text>
-
         <Text style={styles.label}>Email</Text>
       <TextInput
         style={styles.input}
@@ -576,19 +568,6 @@ export function AdminInviteForm({ panel }: Props) {
 const styles = StyleSheet.create({
   wrap: {
     width: '100%',
-  },
-  heading: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-    marginBottom: 8,
-  },
-  lede: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 16,
   },
   label: {
     color: colors.textMuted,
