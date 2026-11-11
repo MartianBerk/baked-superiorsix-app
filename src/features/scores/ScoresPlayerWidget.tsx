@@ -216,7 +216,7 @@ function mergeBoardFixtures(
  */
 export function ScoresPlayerWidget() {
   const { isAuthenticated, session } = useAuth();
-  const { setPlayerPickingStatus } = useRoundStatus();
+  const { setPlayerPickingStatus, refreshGameMeta } = useRoundStatus();
 
   const [subrounds, setSubrounds] = useState<Subround[]>([]);
   const [matchesBySubround, setMatchesBySubround] = useState<
@@ -395,6 +395,9 @@ export function ScoresPlayerWidget() {
       }
       setError(null);
       try {
+        if (mode === 'refresh') {
+          await refreshGameMeta({ preserveChrome: true });
+        }
         let listed: Subround[] = [];
         let noRound = false;
         try {
@@ -442,7 +445,7 @@ export function ScoresPlayerWidget() {
         setRefreshing(false);
       }
     },
-    [loadScores],
+    [loadScores, refreshGameMeta],
   );
 
   useEffect(() => {
@@ -600,14 +603,16 @@ const styles = StyleSheet.create({
     // Same 12px rhythm as header → scrubber.
     marginBottom: 12,
   },
+  /** Left subround scrubber — 40% of scrubber row. */
   subroundCol: {
-    flexGrow: 1,
+    flexGrow: 2,
     flexShrink: 1,
     flexBasis: 0,
     minWidth: 0,
   },
+  /** Right date chip — 60% of scrubber row. */
   dateCol: {
-    flexGrow: 2,
+    flexGrow: 3,
     flexShrink: 1,
     flexBasis: 0,
     minWidth: 0,

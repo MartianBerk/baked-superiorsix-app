@@ -7,6 +7,7 @@ import { DualModeAuthReset } from '@/components/shell/DualModeAuthReset';
 import { GamedayHeaderSync } from '@/components/shell/GamedayHeaderSync';
 import { GamedayRoundStatusSync } from '@/components/shell/GamedayRoundStatusSync';
 import { RoundStatusProvider } from '@/components/shell/RoundStatusContext';
+import { TabTransitionProvider } from '@/components/shell/TabTransitionContext';
 import { tabSlideTransition } from '@/components/shell/tabSlideTransition';
 import { UserTabModeProvider } from '@/features/auth/UserTabModeContext';
 import { LeadersTabModeProvider } from '@/features/leaders/LeadersTabModeContext';
@@ -33,19 +34,22 @@ function SuperSixTabs() {
   return (
     <View style={styles.shell}>
       <AppHeader />
-      <Tabs
-        tabBar={({ state, descriptors, navigateToTab }) => (
-          <BottomMenu
-            state={state}
-            descriptors={descriptors}
-            navigateToTab={navigateToTab}
-          />
-        )}
-        screenOptions={{
-          headerShown: false,
-          ...tabSlideTransition,
-        }}
-      >
+      <TabTransitionProvider>
+        <Tabs
+          tabBar={({ state, descriptors, navigateToTab }) => (
+            <BottomMenu
+              state={state}
+              descriptors={descriptors}
+              navigateToTab={navigateToTab}
+            />
+          )}
+          screenOptions={{
+            headerShown: false,
+            lazy: false,
+            sceneStyle: { backgroundColor: colors.background },
+            ...tabSlideTransition,
+          }}
+        >
         <Tabs.Screen
           name="index"
           options={{
@@ -90,7 +94,8 @@ function SuperSixTabs() {
             tabBarAccessibilityLabel: 'Profile',
           }}
         />
-      </Tabs>
+        </Tabs>
+      </TabTransitionProvider>
     </View>
   );
 }
