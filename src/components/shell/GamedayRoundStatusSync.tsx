@@ -2,7 +2,6 @@ import { usePathname } from 'expo-router';
 import { useEffect } from 'react';
 
 import {
-  getGameMeta,
   getLiveScores,
   type LiveScoreFixture,
   type LiveScorePlayer,
@@ -129,8 +128,9 @@ function isSideGamePath(pathname: string): boolean {
 
 /**
  * Single publisher for the shell n/X strip on Super Six player tabs.
- * Derives picking vs live/finished + counts from `/game/meta` + `/game/livescores`
- * on mount / auth / tab-ownership changes — no timer poll of meta.
+ * Derives picking vs live/finished + counts from cached `/game/meta` + `/game/livescores`.
+ * Meta is fetched only by `refreshGameMeta` (initial load, auth change, pull-to-refresh).
+ * This effect refreshes livescores when meta or strip ownership changes — no `getGameMeta` here.
  * Matches may still push optimistic picking counts while the draft is open.
  * Skips fixtures admin on the fixtures tab, and Euros / World Cup tabs
  * (those publish tournament n / total from SideGamePlayerWidget).
@@ -139,7 +139,7 @@ export function GamedayRoundStatusSync() {
   const { isAuthenticated, session } = useAuth();
   const { mode: fixturesMode } = useFixturesTabMode();
   const pathname = usePathname();
-  const { setPlayerPickingStatus } = useRoundStatus();
+  const { setPlayerPickingStatus, gameMeta, gamedayHeader } = useRoundStatus();
   const viewerAuthId = session?.userId ?? null;
   const fixturesAdminOwnsStrip =
     fixturesMode === 'admin' && isFixturesPath(pathname);
@@ -162,9 +162,11 @@ export function GamedayRoundStatusSync() {
     let cancelled = false;
 
     async function refresh() {
+      if (!gamedayHeader.metaLoaded) {
+        return;
+      }
       try {
-        const meta = await getGameMeta();
-        const subround = meta.subround;
+        const subround = gameMeta?.subround;
         if (!subround) {
           if (!cancelled) {
             setPlayerPickingStatus(
@@ -236,6 +238,8 @@ export function GamedayRoundStatusSync() {
     sideGameOwnsStrip,
     viewerAuthId,
     setPlayerPickingStatus,
+    gameMeta,
+    gamedayHeader.metaLoaded,
   ]);
 
   return null;
