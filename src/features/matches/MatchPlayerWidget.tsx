@@ -190,7 +190,7 @@ function perfectSixFromBoard(
  */
 export function MatchPlayerWidget() {
   const { status, isAuthenticated, token, hasRole, session } = useAuth();
-  const { setPlayerPickingStatus } = useRoundStatus();
+  const { setPlayerPickingStatus, refreshGameMeta } = useRoundStatus();
 
   const [subrounds, setSubrounds] = useState<Subround[]>([]);
   const [matchesBySubround, setMatchesBySubround] = useState<
@@ -384,6 +384,9 @@ export function MatchPlayerWidget() {
       setError(null);
       setRowError(null);
       try {
+        if (mode === 'refresh') {
+          await refreshGameMeta({ preserveChrome: true });
+        }
         let listed: Subround[] = [];
         let noRound = false;
         try {
@@ -433,7 +436,7 @@ export function MatchPlayerWidget() {
         setRefreshing(false);
       }
     },
-    [loadSlate],
+    [loadSlate, refreshGameMeta],
   );
 
   useEffect(() => {
@@ -670,16 +673,16 @@ const styles = StyleSheet.create({
     // Same 12px rhythm as header → scrubber.
     marginBottom: 12,
   },
-  /** Left slate `# n` chip — ~33% (same as Scores subround scrubber). */
+  /** Left subround scrubber — 40% of scrubber row. */
   subroundCol: {
-    flexGrow: 1,
+    flexGrow: 2,
     flexShrink: 1,
     flexBasis: 0,
     minWidth: 0,
   },
-  /** Right date chip — ~67% (same as Scores). */
+  /** Right date chip — 60% of scrubber row. */
   dateCol: {
-    flexGrow: 2,
+    flexGrow: 3,
     flexShrink: 1,
     flexBasis: 0,
     minWidth: 0,

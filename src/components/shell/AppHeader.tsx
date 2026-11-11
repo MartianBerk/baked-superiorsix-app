@@ -68,8 +68,19 @@ export function AppHeader({
     sideGamePickingStatus,
     gamedayHeader,
   } = useRoundStatus();
-  const resolvedRound = roundLabel ?? gamedayHeader.roundLabel;
-  const resolvedPrize = prizeLabel ?? gamedayHeader.prizeLabel;
+  const chromeReady = gamedayHeader.metaLoaded;
+  const resolvedRound = (
+    roundLabel ?? (chromeReady ? gamedayHeader.roundLabel : '')
+  ).trim();
+  const resolvedPrize = (
+    prizeLabel ?? (chromeReady ? gamedayHeader.prizeLabel : '')
+  ).trim();
+  const headerA11y = [
+    resolvedRound ? `Round ${resolvedRound}` : null,
+    resolvedPrize ? `prize pot ${resolvedPrize}` : null,
+  ]
+    .filter(Boolean)
+    .join(', ');
   const onSideGame = isSideGamePath(pathname);
   // Hide when logged out or Scores / Leaders / Profile admin.
   // Euros / World Cup keep the strip (tournament n / total — dedicated channel).
@@ -111,12 +122,14 @@ export function AppHeader({
         styles.outer,
         { paddingTop: Math.max(insets.top, 10) },
       ]}
-      accessibilityLabel={`Round ${resolvedRound}, prize pot ${resolvedPrize}`}
+      accessibilityLabel={headerA11y || 'Superior Six'}
     >
       <View style={styles.card}>
         <View style={styles.bar}>
           <View style={styles.side}>
-            <Text style={styles.value}>{resolvedRound}</Text>
+            {resolvedRound ? (
+              <Text style={styles.value}>{resolvedRound}</Text>
+            ) : null}
           </View>
 
           <View style={styles.logoWrap} pointerEvents="none">
@@ -124,7 +137,9 @@ export function AppHeader({
           </View>
 
           <View style={[styles.side, styles.sideRight]}>
-            <Text style={styles.value}>{resolvedPrize}</Text>
+            {resolvedPrize ? (
+              <Text style={styles.value}>{resolvedPrize}</Text>
+            ) : null}
           </View>
         </View>
 

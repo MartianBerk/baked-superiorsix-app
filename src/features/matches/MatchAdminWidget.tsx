@@ -137,7 +137,7 @@ function slotsForSubround(
 export function MatchAdminWidget() {
   const { status, isAuthenticated, token, hasRole } = useAuth();
   const { setMode } = useFixturesTabMode();
-  const { setPlayerPickingStatus } = useRoundStatus();
+  const { setPlayerPickingStatus, refreshGameMeta } = useRoundStatus();
   const pathname = usePathname();
   const ownsHeaderStrip = isFixturesPath(pathname);
 
@@ -301,6 +301,9 @@ export function MatchAdminWidget() {
       }
       setError(null);
       try {
+        if (mode === 'refresh') {
+          await refreshGameMeta({ preserveChrome: true });
+        }
         const range = adminScrubberRange();
         // Fixtures are round-agnostic. Parent Round is manual — do not call
         // listsubrounds until a round exists (avoids BE Round auto-create).
@@ -400,7 +403,7 @@ export function MatchAdminWidget() {
         setRefreshing(false);
       }
     },
-    [token, selectedSubroundId, applySubroundSelection],
+    [token, selectedSubroundId, applySubroundSelection, refreshGameMeta],
   );
 
   useEffect(() => {
@@ -822,16 +825,16 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: SCRUBBER_ROW_TAIL_GAP,
   },
-  /** Left slate `# n` chip — ~33% (same as Scores / player Matches). */
+  /** Left subround scrubber — 40% of scrubber row. */
   subroundCol: {
-    flexGrow: 1,
+    flexGrow: 2,
     flexShrink: 1,
     flexBasis: 0,
     minWidth: 0,
   },
-  /** Right date chip — ~67% (same as Scores / player Matches). */
+  /** Right date chip — 60% of scrubber row. */
   dateCol: {
-    flexGrow: 2,
+    flexGrow: 3,
     flexShrink: 1,
     flexBasis: 0,
     minWidth: 0,
