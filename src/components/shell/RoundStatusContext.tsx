@@ -10,7 +10,7 @@ import {
 import type { RoundStatus } from './roundStatus';
 
 export type GamedayHeaderChrome = {
-  /** Latest subround sequence — header value (`# n`). */
+  /** Latest subround sequence — header value (`#n`). */
   roundLabel: string;
   /** Pot = buy_in × full_roster × subround — header value (`£…`). */
   prizeLabel: string;
@@ -35,7 +35,7 @@ type RoundStatusContextValue = {
 };
 
 const DEFAULT_HEADER: GamedayHeaderChrome = {
-  roundLabel: '# N',
+  roundLabel: '#N',
   prizeLabel: '£X',
 };
 
