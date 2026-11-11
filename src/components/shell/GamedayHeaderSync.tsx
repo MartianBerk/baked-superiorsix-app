@@ -5,22 +5,19 @@ import { useAuth } from '@/auth';
 import { useRoundStatus } from './RoundStatusContext';
 
 /**
- * Loads shell round / pot once per signed-in user via shared `refreshGameMeta`.
- * Also runs after logout to clear cached meta. Pull-to-refresh on tab bodies
+ * Loads public shell round / pot via `GET /game/meta` (no auth required).
+ * Refetches when signed-in user identity changes. Pull-to-refresh on tab bodies
  * calls `refreshGameMeta({ preserveChrome: true })` directly.
  */
 export function GamedayHeaderSync() {
-  const { refreshGameMeta, clearGamedayMeta } = useRoundStatus();
+  const { refreshGameMeta } = useRoundStatus();
   const { isAuthenticated, session } = useAuth();
   const userId = session?.userId ?? null;
+  const loadKey = isAuthenticated ? `user:${userId ?? ''}` : 'public';
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      clearGamedayMeta();
-      return;
-    }
     void refreshGameMeta();
-  }, [isAuthenticated, userId, refreshGameMeta, clearGamedayMeta]);
+  }, [loadKey, refreshGameMeta]);
 
   return null;
 }

@@ -98,6 +98,10 @@ export function RoundStatusProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshGameMeta = useCallback(async (options?: RefreshGameMetaOptions) => {
+    if (metaInFlightRef.current) {
+      return metaInFlightRef.current;
+    }
+
     const preserveChrome = options?.preserveChrome ?? false;
     if (!preserveChrome) {
       setGamedayHeaderState({
@@ -105,10 +109,6 @@ export function RoundStatusProvider({ children }: { children: ReactNode }) {
         prizeLabel: '',
         metaLoaded: false,
       });
-    }
-
-    if (metaInFlightRef.current) {
-      return metaInFlightRef.current;
     }
 
     const task = (async () => {
