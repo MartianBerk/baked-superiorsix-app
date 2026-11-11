@@ -670,16 +670,16 @@ const styles = StyleSheet.create({
     // Same 12px rhythm as header → scrubber.
     marginBottom: 12,
   },
-  /** Left slate `# n` chip — ~33% (same as Scores subround scrubber). */
+  /** Left subround scrubber — 40% of scrubber row. */
   subroundCol: {
-    flexGrow: 1,
+    flexGrow: 2,
     flexShrink: 1,
     flexBasis: 0,
     minWidth: 0,
   },
-  /** Right date chip — ~67% (same as Scores). */
+  /** Right date chip — 60% of scrubber row. */
   dateCol: {
-    flexGrow: 2,
+    flexGrow: 3,
     flexShrink: 1,
     flexBasis: 0,
     minWidth: 0,

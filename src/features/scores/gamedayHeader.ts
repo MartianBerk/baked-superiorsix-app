@@ -39,7 +39,7 @@ export function formatPrizePounds(pence: number): string {
   return `£${pounds.toFixed(2)}`;
 }
 
-/** Round label for the shell header (`# n`, same as SubroundScrubber). */
+/** Round label for the shell header (spaced `# n`; scrubbers use `#n`). */
 export function formatRoundLabel(subroundNumber: number | null | undefined): string {
   if (subroundNumber == null || !Number.isFinite(subroundNumber) || subroundNumber < 1) {
     return '# N';

@@ -822,16 +822,16 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: SCRUBBER_ROW_TAIL_GAP,
   },
-  /** Left slate `# n` chip — ~33% (same as Scores / player Matches). */
+  /** Left subround scrubber — 40% of scrubber row. */
   subroundCol: {
-    flexGrow: 1,
+    flexGrow: 2,
     flexShrink: 1,
     flexBasis: 0,
     minWidth: 0,
   },
-  /** Right date chip — ~67% (same as Scores / player Matches). */
+  /** Right date chip — 60% of scrubber row. */
   dateCol: {
-    flexGrow: 2,
+    flexGrow: 3,
     flexShrink: 1,
     flexBasis: 0,
     minWidth: 0,
