@@ -190,7 +190,7 @@ function perfectSixFromBoard(
  */
 export function MatchPlayerWidget() {
   const { status, isAuthenticated, token, hasRole, session } = useAuth();
-  const { setPlayerPickingStatus } = useRoundStatus();
+  const { setPlayerPickingStatus, refreshGameMeta } = useRoundStatus();
 
   const [subrounds, setSubrounds] = useState<Subround[]>([]);
   const [matchesBySubround, setMatchesBySubround] = useState<
@@ -384,6 +384,9 @@ export function MatchPlayerWidget() {
       setError(null);
       setRowError(null);
       try {
+        if (mode === 'refresh') {
+          await refreshGameMeta({ preserveChrome: true });
+        }
         let listed: Subround[] = [];
         let noRound = false;
         try {
@@ -433,7 +436,7 @@ export function MatchPlayerWidget() {
         setRefreshing(false);
       }
     },
-    [loadSlate],
+    [loadSlate, refreshGameMeta],
   );
 
   useEffect(() => {

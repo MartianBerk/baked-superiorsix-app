@@ -216,7 +216,7 @@ function mergeBoardFixtures(
  */
 export function ScoresPlayerWidget() {
   const { isAuthenticated, session } = useAuth();
-  const { setPlayerPickingStatus } = useRoundStatus();
+  const { setPlayerPickingStatus, refreshGameMeta } = useRoundStatus();
 
   const [subrounds, setSubrounds] = useState<Subround[]>([]);
   const [matchesBySubround, setMatchesBySubround] = useState<
@@ -395,6 +395,9 @@ export function ScoresPlayerWidget() {
       }
       setError(null);
       try {
+        if (mode === 'refresh') {
+          await refreshGameMeta({ preserveChrome: true });
+        }
         let listed: Subround[] = [];
         let noRound = false;
         try {
@@ -442,7 +445,7 @@ export function ScoresPlayerWidget() {
         setRefreshing(false);
       }
     },
-    [loadScores],
+    [loadScores, refreshGameMeta],
   );
 
   useEffect(() => {

@@ -24,6 +24,7 @@ import {
 } from '@/api/superiorsix';
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
+import { useRoundStatus } from '@/components/shell/RoundStatusContext';
 import { LoginForm } from '@/features/auth/LoginForm';
 import {
   discoveryDayKeys,
@@ -116,6 +117,7 @@ function uniqueMatchDates(matches: LiveMatch[]): string[] {
  */
 export function AdminPredictionsWidget() {
   const { status, isAuthenticated, token, hasRole } = useAuth();
+  const { refreshGameMeta } = useRoundStatus();
   const { setMode } = useScoresTabMode();
 
   const [players, setPlayers] = useState<PlayerProfile[]>([]);
@@ -227,6 +229,9 @@ export function AdminPredictionsWidget() {
       setError(null);
       setRowError(null);
       try {
+        if (mode === 'refresh') {
+          await refreshGameMeta({ preserveChrome: true });
+        }
         if (!token || !canManage) {
           setPlayers([]);
           setSubrounds([]);
@@ -315,7 +320,7 @@ export function AdminPredictionsWidget() {
         setRefreshing(false);
       }
     },
-    [token, canManage, loadPredictions],
+    [token, canManage, loadPredictions, refreshGameMeta],
   );
 
   useEffect(() => {

@@ -137,7 +137,7 @@ function slotsForSubround(
 export function MatchAdminWidget() {
   const { status, isAuthenticated, token, hasRole } = useAuth();
   const { setMode } = useFixturesTabMode();
-  const { setPlayerPickingStatus } = useRoundStatus();
+  const { setPlayerPickingStatus, refreshGameMeta } = useRoundStatus();
   const pathname = usePathname();
   const ownsHeaderStrip = isFixturesPath(pathname);
 
@@ -301,6 +301,9 @@ export function MatchAdminWidget() {
       }
       setError(null);
       try {
+        if (mode === 'refresh') {
+          await refreshGameMeta({ preserveChrome: true });
+        }
         const range = adminScrubberRange();
         // Fixtures are round-agnostic. Parent Round is manual — do not call
         // listsubrounds until a round exists (avoids BE Round auto-create).
@@ -400,7 +403,7 @@ export function MatchAdminWidget() {
         setRefreshing(false);
       }
     },
-    [token, selectedSubroundId, applySubroundSelection],
+    [token, selectedSubroundId, applySubroundSelection, refreshGameMeta],
   );
 
   useEffect(() => {

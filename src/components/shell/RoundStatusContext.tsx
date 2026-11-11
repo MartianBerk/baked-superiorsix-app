@@ -3,10 +3,14 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
 
+import { getGameMeta, type GameMeta } from '@/api/superiorsix';
+
+import { headerChromeFromGameMeta } from './gamedayMetaFromApi';
 import type { RoundStatus } from './roundStatus';
 
 export type GamedayHeaderChrome = {
@@ -16,6 +20,11 @@ export type GamedayHeaderChrome = {
   prizeLabel: string;
   /** False until the first `GET /game/meta` finishes (success or failure). */
   metaLoaded: boolean;
+};
+
+type RefreshGameMetaOptions = {
+  /** Keep showing the previous header while refetching (pull-to-refresh). */
+  preserveChrome?: boolean;
 };
 
 type RoundStatusContextValue = {
@@ -33,7 +42,10 @@ type RoundStatusContextValue = {
   setSideGamePickingStatus: (status: RoundStatus | null) => void;
   /** Shell header round / pot values (SS-26). */
   gamedayHeader: GamedayHeaderChrome;
-  setGamedayHeader: (chrome: GamedayHeaderChrome) => void;
+  /** Cached `GET /game/meta` for header + round-status strip (single fetch source). */
+  gameMeta: GameMeta | null;
+  refreshGameMeta: (options?: RefreshGameMetaOptions) => Promise<void>;
+  clearGamedayMeta: () => void;
 };
 
 const DEFAULT_HEADER: GamedayHeaderChrome = {
@@ -65,6 +77,8 @@ export function RoundStatusProvider({ children }: { children: ReactNode }) {
     useState<RoundStatus | null>(null);
   const [gamedayHeader, setGamedayHeaderState] =
     useState<GamedayHeaderChrome>(DEFAULT_HEADER);
+  const [gameMeta, setGameMeta] = useState<GameMeta | null>(null);
+  const metaInFlightRef = useRef<Promise<void> | null>(null);
 
   const setPlayerPickingStatus = useCallback((status: RoundStatus | null) => {
     setPlayerPickingStatusState((prev) => mergeStatus(prev, status));
@@ -74,14 +88,48 @@ export function RoundStatusProvider({ children }: { children: ReactNode }) {
     setSideGamePickingStatusState((prev) => mergeStatus(prev, status));
   }, []);
 
-  const setGamedayHeader = useCallback((chrome: GamedayHeaderChrome) => {
-    setGamedayHeaderState((prev) =>
-      prev.roundLabel === chrome.roundLabel &&
-      prev.prizeLabel === chrome.prizeLabel &&
-      prev.metaLoaded === chrome.metaLoaded
-        ? prev
-        : chrome,
-    );
+  const clearGamedayMeta = useCallback(() => {
+    setGameMeta(null);
+    setGamedayHeaderState({
+      roundLabel: '',
+      prizeLabel: '',
+      metaLoaded: true,
+    });
+  }, []);
+
+  const refreshGameMeta = useCallback(async (options?: RefreshGameMetaOptions) => {
+    const preserveChrome = options?.preserveChrome ?? false;
+    if (!preserveChrome) {
+      setGamedayHeaderState({
+        roundLabel: '',
+        prizeLabel: '',
+        metaLoaded: false,
+      });
+    }
+
+    if (metaInFlightRef.current) {
+      return metaInFlightRef.current;
+    }
+
+    const task = (async () => {
+      try {
+        const meta = await getGameMeta();
+        setGameMeta(meta);
+        setGamedayHeaderState(headerChromeFromGameMeta(meta));
+      } catch {
+        setGameMeta(null);
+        setGamedayHeaderState({
+          roundLabel: '',
+          prizeLabel: '',
+          metaLoaded: true,
+        });
+      }
+    })();
+
+    metaInFlightRef.current = task.finally(() => {
+      metaInFlightRef.current = null;
+    });
+    return metaInFlightRef.current;
   }, []);
 
   const value = useMemo(
@@ -91,7 +139,9 @@ export function RoundStatusProvider({ children }: { children: ReactNode }) {
       sideGamePickingStatus,
       setSideGamePickingStatus,
       gamedayHeader,
-      setGamedayHeader,
+      gameMeta,
+      refreshGameMeta,
+      clearGamedayMeta,
     }),
     [
       playerPickingStatus,
@@ -99,7 +149,9 @@ export function RoundStatusProvider({ children }: { children: ReactNode }) {
       sideGamePickingStatus,
       setSideGamePickingStatus,
       gamedayHeader,
-      setGamedayHeader,
+      gameMeta,
+      refreshGameMeta,
+      clearGamedayMeta,
     ],
   );
 
