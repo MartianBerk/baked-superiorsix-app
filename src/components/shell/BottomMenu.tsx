@@ -1,8 +1,10 @@
 import { useCallback } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router, type Href } from 'expo-router';
 
 import { useAuth } from '@/auth';
+import { useTabTransition } from '@/components/shell/TabTransitionContext';
 import { MenuIcon, type MenuIconName } from '@/components/icons/MenuIcon';
 import { useUserTabMode } from '@/features/auth/UserTabModeContext';
 import { useLeadersTabMode } from '@/features/leaders/LeadersTabModeContext';
@@ -30,6 +32,16 @@ const ADMIN_ROLE = 'admin';
 
 /** Tabs that swap player ↔ admin widgets in place. */
 const DUAL_MODE_TABS = new Set(['index', 'scores', 'leaders', 'profile']);
+
+/** Warm tab route bundles before first paint (web code-split). */
+const TAB_PREFETCH_HREF: Record<string, Href> = {
+  index: '/(super-six)',
+  scores: '/(super-six)/scores',
+  leaders: '/(super-six)/leaders',
+  euros: '/(super-six)/euros',
+  worldcup: '/(super-six)/worldcup',
+  profile: '/(super-six)/profile',
+};
 
 const HIT_SIZE = 48;
 
@@ -72,6 +84,7 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
   const showEuros = eurosOpen;
   const showWorldcup = worldcupOpen && !eurosOpen;
   const canAdminToggle = isAuthenticated && hasRole(ADMIN_ROLE);
+  const { beginTabTransition } = useTabTransition();
 
   const toggleDualMode = useCallback(
     (routeName: string) => {
@@ -158,6 +171,11 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
               }
               onPress={() => {
                 if (!focused) {
+                  const href = TAB_PREFETCH_HREF[route.name];
+                  if (href) {
+                    router.prefetch(href);
+                  }
+                  beginTabTransition();
                   navigateToTab(route.key);
                   return;
                 }
