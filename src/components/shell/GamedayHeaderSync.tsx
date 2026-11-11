@@ -24,6 +24,12 @@ export function GamedayHeaderSync() {
   useEffect(() => {
     let cancelled = false;
 
+    setGamedayHeader({
+      roundLabel: '',
+      prizeLabel: '',
+      metaLoaded: false,
+    });
+
     async function refresh() {
       let meta: GameMeta | null = null;
       try {
@@ -36,7 +42,7 @@ export function GamedayHeaderSync() {
       }
 
       if (!meta || meta.round_number < 1) {
-        setGamedayHeader({ roundLabel: '#N', prizeLabel: '£X' });
+        setGamedayHeader({ roundLabel: '', prizeLabel: '', metaLoaded: true });
         return;
       }
 
@@ -57,6 +63,7 @@ export function GamedayHeaderSync() {
       setGamedayHeader({
         roundLabel: formatRoundLabel(meta.round_number),
         prizeLabel: formatPrizePounds(prizePence),
+        metaLoaded: true,
       });
     }
 

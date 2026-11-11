@@ -14,6 +14,8 @@ export type GamedayHeaderChrome = {
   roundLabel: string;
   /** Pot = buy_in × full_roster × subround — header value (`£…`). */
   prizeLabel: string;
+  /** False until the first `GET /game/meta` finishes (success or failure). */
+  metaLoaded: boolean;
 };
 
 type RoundStatusContextValue = {
@@ -35,8 +37,9 @@ type RoundStatusContextValue = {
 };
 
 const DEFAULT_HEADER: GamedayHeaderChrome = {
-  roundLabel: '#N',
-  prizeLabel: '£X',
+  roundLabel: '',
+  prizeLabel: '',
+  metaLoaded: false,
 };
 
 const RoundStatusContext = createContext<RoundStatusContextValue | null>(null);
@@ -74,7 +77,8 @@ export function RoundStatusProvider({ children }: { children: ReactNode }) {
   const setGamedayHeader = useCallback((chrome: GamedayHeaderChrome) => {
     setGamedayHeaderState((prev) =>
       prev.roundLabel === chrome.roundLabel &&
-      prev.prizeLabel === chrome.prizeLabel
+      prev.prizeLabel === chrome.prizeLabel &&
+      prev.metaLoaded === chrome.metaLoaded
         ? prev
         : chrome,
     );

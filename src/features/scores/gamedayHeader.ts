@@ -30,7 +30,7 @@ export function prizePotPence(
 /** Format pence as `£28` / `£14.50` (trim trailing .00). */
 export function formatPrizePounds(pence: number): string {
   if (!Number.isFinite(pence) || pence <= 0) {
-    return '£X';
+    return '';
   }
   const pounds = pence / 100;
   if (Number.isInteger(pounds)) {
@@ -42,7 +42,7 @@ export function formatPrizePounds(pence: number): string {
 /** Round label for the shell header (`#n`, same as subround scrubbers). */
 export function formatRoundLabel(subroundNumber: number | null | undefined): string {
   if (subroundNumber == null || !Number.isFinite(subroundNumber) || subroundNumber < 1) {
-    return '#N';
+    return '';
   }
   return `#${Math.trunc(subroundNumber)}`;
 }
