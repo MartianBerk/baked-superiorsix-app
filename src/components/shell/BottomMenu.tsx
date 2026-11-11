@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
@@ -84,7 +84,14 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
   const showEuros = eurosOpen;
   const showWorldcup = worldcupOpen && !eurosOpen;
   const canAdminToggle = isAuthenticated && hasRole(ADMIN_ROLE);
-  const { beginTabTransition } = useTabTransition();
+  const { beginTabTransition, seedVisitedTab } = useTabTransition();
+
+  useEffect(() => {
+    const current = state.routes[state.index]?.name;
+    if (current) {
+      seedVisitedTab(current);
+    }
+  }, [state.index, state.routes, seedVisitedTab]);
 
   const toggleDualMode = useCallback(
     (routeName: string) => {
@@ -171,11 +178,13 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
               }
               onPress={() => {
                 if (!focused) {
-                  const href = TAB_PREFETCH_HREF[route.name];
-                  if (href) {
-                    router.prefetch(href);
+                  const firstVisit = beginTabTransition(route.name);
+                  if (firstVisit) {
+                    const href = TAB_PREFETCH_HREF[route.name];
+                    if (href) {
+                      router.prefetch(href);
+                    }
                   }
-                  beginTabTransition();
                   navigateToTab(route.key);
                   return;
                 }

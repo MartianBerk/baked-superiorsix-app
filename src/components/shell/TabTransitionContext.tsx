@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type PropsWithChildren,
 } from 'react';
@@ -11,15 +12,26 @@ import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 
 import { colors } from '@/theme';
 
+/** Expo bottom-tab route `name` values under `(super-six)` (e.g. `scores`). */
+export type TabRouteName = string;
+
 type TabTransitionContextValue = {
-  beginTabTransition: () => void;
+  /**
+   * Marks a tab as mounted without showing the loading overlay
+   * (e.g. the route focused on initial load).
+   */
+  seedVisitedTab: (routeName: TabRouteName) => void;
+  /**
+   * Call before `navigateToTab`. Returns true on the first visit this session
+   * (overlay shown); false when the tab was already opened once.
+   */
+  beginTabTransition: (routeName: TabRouteName) => boolean;
 };
 
 const TabTransitionContext = createContext<TabTransitionContextValue | null>(
   null,
 );
 
-/** Call before `navigateToTab` to show the interim loading chrome. */
 export function useTabTransition(): TabTransitionContextValue {
   const ctx = useContext(TabTransitionContext);
   if (ctx == null) {
@@ -32,13 +44,23 @@ const OVERLAY_MAX_MS = Platform.select({ web: 1200, default: 700 });
 
 /**
  * Brief centered spinner while a bottom-tab screen mounts (lazy route / heavy widget).
- * Covers the tab body only — header and menu stay visible.
+ * Spinner only on the first visit per tab per session; revisits switch instantly.
  */
 export function TabTransitionProvider({ children }: PropsWithChildren) {
+  const visitedTabsRef = useRef<Set<TabRouteName>>(new Set());
   const [visible, setVisible] = useState(false);
 
-  const beginTabTransition = useCallback(() => {
-    setVisible(true);
+  const seedVisitedTab = useCallback((routeName: TabRouteName) => {
+    visitedTabsRef.current.add(routeName);
+  }, []);
+
+  const beginTabTransition = useCallback((routeName: TabRouteName) => {
+    const firstVisit = !visitedTabsRef.current.has(routeName);
+    visitedTabsRef.current.add(routeName);
+    if (firstVisit) {
+      setVisible(true);
+    }
+    return firstVisit;
   }, []);
 
   useEffect(() => {
@@ -57,9 +79,10 @@ export function TabTransitionProvider({ children }: PropsWithChildren) {
 
   const value = useMemo(
     () => ({
+      seedVisitedTab,
       beginTabTransition,
     }),
-    [beginTabTransition],
+    [seedVisitedTab, beginTabTransition],
   );
 
   return (
