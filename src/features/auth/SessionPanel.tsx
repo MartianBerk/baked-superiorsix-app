@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   emailHeading: {
-    color: colors.text,
+    color: colors.textMuted,
     fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.3,
