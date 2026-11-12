@@ -27,6 +27,7 @@ export function ChangePasswordForm() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [newPasswordBlurred, setNewPasswordBlurred] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -89,10 +90,6 @@ export function ChangePasswordForm() {
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.lede}>
-        Choose a new password, then sign in again with it.
-      </Text>
-
       <Text style={styles.label}>Current password</Text>
       <TextInput
         style={styles.input}
@@ -122,7 +119,11 @@ export function ChangePasswordForm() {
         value={newPassword}
         onChangeText={(value) => {
           setNewPassword(value);
+          setNewPasswordBlurred(false);
           if (error) setError(null);
+        }}
+        onBlur={() => {
+          setNewPasswordBlurred(true);
         }}
         placeholder="New password"
         placeholderTextColor={colors.textMuted}
@@ -154,7 +155,9 @@ export function ChangePasswordForm() {
 
       {confirmPassword.length > 0 && newPassword !== confirmPassword ? (
         <Text style={styles.error}>Passwords do not match.</Text>
-      ) : newPassword.length > 0 && !isPasswordComplex(newPassword) ? (
+      ) : newPasswordBlurred &&
+        newPassword.length > 0 &&
+        !isPasswordComplex(newPassword) ? (
         <Text style={styles.error}>{PASSWORD_COMPLEXITY_MESSAGE}</Text>
       ) : error ? (
         <Text style={styles.error}>{error}</Text>
@@ -185,12 +188,6 @@ export function ChangePasswordForm() {
 const styles = StyleSheet.create({
   wrap: {
     width: '100%',
-  },
-  lede: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 16,
   },
   label: {
     color: colors.textMuted,
