@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   emailHeading: {
     color: colors.textMuted,
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '400',
     textAlign: 'left',
   },
   scrubberWrap: {
