@@ -40,6 +40,16 @@ export function SessionPanel() {
 
   return (
     <View style={styles.root}>
+      <View style={styles.emailWrap}>
+        <Text
+          accessibilityRole="header"
+          numberOfLines={1}
+          ellipsizeMode="middle"
+          style={styles.emailHeading}
+        >
+          {session.email}
+        </Text>
+      </View>
       <View style={styles.scrubberWrap}>
         <UserProfileViewScrubber mode={view} onChange={setView} />
       </View>
@@ -77,6 +87,21 @@ export function SessionPanel() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+  },
+  emailWrap: {
+    width: '100%',
+    maxWidth: 400,
+    alignSelf: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 4,
+    marginBottom: 10,
+  },
+  emailHeading: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    textAlign: 'center',
   },
   scrubberWrap: {
     paddingHorizontal: '3%',
