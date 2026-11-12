@@ -978,6 +978,31 @@ export async function openSubround(token: string): Promise<Subround> {
   return readApiJson<Subround>(response);
 }
 
+/**
+ * `DELETE /admin/subrounds/{id}` — remove an empty subround (SS-220).
+ * Returns the new open-for-editing slate (or null). BE refuses when the
+ * subround has selected matches (`Cannot delete: subround has matches
+ * selected.`).
+ */
+export async function deleteSubround(
+  token: string,
+  subroundId: number,
+): Promise<Subround | null> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', `/admin/subrounds/${subroundId}`, {
+      method: 'DELETE',
+      token,
+    });
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<{ current_subround: Subround | null }>(
+    response,
+  );
+  return body.current_subround ?? null;
+}
+
 /** `GET /admin/listleagues` — league id → code map for kickoff headers. */
 export async function listLeagues(token: string): Promise<LeagueInfo[]> {
   let response: Response;
