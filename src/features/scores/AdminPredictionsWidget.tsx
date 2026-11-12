@@ -10,14 +10,12 @@ import {
 
 import {
   addAdminPrediction,
-  fetchMatchDetail,
   isNoRoundInProgressError,
   listAdminPredictions,
   listGameSubrounds,
   listLiveMatches,
   listPlayers,
   type LiveMatch,
-  type MatchDifficulty,
   type PlayerProfile,
   type PredictionChoice,
   type Subround,
@@ -27,7 +25,6 @@ import { useAuth } from '@/auth';
 import { useRoundStatus } from '@/components/shell/RoundStatusContext';
 import { LoginForm } from '@/features/auth/LoginForm';
 import {
-  discoveryDayKeys,
   toLegacyDateParam,
   utcDayKey,
 } from '@/features/matches/formatMatchDate';
@@ -43,9 +40,7 @@ import { useScoresTabMode } from './ScoresTabModeContext';
 
 const ADMIN_ROLE = 'admin';
 
-type SlateMatch = LiveMatch & {
-  difficulty?: MatchDifficulty | null;
-};
+type SlateMatch = LiveMatch;
 
 function sortMatches(matches: SlateMatch[]): SlateMatch[] {
   return [...matches].sort((a, b) => {
@@ -56,23 +51,6 @@ function sortMatches(matches: SlateMatch[]): SlateMatch[] {
     }
     return a.match_date.localeCompare(b.match_date) || a.id - b.id;
   });
-}
-
-function groupBySubround(matches: SlateMatch[]): Record<number, SlateMatch[]> {
-  const byId: Record<number, SlateMatch[]> = {};
-  for (const match of matches) {
-    const subroundId = match.subround_id;
-    if (subroundId == null) {
-      continue;
-    }
-    const bucket = byId[subroundId] ?? [];
-    bucket.push(match);
-    byId[subroundId] = bucket;
-  }
-  for (const key of Object.keys(byId)) {
-    byId[Number(key)] = sortMatches(byId[Number(key)]);
-  }
-  return byId;
 }
 
 /** Prefer open-for-editing with matches; else latest active; else latest. */
@@ -129,6 +107,7 @@ export function AdminPredictionsWidget() {
     null,
   );
   const selectedSubroundIdRef = useRef<number | null>(null);
+  const matchesBySubroundRef = useRef<Record<number, SlateMatch[]>>({});
 
   /** authId → matchId → prediction */
   const [draft, setDraft] = useState<
@@ -148,6 +127,10 @@ export function AdminPredictionsWidget() {
   useEffect(() => {
     selectedSubroundIdRef.current = selectedSubroundId;
   }, [selectedSubroundId]);
+
+  useEffect(() => {
+    matchesBySubroundRef.current = matchesBySubround;
+  }, [matchesBySubround]);
 
   const selectedSubround = useMemo(
     () => subrounds.find((row) => row.id === selectedSubroundId) ?? null,
@@ -219,6 +202,67 @@ export function AdminPredictionsWidget() {
     [token, canManage],
   );
 
+  /**
+   * Fetch slate fixtures for one subround only (lazy). Caches in
+   * `matchesBySubround`; predictions load after the slate resolves.
+   */
+  const loadSubroundSlate = useCallback(
+    async (
+      subroundId: number | null,
+      opts?: { force?: boolean; quiet?: boolean },
+    ) => {
+      if (subroundId == null) {
+        setDraft({});
+        return;
+      }
+      if (!opts?.force) {
+        const cached = matchesBySubroundRef.current[subroundId];
+        if (cached) {
+          await loadPredictions(cached);
+          return;
+        }
+      }
+      if (!opts?.quiet) {
+        setPredictionsLoading(true);
+      }
+      try {
+        const slate = sortMatches(
+          await listLiveMatches({ subroundId }),
+        );
+        setMatchesBySubround((prev) => {
+          const next = { ...prev, [subroundId]: slate };
+          matchesBySubroundRef.current = next;
+          return next;
+        });
+        if (slate.length === 0) {
+          setDraft({});
+          if (!opts?.quiet) {
+            setPredictionsLoading(false);
+          }
+          return;
+        }
+        await loadPredictions(slate);
+      } catch (err) {
+        setMatchesBySubround((prev) => {
+          const next = { ...prev };
+          delete next[subroundId];
+          matchesBySubroundRef.current = next;
+          return next;
+        });
+        setDraft({});
+        setError(
+          err instanceof ApiError
+            ? err.message
+            : 'Could not load admin predictions.',
+        );
+        if (!opts?.quiet) {
+          setPredictionsLoading(false);
+        }
+      }
+    },
+    [loadPredictions],
+  );
+
   const loadCatalog = useCallback(
     async (mode: 'initial' | 'refresh' = 'initial') => {
       if (mode === 'initial') {
@@ -253,47 +297,16 @@ export function AdminPredictionsWidget() {
           }
         }
 
-        const [roster, ...dayResults] = await Promise.all([
-          listPlayers(token, true),
-          ...discoveryDayKeys().map((dayKey) =>
-            listLiveMatches({ matchDate: toLegacyDateParam(dayKey) }),
-          ),
-        ]);
-
-        const byId = new Map<number, SlateMatch>();
-        for (const dayMatches of dayResults) {
-          for (const match of dayMatches) {
-            byId.set(match.id, match);
-          }
-        }
-        let all = [...byId.values()];
-
-        const details = await Promise.all(
-          all.map(async (match) => {
-            try {
-              const detail = await fetchMatchDetail({ matchId: match.id });
-              return { id: match.id, difficulty: detail.difficulty ?? null };
-            } catch {
-              return { id: match.id, difficulty: null };
-            }
-          }),
-        );
-        const difficultyById = new Map(
-          details.map((row) => [row.id, row.difficulty]),
-        );
-        all = all.map((match) => ({
-          ...match,
-          difficulty: difficultyById.get(match.id) ?? null,
-        }));
-
-        const bySubround = groupBySubround(all);
+        const roster = await listPlayers(token, true);
         const navigable = listed
           .filter((row) => row.match_count > 0)
           .sort((a, b) => a.sequence - b.sequence);
 
         setPlayers(roster.filter((p) => p.active && !p.retired));
         setSubrounds(navigable);
-        setMatchesBySubround(bySubround);
+        // Drop cached slates so refresh re-fetches the visible subround only.
+        matchesBySubroundRef.current = {};
+        setMatchesBySubround({});
 
         if (noRound) {
           setSelectedSubroundId(null);
@@ -303,7 +316,7 @@ export function AdminPredictionsWidget() {
 
         const next = pickAdminSubround(navigable, selectedSubroundIdRef.current);
         setSelectedSubroundId(next?.id ?? null);
-        await loadPredictions(next ? (bySubround[next.id] ?? []) : []);
+        await loadSubroundSlate(next?.id ?? null, { force: true });
       } catch (err) {
         setError(
           err instanceof ApiError
@@ -320,7 +333,7 @@ export function AdminPredictionsWidget() {
         setRefreshing(false);
       }
     },
-    [token, canManage, loadPredictions, refreshGameMeta],
+    [token, canManage, loadSubroundSlate, refreshGameMeta],
   );
 
   useEffect(() => {
@@ -343,9 +356,9 @@ export function AdminPredictionsWidget() {
       setSelectedSubroundId(next.id);
       setError(null);
       setRowError(null);
-      void loadPredictions(matchesBySubround[next.id] ?? []);
+      void loadSubroundSlate(next.id);
     },
-    [matchesBySubround, loadPredictions],
+    [loadSubroundSlate],
   );
 
   const onPredict = useCallback(

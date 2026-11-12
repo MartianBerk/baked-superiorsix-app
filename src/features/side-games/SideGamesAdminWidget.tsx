@@ -694,10 +694,6 @@ export function SideGamesAdminWidget() {
             </Text>
 
             <Text style={styles.label}>Entrants</Text>
-            <Text style={styles.hint}>
-              Multi-select active roster. Posted as entrant_ids (auth_id).
-              Grants {tournament === 'euros' ? 'euros' : 'worldcup'} on open.
-            </Text>
             {activePlayers.length === 0 ? (
               <Text style={styles.emptyList}>
                 No active players on the roster.
