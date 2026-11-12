@@ -64,8 +64,8 @@ export function SessionPanel() {
 const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
-    justifyContent: 'center',
-    paddingVertical: 24,
+    paddingTop: 4,
+    paddingBottom: 24,
   },
   wrap: {
     width: '100%',

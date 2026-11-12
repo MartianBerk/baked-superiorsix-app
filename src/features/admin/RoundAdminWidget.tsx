@@ -25,7 +25,6 @@ import { LoginForm } from '@/features/auth/LoginForm';
 import { useLeadersTabMode } from '@/features/leaders/LeadersTabModeContext';
 import {
   formatScrubberDate,
-  toLegacyDateParam,
   utcDayKey,
 } from '@/features/matches/formatMatchDate';
 import { colors } from '@/theme';
@@ -385,13 +384,6 @@ export function RoundAdminWidget() {
       }
     >
       <View style={styles.wrap}>
-        <Text style={styles.kicker}>Admin</Text>
-        <Text style={styles.heading}>Round</Text>
-        <Text style={styles.lede}>
-          Parent game round: start when none is open, or close the active round
-          with one or more winners.
-        </Text>
-
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {note ? <Text style={styles.saved}>{note}</Text> : null}
 
@@ -498,11 +490,8 @@ export function RoundAdminWidget() {
               {formatScrubberDate(utcDayKey(round.start_date))} · buy-in{' '}
               {formatPounds(round.buy_in_pence)}
             </Text>
-            <Text style={styles.hint}>
-              A new round cannot be started while this one is open.
-            </Text>
 
-            <Text style={styles.label}>End date (UTC)</Text>
+            <Text style={styles.label}>End date</Text>
             <TextInput
               style={styles.input}
               autoCapitalize="none"
@@ -514,15 +503,8 @@ export function RoundAdminWidget() {
               placeholderTextColor={colors.textMuted}
               accessibilityLabel="Round end date"
             />
-            <Text style={styles.hint}>
-              API uses endDate=
-              {toLegacyDateParam(endDate || utcDayKey(new Date()))}.
-            </Text>
 
             <Text style={styles.label}>Winners</Text>
-            <Text style={styles.hint}>
-              Select at least one. Posted as winner_ids (auth_id).
-            </Text>
             {activePlayers.length === 0 ? (
               <Text style={styles.emptyList}>
                 No active players on the roster.
@@ -615,13 +597,6 @@ const styles = StyleSheet.create({
     maxWidth: 440,
     alignSelf: 'center',
     paddingHorizontal: 24,
-  },
-  kicker: {
-    color: colors.textMuted,
-    fontSize: 12,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginBottom: 8,
   },
   heading: {
     color: colors.text,
