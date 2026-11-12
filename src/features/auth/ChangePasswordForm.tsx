@@ -27,6 +27,7 @@ export function ChangePasswordForm() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [newPasswordBlurred, setNewPasswordBlurred] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -122,7 +123,11 @@ export function ChangePasswordForm() {
         value={newPassword}
         onChangeText={(value) => {
           setNewPassword(value);
+          setNewPasswordBlurred(false);
           if (error) setError(null);
+        }}
+        onBlur={() => {
+          setNewPasswordBlurred(true);
         }}
         placeholder="New password"
         placeholderTextColor={colors.textMuted}
@@ -154,7 +159,9 @@ export function ChangePasswordForm() {
 
       {confirmPassword.length > 0 && newPassword !== confirmPassword ? (
         <Text style={styles.error}>Passwords do not match.</Text>
-      ) : newPassword.length > 0 && !isPasswordComplex(newPassword) ? (
+      ) : newPasswordBlurred &&
+        newPassword.length > 0 &&
+        !isPasswordComplex(newPassword) ? (
         <Text style={styles.error}>{PASSWORD_COMPLEXITY_MESSAGE}</Text>
       ) : error ? (
         <Text style={styles.error}>{error}</Text>
