@@ -25,7 +25,6 @@ import { LoginForm } from '@/features/auth/LoginForm';
 import { useLeadersTabMode } from '@/features/leaders/LeadersTabModeContext';
 import {
   formatScrubberDate,
-  toLegacyDateParam,
   utcDayKey,
 } from '@/features/matches/formatMatchDate';
 import { colors } from '@/theme';
@@ -502,7 +501,7 @@ export function RoundAdminWidget() {
               A new round cannot be started while this one is open.
             </Text>
 
-            <Text style={styles.label}>End date (UTC)</Text>
+            <Text style={styles.label}>End date</Text>
             <TextInput
               style={styles.input}
               autoCapitalize="none"
@@ -514,15 +513,8 @@ export function RoundAdminWidget() {
               placeholderTextColor={colors.textMuted}
               accessibilityLabel="Round end date"
             />
-            <Text style={styles.hint}>
-              API uses endDate=
-              {toLegacyDateParam(endDate || utcDayKey(new Date()))}.
-            </Text>
 
             <Text style={styles.label}>Winners</Text>
-            <Text style={styles.hint}>
-              Select at least one. Posted as winner_ids (auth_id).
-            </Text>
             {activePlayers.length === 0 ? (
               <Text style={styles.emptyList}>
                 No active players on the roster.

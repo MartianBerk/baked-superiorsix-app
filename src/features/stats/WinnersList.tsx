@@ -39,8 +39,7 @@ export function WinnersList({ rounds }: Props) {
               {round.winner}
             </Text>
             <Text style={styles.detail} numberOfLines={1}>
-              Round {round.round_id} · {round.players} players ·{' '}
-              {round.matches} match days
+              Round {round.round_id} & {round.players} players
             </Text>
           </View>
           <Text style={[styles.date, styles.dateCol]} numberOfLines={2}>
