@@ -22,7 +22,7 @@ import {
 } from '@/features/scores/liveScoreDisplay';
 import {
   isPickCurrentlyCorrect,
-  PICK_SELECTION_LABEL,
+  PICK_BADGE_LABEL,
 } from '@/features/scores/pickOutcome';
 import { pickBadgeChrome } from '@/features/scores/pickBadgeChrome';
 import { scoreListChrome } from '@/features/scores/scoreListChrome';
@@ -103,9 +103,7 @@ export function MatchPredictRow({
   const pickCorrect =
     showPick && isPickCurrentlyCorrect(prediction, match, now);
   const pickLabel =
-    showPick && prediction != null
-      ? PICK_SELECTION_LABEL[prediction]
-      : null;
+    showPick && prediction != null ? PICK_BADGE_LABEL[prediction] : null;
 
   const scoreLine = locked
     ? formatAlignedScore(
@@ -182,7 +180,6 @@ export function MatchPredictRow({
               </View>
             ) : (
               <PickOutcomeBadge
-                variant="selection"
                 prediction={prediction}
                 correct={pickCorrect}
                 accessibilityLabel={

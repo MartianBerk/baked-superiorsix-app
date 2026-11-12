@@ -12,7 +12,10 @@ type Props = {
   accessibilityLabel?: string;
   /** Tighter 22px badge for collapsed Scores strip. */
   compact?: boolean;
-  /** Scores rows use H/D/A; Matches & side games use HOME/DRAW/AWAY. */
+  /**
+   * `scores` (default): compact H/D/A (Scores + collapsed Matches row badge).
+   * `selection`: full HOME/DRAW/AWAY (expanded pickers & side games).
+   */
   variant?: 'scores' | 'selection';
 };
 
