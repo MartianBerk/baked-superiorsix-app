@@ -18,8 +18,8 @@ type Props = {
   style?: StyleProp<ViewStyle>;
   /**
    * Side mini density. Full-width Euros/World Cup date scrubbers use `wide`
-   * so `Sat 31 Oct` is not ellipsized; admin date chips (~67%) use `medium`;
-   * compact fits the narrow `# n` slate column.
+   * so `Sat 31 Oct` is not ellipsized; admin full-width date chip uses `medium`;
+   * compact fits the 60% date column beside the slate scrubber.
    */
   sideDensity?: ScrubberSideDensity;
 };

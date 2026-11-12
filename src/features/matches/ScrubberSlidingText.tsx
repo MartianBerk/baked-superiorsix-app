@@ -154,6 +154,7 @@ export function ScrubberSlidingText({
 
 const styles = StyleSheet.create({
   center: {
+    width: '100%',
     color: colors.text,
     fontSize: 15,
     fontWeight: '700',
