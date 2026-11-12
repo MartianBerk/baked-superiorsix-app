@@ -978,6 +978,25 @@ export async function openSubround(token: string): Promise<Subround> {
   return readApiJson<Subround>(response);
 }
 
+/**
+ * `POST /admin/undosubround` — delete an empty accidental latest subround
+ * (SS-220). Restores the previous slate as the editing target. BE refuses
+ * when the latest has selected matches (`Cannot undo: subround has matches
+ * selected.`) or there is no previous (`Nothing to undo.`).
+ */
+export async function undoSubround(token: string): Promise<Subround> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', '/admin/undosubround', {
+      method: 'POST',
+      token,
+    });
+  } catch {
+    throw gameUnreachable();
+  }
+  return readApiJson<Subround>(response);
+}
+
 /** `GET /admin/listleagues` — league id → code map for kickoff headers. */
 export async function listLeagues(token: string): Promise<LeagueInfo[]> {
   let response: Response;

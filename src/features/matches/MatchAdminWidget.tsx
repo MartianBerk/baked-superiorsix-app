@@ -19,6 +19,7 @@ import {
   listLeagues,
   listMatches,
   openSubround,
+  undoSubround,
   type AdminMatch,
   type LeagueInfo,
   type Subround,
@@ -155,6 +156,7 @@ export function MatchAdminWidget() {
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [openingSubround, setOpeningSubround] = useState(false);
+  const [undoingSubround, setUndoingSubround] = useState(false);
   /** True until admin opens a parent Round via leaders → Admin (SS-84). */
   const [needsRound, setNeedsRound] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -184,6 +186,35 @@ export function MatchAdminWidget() {
   const canStartNewSubround =
     latestRealSubround != null &&
     selectedSubroundId === latestRealSubround.id;
+
+  /** Previous real slate under the latest (needed to undo an empty open). */
+  const previousRealSubround = useMemo(() => {
+    if (latestRealSubround == null) {
+      return null;
+    }
+    const real = subrounds.filter((row) => !isPendingSubroundId(row.id));
+    if (real.length < 2) {
+      return null;
+    }
+    return real[real.length - 2] ?? null;
+  }, [subrounds, latestRealSubround]);
+
+  /**
+   * Undo accidental `opensubround` when the new slate is still empty /
+   * untouched (BE match_count 0; no local draft picks on the empty latest).
+   * Shown only while scrubbed to the empty latest or the previous slate
+   * (replaces the closed-subround help text there).
+   */
+  const canUndoNewSubround =
+    latestRealSubround != null &&
+    previousRealSubround != null &&
+    latestRealSubround.match_count === 0 &&
+    (selectedSubroundId === latestRealSubround.id ||
+      selectedSubroundId === previousRealSubround.id) &&
+    !(
+      selectedSubroundId === latestRealSubround.id &&
+      occupiedCount(draftSlots) > 0
+    );
 
   const canEdit =
     selectedSubround != null && selectedSubround.is_open_for_editing;
@@ -431,7 +462,7 @@ export function MatchAdminWidget() {
   );
 
   const onStartNewSubround = useCallback(async () => {
-    if (!token || !canStartNewSubround || openingSubround) {
+    if (!token || !canStartNewSubround || openingSubround || undoingSubround) {
       return;
     }
     setOpeningSubround(true);
@@ -456,6 +487,39 @@ export function MatchAdminWidget() {
   }, [
     token,
     canStartNewSubround,
+    openingSubround,
+    undoingSubround,
+    matches,
+    applySubroundSelection,
+  ]);
+
+  const onUndoNewSubround = useCallback(async () => {
+    if (!token || !canUndoNewSubround || undoingSubround || openingSubround) {
+      return;
+    }
+    setUndoingSubround(true);
+    setError(null);
+    try {
+      const restored = await undoSubround(token);
+      const refreshed = await listAdminSubrounds(token);
+      const nextList = withPendingCurrent(refreshed, restored.round_id);
+      setSubrounds(nextList);
+      const selected =
+        nextList.find((row) => row.id === restored.id) ?? restored;
+      applySubroundSelection(selected, matches);
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : 'Could not undo the new subround.';
+      setError(message);
+    } finally {
+      setUndoingSubround(false);
+    }
+  }, [
+    token,
+    canUndoNewSubround,
+    undoingSubround,
     openingSubround,
     matches,
     applySubroundSelection,
@@ -688,10 +752,35 @@ export function MatchAdminWidget() {
             Fixtures still load below for browsing.
           </Text>
         ) : null}
-        {!needsRound &&
-        !canEdit &&
-        selectedSubround &&
-        !isPendingSubroundId(selectedSubroundId) ? (
+        {canUndoNewSubround ? (
+          <View style={styles.undoRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Undo new subround"
+              disabled={undoingSubround || openingSubround}
+              onPress={() => {
+                void onUndoNewSubround();
+              }}
+              style={({ pressed }) => [
+                styles.undoButton,
+                (undoingSubround || openingSubround) && styles.undoDisabled,
+                pressed &&
+                  !undoingSubround &&
+                  !openingSubround &&
+                  styles.undoPressed,
+              ]}
+            >
+              {undoingSubround ? (
+                <ActivityIndicator size="small" color={colors.text} />
+              ) : (
+                <Text style={styles.undoLabel}>Undo new subround</Text>
+              )}
+            </Pressable>
+          </View>
+        ) : !needsRound &&
+          !canEdit &&
+          selectedSubround &&
+          !isPendingSubroundId(selectedSubroundId) ? (
           <Text style={styles.lede}>
             Viewing a closed subround. Scrub to the current slate to edit
             selections.
@@ -885,6 +974,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 16,
+  },
+  undoRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    marginBottom: 12,
+  },
+  undoButton: {
+    minHeight: 40,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  undoPressed: {
+    opacity: 0.85,
+  },
+  undoDisabled: {
+    opacity: 0.4,
+  },
+  undoLabel: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '600',
   },
   link: {
     color: colors.accentBright,
