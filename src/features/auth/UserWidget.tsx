@@ -12,24 +12,28 @@ export function UserWidget() {
 
   if (status === 'loading') {
     return (
-      <View style={styles.center}>
+      <View style={[styles.shell, styles.centered]}>
         <ActivityIndicator color={colors.textMuted} />
       </View>
     );
   }
 
   return (
-    <View style={styles.center}>
+    <View style={[styles.shell, !isAuthenticated && styles.centered]}>
       {isAuthenticated ? <SessionPanel /> : <LoginForm />}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  center: {
+  shell: {
     flex: 1,
     backgroundColor: colors.background,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  /** Keep signed-out login vertically centered; profile sits under the header. */
+  centered: {
     justifyContent: 'center',
-    paddingVertical: 24,
   },
 });
