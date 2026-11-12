@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   },
   emailHeading: {
     color: colors.text,
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '600',
     letterSpacing: 0.3,
     textAlign: 'center',
