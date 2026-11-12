@@ -20,6 +20,7 @@ import {
   listMatches,
   deleteSubround,
   openSubround,
+  runAdminAutopick,
   type AdminMatch,
   type LeagueInfo,
   type Subround,
@@ -155,11 +156,14 @@ export function MatchAdminWidget() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [autopicking, setAutopicking] = useState(false);
   const [openingSubround, setOpeningSubround] = useState(false);
   const [undoingSubround, setUndoingSubround] = useState(false);
   /** True until admin opens a parent Round via leaders → Admin (SS-84). */
   const [needsRound, setNeedsRound] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Non-error Autopick feedback (picked / no-op). */
+  const [notice, setNotice] = useState<string | null>(null);
 
   const canSelect = isAuthenticated && hasRole(ADMIN_ROLE);
 
@@ -331,6 +335,9 @@ export function MatchAdminWidget() {
         setRefreshing(true);
       }
       setError(null);
+      if (mode === 'initial') {
+        setNotice(null);
+      }
       try {
         if (mode === 'refresh') {
           await refreshGameMeta({ preserveChrome: true });
@@ -716,6 +723,42 @@ export function MatchAdminWidget() {
     applySubroundSelection,
   ]);
 
+  const canAutopick =
+    Boolean(token) &&
+    canEdit &&
+    !needsRound &&
+    !submitting &&
+    !autopicking &&
+    !openingSubround &&
+    !undoingSubround;
+
+  const onAutopick = useCallback(async () => {
+    if (!token || !canAutopick) {
+      return;
+    }
+    setAutopicking(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await runAdminAutopick(token);
+      // 200 + noop is expected — toast message, not an error.
+      setNotice(result.message);
+      if (result.status === 'selected') {
+        // Refresh draft slate / scrubber after a successful pick.
+        await load('refresh');
+      }
+    } catch (err) {
+      // Hard failures only (401/403/400/5xx / unreachable).
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : 'Could not run Autopick.';
+      setError(message);
+    } finally {
+      setAutopicking(false);
+    }
+  }, [token, canAutopick, load]);
+
   if (status === 'loading' || loading) {
     return (
       <View style={styles.center}>
@@ -769,6 +812,7 @@ export function MatchAdminWidget() {
     >
       <View style={styles.wrap}>
         {error ? <Text style={styles.error}>{error}</Text> : null}
+        {notice ? <Text style={styles.notice}>{notice}</Text> : null}
         {needsRound ? (
           <Text style={styles.lede}>
             No round in progress. Tap Leaders again to open Admin and start a
@@ -890,6 +934,25 @@ export function MatchAdminWidget() {
         <View style={styles.footerStrip}>
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel="Autopick match selections"
+            disabled={!canAutopick}
+            onPress={() => {
+              void onAutopick();
+            }}
+            style={({ pressed }) => [
+              styles.autopick,
+              !canAutopick && styles.autopickDisabled,
+              pressed && canAutopick && styles.autopickPressed,
+            ]}
+          >
+            {autopicking ? (
+              <ActivityIndicator size="small" color={colors.text} />
+            ) : (
+              <Text style={styles.autopickLabel}>Autopick</Text>
+            )}
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
             accessibilityLabel="Submit match selections"
             disabled={!canSubmit}
             onPress={() => {
@@ -938,6 +1001,31 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: 12,
     marginTop: 12,
+  },
+  /**
+   * Sign-out profile styling (menuActive), not green Submit.
+   * Sized to sit beside Submit in the footer strip.
+   */
+  autopick: {
+    minWidth: 88,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: colors.menuActive,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 40,
+  },
+  autopickPressed: {
+    opacity: 0.85,
+  },
+  autopickDisabled: {
+    opacity: 0.4,
+  },
+  autopickLabel: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '600',
   },
   scrubberRow: {
     flexDirection: 'row',
@@ -1033,6 +1121,11 @@ const styles = StyleSheet.create({
   },
   error: {
     color: '#E8A0A0',
+    fontSize: 13,
+    marginBottom: 10,
+  },
+  notice: {
+    color: colors.amber,
     fontSize: 13,
     marginBottom: 10,
   },
