@@ -93,14 +93,13 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     alignSelf: 'center',
     paddingHorizontal: 24,
-    marginBottom: 12,
+    marginBottom: 20,
   },
   emailHeading: {
     color: colors.textMuted,
     fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-    textAlign: 'right',
+    fontWeight: '700',
+    textAlign: 'left',
   },
   scrubberWrap: {
     paddingHorizontal: '3%',
