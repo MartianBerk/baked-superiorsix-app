@@ -90,10 +90,6 @@ export function ChangePasswordForm() {
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.lede}>
-        Choose a new password, then sign in again with it.
-      </Text>
-
       <Text style={styles.label}>Current password</Text>
       <TextInput
         style={styles.input}
@@ -192,12 +188,6 @@ export function ChangePasswordForm() {
 const styles = StyleSheet.create({
   wrap: {
     width: '100%',
-  },
-  lede: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 16,
   },
   label: {
     color: colors.textMuted,
