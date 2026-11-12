@@ -85,7 +85,8 @@ export const scrubberChrome = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
     paddingHorizontal: 4,
-    minHeight: 22,
+    // Match `sideHit` height so display-only chips (KickoffDateDisplay) align with scrubbers.
+    minHeight: 33,
     zIndex: 0,
   },
   pressed: {
