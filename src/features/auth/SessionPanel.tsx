@@ -40,6 +40,9 @@ export function SessionPanel() {
 
   return (
     <View style={styles.root}>
+      <View style={styles.scrubberWrap}>
+        <UserProfileViewScrubber mode={view} onChange={setView} />
+      </View>
       <View style={styles.emailWrap}>
         <Text
           accessibilityRole="header"
@@ -49,9 +52,6 @@ export function SessionPanel() {
         >
           {session.email}
         </Text>
-      </View>
-      <View style={styles.scrubberWrap}>
-        <UserProfileViewScrubber mode={view} onChange={setView} />
       </View>
       <ScrollView
         style={styles.scrollView}
@@ -93,15 +93,14 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     alignSelf: 'center',
     paddingHorizontal: 24,
-    paddingTop: 4,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   emailHeading: {
     color: colors.text,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.3,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   scrubberWrap: {
     paddingHorizontal: '3%',
