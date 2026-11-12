@@ -18,8 +18,8 @@ import {
   listAdminSubrounds,
   listLeagues,
   listMatches,
+  deleteSubround,
   openSubround,
-  undoSubround,
   type AdminMatch,
   type LeagueInfo,
   type Subround,
@@ -494,19 +494,41 @@ export function MatchAdminWidget() {
   ]);
 
   const onUndoNewSubround = useCallback(async () => {
-    if (!token || !canUndoNewSubround || undoingSubround || openingSubround) {
+    if (
+      !token ||
+      !canUndoNewSubround ||
+      latestRealSubround == null ||
+      undoingSubround ||
+      openingSubround
+    ) {
       return;
     }
     setUndoingSubround(true);
     setError(null);
     try {
-      const restored = await undoSubround(token);
+      const restored = await deleteSubround(token, latestRealSubround.id);
       const refreshed = await listAdminSubrounds(token);
-      const nextList = withPendingCurrent(refreshed, restored.round_id);
+      const roundId =
+        restored?.round_id ??
+        refreshed[0]?.round_id ??
+        previousRealSubround?.round_id ??
+        null;
+      const nextList =
+        roundId != null ? withPendingCurrent(refreshed, roundId) : refreshed;
       setSubrounds(nextList);
       const selected =
-        nextList.find((row) => row.id === restored.id) ?? restored;
-      applySubroundSelection(selected, matches);
+        (restored != null
+          ? (nextList.find((row) => row.id === restored.id) ?? restored)
+          : null) ??
+        nextList.find((row) => row.is_open_for_editing && !row.is_over) ??
+        nextList[nextList.length - 1] ??
+        null;
+      if (selected) {
+        applySubroundSelection(selected, matches);
+      } else {
+        setSelectedSubroundId(null);
+        setDraftSlots(emptySlots());
+      }
     } catch (err) {
       const message =
         err instanceof ApiError
@@ -519,6 +541,8 @@ export function MatchAdminWidget() {
   }, [
     token,
     canUndoNewSubround,
+    latestRealSubround,
+    previousRealSubround,
     undoingSubround,
     openingSubround,
     matches,

@@ -43,7 +43,7 @@ export {
   getPlayerAuthState,
   listPlayers,
   openSubround,
-  undoSubround,
+  deleteSubround,
   patchPlayerAuthState,
   resetPlayerPassword,
   smokeSuperSixBff,

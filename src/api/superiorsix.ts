@@ -979,22 +979,28 @@ export async function openSubround(token: string): Promise<Subround> {
 }
 
 /**
- * `POST /admin/undosubround` — delete an empty accidental latest subround
- * (SS-220). Restores the previous slate as the editing target. BE refuses
- * when the latest has selected matches (`Cannot undo: subround has matches
- * selected.`) or there is no previous (`Nothing to undo.`).
+ * `DELETE /admin/subrounds/{id}` — remove an empty subround (SS-220).
+ * Returns the new open-for-editing slate (or null). BE refuses when the
+ * subround has selected matches (`Cannot delete: subround has matches
+ * selected.`).
  */
-export async function undoSubround(token: string): Promise<Subround> {
+export async function deleteSubround(
+  token: string,
+  subroundId: number,
+): Promise<Subround | null> {
   let response: Response;
   try {
-    response = await apiFetch('game', '/admin/undosubround', {
-      method: 'POST',
+    response = await apiFetch('game', `/admin/subrounds/${subroundId}`, {
+      method: 'DELETE',
       token,
     });
   } catch {
     throw gameUnreachable();
   }
-  return readApiJson<Subround>(response);
+  const body = await readApiJson<{ current_subround: Subround | null }>(
+    response,
+  );
+  return body.current_subround ?? null;
 }
 
 /** `GET /admin/listleagues` — league id → code map for kickoff headers. */
