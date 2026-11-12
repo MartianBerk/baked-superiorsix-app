@@ -77,15 +77,10 @@ export function KickoffDateDisplay({ kickoffIso, live = false, style }: Props) {
       accessibilityRole="text"
       accessibilityLabel={`Earliest kickoff ${label}${live ? ', live' : ''}`}
     >
-      {/* Spacers match scrubber side slots so the label centres with the slate scrubber. */}
-      <View style={scrubberChrome.sideHit}>
-        <View style={scrubberChrome.sideSpacer} />
-      </View>
-      <Animated.Text style={[styles.label, { color }]} numberOfLines={1}>
-        {label}
-      </Animated.Text>
-      <View style={scrubberChrome.sideHit}>
-        <View style={scrubberChrome.sideSpacer} />
+      <View style={scrubberChrome.centerSlot}>
+        <Animated.Text style={[styles.label, { color }]} numberOfLines={1}>
+          {label}
+        </Animated.Text>
       </View>
     </View>
   );
@@ -93,7 +88,8 @@ export function KickoffDateDisplay({ kickoffIso, live = false, style }: Props) {
 
 const styles = StyleSheet.create({
   label: {
-    flexShrink: 1,
+    width: '100%',
+    textAlign: 'center',
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: 0.3,
