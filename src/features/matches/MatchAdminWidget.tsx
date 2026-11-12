@@ -725,6 +725,7 @@ export function MatchAdminWidget() {
 
   const canAutopick =
     Boolean(token) &&
+    Boolean(selectedDate) &&
     canEdit &&
     !needsRound &&
     !submitting &&
@@ -733,14 +734,15 @@ export function MatchAdminWidget() {
     !undoingSubround;
 
   const onAutopick = useCallback(async () => {
-    if (!token || !canAutopick) {
+    if (!token || !selectedDate || !canAutopick) {
       return;
     }
     setAutopicking(true);
     setError(null);
     setNotice(null);
     try {
-      const result = await runAdminAutopick(token);
+      // selectedDate is the admin UTC day key (YYYY-MM-DD) for the scrubber.
+      const result = await runAdminAutopick(token, selectedDate);
       // 200 + noop is expected — toast message, not an error.
       setNotice(result.message);
       if (result.status === 'selected') {
@@ -757,7 +759,7 @@ export function MatchAdminWidget() {
     } finally {
       setAutopicking(false);
     }
-  }, [token, canAutopick, load]);
+  }, [token, selectedDate, canAutopick, load]);
 
   if (status === 'loading' || loading) {
     return (

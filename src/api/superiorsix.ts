@@ -1128,21 +1128,30 @@ export function parseAdminAutopickBody(
   };
 }
 
+/** Request body for `POST /admin/autopickmatches` (SS-229 day-scoped). */
+export type AutopickMatchesRequest = {
+  /** UTC calendar day currently viewed in admin Matches (`YYYY-MM-DD`). */
+  match_date: string;
+};
+
 /**
  * `POST /admin/autopickmatches` — admin Autopick trigger (SS-229).
  * Same Bearer + `admin` role as other Matches admin calls.
+ * Body scopes the pick to the viewed match day (no client look-ahead).
  * 200 + `status: "noop"` is success for the HTTP layer (show `message`).
  */
 export async function runAdminAutopick(
   token: string,
+  matchDate: string,
 ): Promise<AutopickMatchesResponse> {
+  const payload: AutopickMatchesRequest = { match_date: matchDate };
   let response: Response;
   try {
     response = await apiFetch('game', ADMIN_AUTOPICK_PATH, {
       method: 'POST',
       token,
       headers: { 'Content-Type': 'application/json' },
-      body: '{}',
+      body: JSON.stringify(payload),
     });
   } catch {
     throw gameUnreachable();
