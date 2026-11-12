@@ -26,6 +26,7 @@ export function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordBlurred, setPasswordBlurred] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -81,6 +82,7 @@ export function LoginForm() {
           onPress={() => {
             setMode('signIn');
             setConfirmPassword('');
+            setPasswordBlurred(false);
             setError(null);
           }}
           style={({ pressed }) => [
@@ -104,6 +106,7 @@ export function LoginForm() {
           onPress={() => {
             setMode('firstLogin');
             setConfirmPassword('');
+            setPasswordBlurred(false);
             setError(null);
           }}
           style={({ pressed }) => [
@@ -153,7 +156,15 @@ export function LoginForm() {
         value={password}
         onChangeText={(value) => {
           setPassword(value);
+          if (mode === 'firstLogin') {
+            setPasswordBlurred(false);
+          }
           if (error) setError(null);
+        }}
+        onBlur={() => {
+          if (mode === 'firstLogin') {
+            setPasswordBlurred(true);
+          }
         }}
         placeholder={mode === 'firstLogin' ? 'Choose Password' : 'Password'}
         placeholderTextColor={colors.textMuted}
@@ -188,6 +199,7 @@ export function LoginForm() {
       password !== confirmPassword ? (
         <Text style={styles.error}>Passwords do not match.</Text>
       ) : mode === 'firstLogin' &&
+        passwordBlurred &&
         password.length > 0 &&
         !isPasswordComplex(password) ? (
         <Text style={styles.error}>{PASSWORD_COMPLEXITY_MESSAGE}</Text>

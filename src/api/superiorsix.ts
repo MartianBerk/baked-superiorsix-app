@@ -29,7 +29,7 @@ export type UpdateDetailsPayload = {
   first_name?: string;
   last_name?: string;
   nickname?: string;
-  /** Required by product when saving from the profile form; still optional on the wire for partial patches. */
+  /** Optional on the wire; profile form no longer sends email (identity is session/JWT). */
   email?: string;
 };
 
