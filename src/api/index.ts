@@ -5,6 +5,7 @@ export {
   INVITE_PERMISSION_ROLE_LABELS,
   INVITE_PERMISSION_ROLES,
   SUPERIORSIX_AUDIENCE,
+  changePassword,
   fetchAuthMe,
   formatPermissionRoleLabel,
   loginWithPassword,
@@ -12,6 +13,7 @@ export {
 } from './auth';
 export type {
   AuthUser,
+  ChangePasswordPayload,
   InvitePermissionRole,
   MembershipResponse,
   TokenResponse,
