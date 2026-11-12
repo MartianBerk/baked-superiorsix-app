@@ -733,9 +733,15 @@ export function MatchAdminWidget() {
                 setSelectedDate(dayKey);
                 setError(null);
               }}
-              // Date chip is ~67% wide — medium fits `Sat 31 Oct` minis
-              // (compact 40px was for the narrow `# n` slate column).
-              sideDensity="medium"
+              // 60% column: compact side slots leave room for the centre label;
+              // full-width chip can use medium so date minis are not clipped.
+              sideDensity={
+                !needsRound &&
+                subrounds.length > 0 &&
+                selectedSubroundId != null
+                  ? 'compact'
+                  : 'medium'
+              }
               style={styles.scrubberFlush}
             />
           </View>
@@ -810,7 +816,8 @@ const styles = StyleSheet.create({
   },
   wrap: {
     paddingHorizontal: '3%',
-    paddingTop: 12,
+    // Header already owns the top gap (AppHeader paddingBottom 12).
+    paddingTop: 0,
   },
   footerStrip: {
     flexDirection: 'row',
@@ -823,6 +830,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
+    // Same 12px rhythm as header → scrubber (SCRUBBER_ROW_TAIL_GAP).
     marginBottom: SCRUBBER_ROW_TAIL_GAP,
   },
   /** Left subround scrubber — 40% of scrubber row. */
