@@ -29,7 +29,7 @@ export type UpdateDetailsPayload = {
   first_name?: string;
   last_name?: string;
   nickname?: string;
-  /** Required by product when saving from the profile form; still optional on the wire for partial patches. */
+  /** Optional on the wire; profile form no longer sends email (identity is session/JWT). */
   email?: string;
 };
 
@@ -1001,6 +1001,163 @@ export async function deleteSubround(
     response,
   );
   return body.current_subround ?? null;
+}
+
+/**
+ * `POST /admin/autopickmatches` (SS-229). Single place to retarget if the
+ * BFF path ever moves — Matches Autopick only calls `runAdminAutopick`.
+ */
+export const ADMIN_AUTOPICK_PATH = '/admin/autopickmatches';
+
+/** HTTP 200 discriminator for admin Autopick. */
+export type AutopickStatus = 'selected' | 'noop';
+
+/** Stable gate codes when `status === "noop"`. */
+export type AutopickReason =
+  | 'no_open_round'
+  | 'previous_subround_missing'
+  | 'previous_subround_not_closed'
+  | 'perfect_slate_exists'
+  | 'insufficient_same_kickoff'
+  | 'slate_already_complete';
+
+/**
+ * `POST /admin/autopickmatches` 200 body.
+ * Gate no-ops are 200 + `status: "noop"` (not HTTP errors).
+ */
+export type AutopickMatchesResponse = {
+  status: AutopickStatus;
+  reason: AutopickReason | null;
+  message: string;
+  subround: Subround | null;
+  matches: AdminMatch[];
+  kickoff: string | null;
+  target_difficulty_band: number | null;
+  average_difficulty_band: number | null;
+};
+
+const AUTOPICK_REASONS = new Set<string>([
+  'no_open_round',
+  'previous_subround_missing',
+  'previous_subround_not_closed',
+  'perfect_slate_exists',
+  'insufficient_same_kickoff',
+  'slate_already_complete',
+]);
+
+function asAutopickReason(value: unknown): AutopickReason | null {
+  if (typeof value !== 'string' || !AUTOPICK_REASONS.has(value)) {
+    return null;
+  }
+  return value as AutopickReason;
+}
+
+function normalizeAutopickMatch(raw: unknown): AdminMatch | null {
+  if (raw == null || typeof raw !== 'object') {
+    return null;
+  }
+  const m = raw as Record<string, unknown>;
+  const id = asFiniteNumber(m.id);
+  if (id == null) {
+    return null;
+  }
+  const difficultyRaw =
+    m.difficulty != null && typeof m.difficulty === 'object'
+      ? (m.difficulty as { score?: unknown; band?: unknown })
+      : null;
+  return {
+    id,
+    external_id: typeof m.external_id === 'string' ? m.external_id : '',
+    league_id: asFiniteNumber(m.league_id) ?? 0,
+    league_code: typeof m.league_code === 'string' ? m.league_code : null,
+    match_date: typeof m.match_date === 'string' ? m.match_date : '',
+    match_minute: asFiniteNumber(m.match_minute),
+    status: typeof m.status === 'string' ? m.status : '',
+    home_team: typeof m.home_team === 'string' ? m.home_team : '',
+    away_team: typeof m.away_team === 'string' ? m.away_team : '',
+    use_match: m.use_match !== false,
+    home_score: asFiniteNumber(m.home_score),
+    away_score: asFiniteNumber(m.away_score),
+    game_number: asFiniteNumber(m.game_number),
+    subround_id: asFiniteNumber(m.subround_id),
+    last_updated: typeof m.last_updated === 'string' ? m.last_updated : null,
+    difficulty: difficultyRaw
+      ? {
+          score: asFiniteNumber(difficultyRaw.score) ?? 0,
+          band: asFiniteNumber(difficultyRaw.band) ?? 0,
+        }
+      : null,
+  };
+}
+
+/** Parse / normalize the SS-229 Autopick JSON envelope. */
+export function parseAdminAutopickBody(
+  body: unknown,
+): AutopickMatchesResponse {
+  if (body == null || typeof body !== 'object') {
+    throw new ApiError(500, 'Unexpected Autopick response.');
+  }
+  const row = body as Record<string, unknown>;
+  const statusRaw =
+    typeof row.status === 'string' ? row.status.toLowerCase() : '';
+  const status: AutopickStatus =
+    statusRaw === 'noop' ? 'noop' : 'selected';
+  const matchesRaw = Array.isArray(row.matches) ? row.matches : [];
+  const matches: AdminMatch[] = [];
+  for (const item of matchesRaw) {
+    const normalized = normalizeAutopickMatch(item);
+    if (normalized) {
+      matches.push(normalized);
+    }
+  }
+  const message =
+    typeof row.message === 'string' && row.message.trim()
+      ? row.message.trim()
+      : status === 'noop'
+        ? 'Autopick skipped (no changes).'
+        : 'Autopick selected the slate.';
+  return {
+    status,
+    reason: status === 'noop' ? asAutopickReason(row.reason) : null,
+    message,
+    subround: normalizeSubround(row.subround),
+    matches: status === 'noop' ? [] : matches,
+    kickoff: typeof row.kickoff === 'string' ? row.kickoff : null,
+    target_difficulty_band: asFiniteNumber(row.target_difficulty_band),
+    average_difficulty_band: asFiniteNumber(row.average_difficulty_band),
+  };
+}
+
+/** Request body for `POST /admin/autopickmatches` (SS-229 day-scoped). */
+export type AutopickMatchesRequest = {
+  /** UTC calendar day currently viewed in admin Matches (`YYYY-MM-DD`). */
+  match_date: string;
+};
+
+/**
+ * `POST /admin/autopickmatches` — admin Autopick trigger (SS-229).
+ * Same Bearer + `admin` role as other Matches admin calls.
+ * Body scopes the pick to the viewed match day (no client look-ahead).
+ * 200 + `status: "noop"` is success for the HTTP layer (show `message`).
+ */
+export async function runAdminAutopick(
+  token: string,
+  matchDate: string,
+): Promise<AutopickMatchesResponse> {
+  const payload: AutopickMatchesRequest = { match_date: matchDate };
+  let response: Response;
+  try {
+    response = await apiFetch('game', ADMIN_AUTOPICK_PATH, {
+      method: 'POST',
+      token,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<unknown>(response);
+  return parseAdminAutopickBody(body);
 }
 
 /** `GET /admin/listleagues` — league id → code map for kickoff headers. */
