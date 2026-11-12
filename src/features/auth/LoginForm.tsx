@@ -12,6 +12,11 @@ import { ApiError } from '@/api';
 import { useAuth } from '@/auth';
 import { colors } from '@/theme';
 
+import {
+  isPasswordComplex,
+  PASSWORD_COMPLEXITY_MESSAGE,
+} from './passwordPolicy';
+
 type Mode = 'signIn' | 'firstLogin';
 
 /** Email / password against baked-auth (`audience=superiorsix`). */
@@ -31,7 +36,7 @@ export function LoginForm() {
     !busy &&
     email.trim().length > 0 &&
     password.length > 0 &&
-    (mode !== 'firstLogin' || (password.length >= 8 && passwordsMatch));
+    (mode !== 'firstLogin' || (isPasswordComplex(password) && passwordsMatch));
 
   const onSubmit = async () => {
     setError(null);
@@ -39,8 +44,8 @@ export function LoginForm() {
       setError('Enter email and password.');
       return;
     }
-    if (mode === 'firstLogin' && password.length < 8) {
-      setError('Password must be at least 8 characters.');
+    if (mode === 'firstLogin' && !isPasswordComplex(password)) {
+      setError(PASSWORD_COMPLEXITY_MESSAGE);
       return;
     }
     if (mode === 'firstLogin' && password !== confirmPassword) {
@@ -182,6 +187,10 @@ export function LoginForm() {
       confirmPassword.length > 0 &&
       password !== confirmPassword ? (
         <Text style={styles.error}>Passwords do not match.</Text>
+      ) : mode === 'firstLogin' &&
+        password.length > 0 &&
+        !isPasswordComplex(password) ? (
+        <Text style={styles.error}>{PASSWORD_COMPLEXITY_MESSAGE}</Text>
       ) : error ? (
         <Text style={styles.error}>{error}</Text>
       ) : null}

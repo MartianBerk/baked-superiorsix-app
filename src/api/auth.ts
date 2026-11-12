@@ -131,3 +131,37 @@ export async function setPasswordAuthUser(
   }
   return readApiJson<AuthUser>(response);
 }
+
+export type ChangePasswordPayload = {
+  currentPassword: string;
+  newPassword: string;
+};
+
+/**
+ * Authenticated password change (SS-226 / SS-227):
+ * `POST /v1/auth/change-password` with Bearer access token.
+ * Does not issue a new token — caller must clear the session and re-login.
+ */
+export async function changePassword(
+  token: string,
+  payload: ChangePasswordPayload,
+): Promise<AuthUser> {
+  let response: Response;
+  try {
+    response = await apiFetch('auth', '/v1/auth/change-password', {
+      method: 'POST',
+      token,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        current_password: payload.currentPassword,
+        new_password: payload.newPassword,
+      }),
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      'Could not reach baked-auth. Is local-dev up on :8010?',
+    );
+  }
+  return readApiJson<AuthUser>(response);
+}
