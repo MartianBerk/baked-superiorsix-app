@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.3,
-    textAlign: 'left',
+    textAlign: 'right',
   },
   scrubberWrap: {
     paddingHorizontal: '3%',
