@@ -723,11 +723,14 @@ export function MatchAdminWidget() {
     applySubroundSelection,
   ]);
 
+  // Reactive to draft: Autopick only while selectedCount === 0. Selecting any
+  // match disables it; clearing the slate back to 0 re-enables (not a latch).
   const canAutopick =
     Boolean(token) &&
     Boolean(selectedDate) &&
     canEdit &&
     !needsRound &&
+    selectedCount === 0 &&
     !submitting &&
     !autopicking &&
     !openingSubround &&

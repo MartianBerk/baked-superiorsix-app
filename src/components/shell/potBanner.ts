@@ -5,12 +5,17 @@ export type PerfectSixHolder = {
 };
 
 /**
- * Selection-progress leaders for the picking-stage split-pot banner.
- * Live / finished never use this — only perfect X/X there.
+ * Identical-prediction-map leaders for the picking-stage split-pot banner.
+ * Live / finished never use this — only perfect X/X (score) there.
  */
 export type SplitPotLeaders = {
   holders: PerfectSixHolder[];
 };
+
+/** matchId → H/D/A (or null / missing when unset). */
+export type SplitPotPredictionMap = Readonly<
+  Record<number, string | null | undefined>
+>;
 
 /**
  * Space-limited subject for tie banners:
@@ -82,7 +87,7 @@ export function formatPotBannerLine(
 }
 
 /**
- * Picking-stage split-pot banner (2+ tied on selection progress, viewer among them):
+ * Picking-stage split-pot banner (2+ with identical slate prediction maps, viewer among them):
  * - You and Cara are on a split pot
  * - You +3 are on a split pot
  * Others-only ties and solo leaders: no picking banner.
@@ -101,37 +106,70 @@ export function formatSplitPotBannerLine(
   return `${formatCompactTieSubject(ordered)} are on a split pot`;
 }
 
+function pickForMatch(
+  predictions: SplitPotPredictionMap,
+  matchId: number,
+): string | null {
+  const value = predictions[matchId];
+  return value == null || value === '' ? null : value;
+}
+
+/** True when both maps agree on every slate match (null/missing equal; set ≠ missing). */
+export function predictionMapsEqualForSlate(
+  a: SplitPotPredictionMap,
+  b: SplitPotPredictionMap,
+  slateMatchIds: readonly number[],
+): boolean {
+  for (const matchId of slateMatchIds) {
+    if (pickForMatch(a, matchId) !== pickForMatch(b, matchId)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function hasAnySlatePick(
+  predictions: SplitPotPredictionMap,
+  slateMatchIds: readonly number[],
+): boolean {
+  for (const matchId of slateMatchIds) {
+    if (pickForMatch(predictions, matchId) != null) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
- * Players tied at the current max **selection** count (picking stage).
- * Same basis as Scores while picking. Requires 2+ at the max **and** the
- * viewer among them (no others-only / solo picking banner).
- * Includes full-slate ties (max === X).
+ * Players whose prediction maps are **identical** to the viewer’s over the
+ * current slate match ids (picking stage). Not selection-count ties.
+ * Requires viewer among them, viewer has ≥1 pick, and ≥1 other with the same map.
  */
-export function splitPotLeadersFromSelections(
+export function splitPotLeadersFromMatchingPredictions(
   scored: readonly {
     displayName: string;
     isViewer: boolean;
-    selected: number;
+    predictions: SplitPotPredictionMap;
   }[],
+  slateMatchIds: readonly number[],
 ): SplitPotLeaders | null {
-  if (scored.length === 0) {
+  if (scored.length === 0 || slateMatchIds.length === 0) {
     return null;
   }
 
-  let max = 0;
-  for (const row of scored) {
-    const selected = Math.max(0, Math.floor(row.selected));
-    if (selected > max) {
-      max = selected;
-    }
-  }
-
-  if (max <= 0) {
+  const viewer = scored.find((row) => row.isViewer);
+  if (viewer == null || !hasAnySlatePick(viewer.predictions, slateMatchIds)) {
     return null;
   }
 
   const holders = scored
-    .filter((row) => Math.floor(row.selected) === max)
+    .filter((row) =>
+      predictionMapsEqualForSlate(
+        row.predictions,
+        viewer.predictions,
+        slateMatchIds,
+      ),
+    )
     .map((row) => ({
       displayName: row.displayName,
       isViewer: row.isViewer,
