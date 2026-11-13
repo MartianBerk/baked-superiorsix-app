@@ -22,7 +22,7 @@ import {
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
 import {
-  splitPotLeadersFromSelections,
+  splitPotLeadersFromMatchingPredictions,
   type PerfectSixHolder,
 } from '@/components/shell/potBanner';
 import {
@@ -325,15 +325,16 @@ export function ScoresPlayerWidget() {
       authId,
       slateSize,
     );
-    // Split-pot only while picking (same selected-count ranking as this board).
+    // Split-pot only while picking (identical prediction maps over the slate).
     const splitPot =
       roundPhase === 'picking' && perfectSix.length === 0
-        ? splitPotLeadersFromSelections(
+        ? splitPotLeadersFromMatchingPredictions(
             rankedBoards.map((row) => ({
               displayName: row.name,
               isViewer: authId != null && row.authId === authId,
-              selected: row.selected,
+              predictions: row.predictions,
             })),
+            matches.map((m) => m.id),
           )
         : null;
     setPlayerPickingStatus(
@@ -352,6 +353,7 @@ export function ScoresPlayerWidget() {
     isAuthenticated,
     session?.userId,
     rankedBoards,
+    matches,
     slateSize,
     slateDifficulty,
     roundPhase,

@@ -43,7 +43,7 @@ export function buildPlayerRoundStatus(opts: {
   correctCount: number;
   perfectSix?: PerfectSixHolder[];
   /**
-   * Selection-progress leaders for the picking-stage split-pot banner.
+   * Identical-prediction-map leaders for the picking-stage split-pot banner.
    * Cleared automatically outside picking.
    */
   splitPot?: SplitPotLeaders | null;
