@@ -21,7 +21,10 @@ import {
 } from '@/api/superiorsix';
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
-import type { PerfectSixHolder } from '@/components/shell/potBanner';
+import {
+  splitPotLeadersFromSelections,
+  type PerfectSixHolder,
+} from '@/components/shell/potBanner';
 import {
   buildPlayerRoundStatus,
   countSelectedPredictions,
@@ -322,6 +325,17 @@ export function ScoresPlayerWidget() {
       authId,
       slateSize,
     );
+    // Split-pot only while picking (same selected-count ranking as this board).
+    const splitPot =
+      roundPhase === 'picking' && perfectSix.length === 0
+        ? splitPotLeadersFromSelections(
+            rankedBoards.map((row) => ({
+              displayName: row.name,
+              isViewer: authId != null && row.authId === authId,
+              selected: row.selected,
+            })),
+          )
+        : null;
     setPlayerPickingStatus(
       buildPlayerRoundStatus({
         phase: roundPhase,
@@ -329,6 +343,7 @@ export function ScoresPlayerWidget() {
         selectedCount: viewer?.selected ?? 0,
         correctCount: viewer?.correct ?? 0,
         perfectSix,
+        splitPot,
         // Banner pips = selected slate matches, not prediction completeness.
         slateDifficulty,
       }),

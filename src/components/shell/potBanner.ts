@@ -4,35 +4,37 @@ export type PerfectSixHolder = {
   isViewer: boolean;
 };
 
-function formatNameList(names: string[]): string {
-  if (names.length === 1) {
-    return names[0];
-  }
-  if (names.length === 2) {
-    return `${names[0]} and ${names[1]}`;
-  }
-  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
-}
+/**
+ * Selection-progress leaders for the picking-stage split-pot banner.
+ * Live / finished never use this — only perfect X/X there.
+ */
+export type SplitPotLeaders = {
+  holders: PerfectSixHolder[];
+};
 
 /**
- * Pot banner copy (X = slate size):
- * - You have X / X and have the pot
- * - Cara has X / X and has the pot
- * - You and Cara have X / X and share the pot
+ * Space-limited subject for tie banners:
+ * - exactly 2 → `You and Cara` / `Cara and Bob`
+ * - 3+ with viewer → `You +n` (n = others)
+ * - 3+ without viewer → `Cara +n` (first sorted name + remaining)
  */
-export function formatPotBannerLine(
-  holders: PerfectSixHolder[],
-  slateSize = 6,
-): string | null {
-  if (holders.length === 0) {
-    return null;
+function formatCompactTieSubject(ordered: PerfectSixHolder[]): string {
+  if (ordered.length === 2) {
+    const names = ordered.map((h) => (h.isViewer ? 'You' : h.displayName));
+    return `${names[0]} and ${names[1]}`;
   }
 
-  const total =
-    slateSize > 0 && Number.isFinite(slateSize) ? Math.floor(slateSize) : 6;
-  const scoreLabel = `${total} / ${total}`;
+  const viewer = ordered.find((h) => h.isViewer);
+  if (viewer) {
+    return `You +${ordered.length - 1}`;
+  }
 
-  const ordered = [
+  const first = ordered[0]?.displayName ?? 'Player';
+  return `${first} +${ordered.length - 1}`;
+}
+
+function orderHolders(holders: PerfectSixHolder[]): PerfectSixHolder[] {
+  return [
     ...holders.filter((h) => h.isViewer),
     ...holders
       .filter((h) => !h.isViewer)
@@ -42,6 +44,31 @@ export function formatPotBannerLine(
         }),
       ),
   ];
+}
+
+function resolveSlateTotal(slateSize: number): number {
+  return slateSize > 0 && Number.isFinite(slateSize) ? Math.floor(slateSize) : 6;
+}
+
+/**
+ * Perfect-slate pot banner (live/finished when someone is on X/X):
+ * - You have X / X and have the pot
+ * - Cara has X / X and has the pot
+ * - You and Cara have X / X and share the pot
+ * - You +3 have X / X and share the pot  (3+ with viewer)
+ * - Cara +2 have X / X and share the pot  (3+ others only)
+ */
+export function formatPotBannerLine(
+  holders: PerfectSixHolder[],
+  slateSize = 6,
+): string | null {
+  if (holders.length === 0) {
+    return null;
+  }
+
+  const total = resolveSlateTotal(slateSize);
+  const scoreLabel = `${total} / ${total}`;
+  const ordered = orderHolders(holders);
 
   if (ordered.length === 1) {
     const only = ordered[0];
@@ -51,6 +78,68 @@ export function formatPotBannerLine(
     return `${only.displayName} has ${scoreLabel} and has the pot`;
   }
 
-  const names = ordered.map((h) => (h.isViewer ? 'You' : h.displayName));
-  return `${formatNameList(names)} have ${scoreLabel} and share the pot`;
+  return `${formatCompactTieSubject(ordered)} have ${scoreLabel} and share the pot`;
+}
+
+/**
+ * Picking-stage split-pot banner (2+ tied on selection progress, viewer among them):
+ * - You and Cara are on a split pot
+ * - You +3 are on a split pot
+ * Others-only ties and solo leaders: no picking banner.
+ */
+export function formatSplitPotBannerLine(
+  leaders: SplitPotLeaders | null | undefined,
+): string | null {
+  if (leaders == null || leaders.holders.length < 2) {
+    return null;
+  }
+  if (!leaders.holders.some((h) => h.isViewer)) {
+    return null;
+  }
+
+  const ordered = orderHolders(leaders.holders);
+  return `${formatCompactTieSubject(ordered)} are on a split pot`;
+}
+
+/**
+ * Players tied at the current max **selection** count (picking stage).
+ * Same basis as Scores while picking. Requires 2+ at the max **and** the
+ * viewer among them (no others-only / solo picking banner).
+ * Includes full-slate ties (max === X).
+ */
+export function splitPotLeadersFromSelections(
+  scored: readonly {
+    displayName: string;
+    isViewer: boolean;
+    selected: number;
+  }[],
+): SplitPotLeaders | null {
+  if (scored.length === 0) {
+    return null;
+  }
+
+  let max = 0;
+  for (const row of scored) {
+    const selected = Math.max(0, Math.floor(row.selected));
+    if (selected > max) {
+      max = selected;
+    }
+  }
+
+  if (max <= 0) {
+    return null;
+  }
+
+  const holders = scored
+    .filter((row) => Math.floor(row.selected) === max)
+    .map((row) => ({
+      displayName: row.displayName,
+      isViewer: row.isViewer,
+    }));
+
+  if (holders.length < 2 || !holders.some((h) => h.isViewer)) {
+    return null;
+  }
+
+  return { holders };
 }
