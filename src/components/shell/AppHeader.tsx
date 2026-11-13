@@ -11,7 +11,7 @@ import { colors } from '@/theme';
 
 import {
   formatPotBannerLine,
-  formatPotentialPotBannerLine,
+  formatSplitPotBannerLine,
 } from './potBanner';
 import { useRoundStatus } from './RoundStatusContext';
 import { RoundStatusStrip } from './RoundStatusStrip';
@@ -52,7 +52,7 @@ function isSideGamePath(pathname: string): boolean {
 
 /**
  * Top shell: round value left (`# n`), logo center, pot value right (`£…`),
- * optional pot banner (perfect slate, else potential leaders), plus thin
+ * optional pot banner (perfect X/X live, else picking split-pot), plus thin
  * round-status strip. Player strip + pot banner on player tabs; fixtures
  * admin also shows the strip.
  */
@@ -114,18 +114,14 @@ export function AppHeader({
   const slateSize = status?.slateSize ?? 6;
   const perfectHolders = status?.perfectSix ?? [];
   const perfectLine = formatPotBannerLine(perfectHolders, slateSize);
-  // Perfect slate wins; potential leaders only when nobody is perfect yet.
-  const potentialLeaders =
-    perfectLine == null ? status?.potentialPot : null;
-  const potentialLine = formatPotentialPotBannerLine(
-    potentialLeaders,
-    slateSize,
-  );
-  const potLine = perfectLine ?? potentialLine;
+  // Perfect X/X wins; otherwise picking-stage split-pot (selection leaders).
+  const splitLeaders = perfectLine == null ? status?.splitPot : null;
+  const splitLine = formatSplitPotBannerLine(splitLeaders);
+  const potLine = perfectLine ?? splitLine;
   const potHolders =
     perfectLine != null
       ? perfectHolders
-      : (potentialLeaders?.holders ?? []);
+      : (splitLeaders?.holders ?? []);
   const viewerHasPot = potHolders.some((h) => h.isViewer);
   const showPotBanner =
     isAuthenticated && !hidePotBanner && potLine != null;

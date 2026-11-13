@@ -10,7 +10,7 @@ import {
 } from '@/api/superiorsix';
 import { useAuth } from '@/auth';
 import {
-  potentialLeadersFromScores,
+  splitPotLeadersFromSelections,
   type PerfectSixHolder,
 } from '@/components/shell/potBanner';
 import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
@@ -93,6 +93,19 @@ function scoredBoardRows(
     displayName: displayName(row),
     isViewer: viewerAuthId != null && row.auth_id === viewerAuthId,
     correct: countCorrectOnBoard(row, board.matches, now),
+  }));
+}
+
+function selectionBoardRows(
+  board: LiveScoresBoard,
+  viewerAuthId: string | null | undefined,
+) {
+  return board.scores.map((row) => ({
+    displayName: displayName(row),
+    isViewer: viewerAuthId != null && row.auth_id === viewerAuthId,
+    selected: countSelectedPredictions(
+      row.matches.map((m) => m.prediction as PredictionChoice | null),
+    ),
   }));
 }
 
@@ -229,10 +242,13 @@ export function GamedayRoundStatusSync() {
           slateSize,
           now,
         );
-        const potentialPot =
-          phase === 'picking' || perfectSix.length > 0
-            ? null
-            : potentialLeadersFromScores(scored, slateSize);
+        // Split-pot only while picking (selection leaders). Live = perfect only.
+        const splitPot =
+          phase === 'picking' && perfectSix.length === 0
+            ? splitPotLeadersFromSelections(
+                selectionBoardRows(board, viewerAuthId),
+              )
+            : null;
 
         setPlayerPickingStatus(
           buildPlayerRoundStatus({
@@ -241,7 +257,7 @@ export function GamedayRoundStatusSync() {
             selectedCount,
             correctCount,
             perfectSix,
-            potentialPot,
+            splitPot,
           }),
         );
       } catch {

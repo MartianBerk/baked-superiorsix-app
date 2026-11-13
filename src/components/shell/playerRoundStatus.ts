@@ -1,6 +1,6 @@
 import type { MatchDifficulty, PredictionChoice } from '@/api/superiorsix';
 
-import type { PerfectSixHolder, PotentialPotLeaders } from './potBanner';
+import type { PerfectSixHolder, SplitPotLeaders } from './potBanner';
 import type { RoundPhase, RoundStatus } from './roundStatus';
 
 /** Count non-null predictions (header numerator while picking). */
@@ -33,7 +33,8 @@ export function resolvePlayerRoundPhase(opts: {
 
 /**
  * Single shape for the shell n/X strip across Matches / Scores / Leaders / Profile.
- * Picking → selectedCount; live/finished → correctCount.
+ * Picking → selectedCount (+ optional split-pot leaders);
+ * live/finished → correctCount (+ optional perfectSix).
  */
 export function buildPlayerRoundStatus(opts: {
   phase: RoundPhase;
@@ -42,10 +43,10 @@ export function buildPlayerRoundStatus(opts: {
   correctCount: number;
   perfectSix?: PerfectSixHolder[];
   /**
-   * Non-perfect leaders for the potential pot banner.
-   * Ignored while picking (correct counts are not the strip numerator yet).
+   * Selection-progress leaders for the picking-stage split-pot banner.
+   * Cleared automatically outside picking.
    */
-  potentialPot?: PotentialPotLeaders | null;
+  splitPot?: SplitPotLeaders | null;
   /**
    * Header difficulty pips. Pass explicitly (including `null` to hide).
    * Omit so callers that lack difficulty data can leave the previous value.
@@ -70,8 +71,7 @@ export function buildPlayerRoundStatus(opts: {
       slateSize,
       selectedCount: Math.max(0, opts.selectedCount),
       perfectSix,
-      // Potential is correct-count based — never while still picking.
-      potentialPot: null,
+      splitPot: opts.splitPot ?? null,
       ...withDifficulty,
     };
   }
@@ -81,7 +81,8 @@ export function buildPlayerRoundStatus(opts: {
     slateSize,
     correctCount: Math.max(0, opts.correctCount),
     perfectSix,
-    potentialPot: opts.potentialPot ?? null,
+    // Split-pot is picking-only — never during live/finished scoring.
+    splitPot: null,
     ...withDifficulty,
   };
 }

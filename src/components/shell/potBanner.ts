@@ -4,11 +4,12 @@ export type PerfectSixHolder = {
   isViewer: boolean;
 };
 
-/** Current leaders not yet perfect (potential pot banner). */
-export type PotentialPotLeaders = {
+/**
+ * Selection-progress leaders for the picking-stage split-pot banner.
+ * Live / finished never use this — only perfect X/X there.
+ */
+export type SplitPotLeaders = {
   holders: PerfectSixHolder[];
-  /** Shared correct count for the leaders (0 < score < slateSize). */
-  score: number;
 };
 
 function formatNameList(names: string[]): string {
@@ -39,7 +40,7 @@ function resolveSlateTotal(slateSize: number): number {
 }
 
 /**
- * Pot banner copy (X = slate size):
+ * Perfect-slate pot banner (live/finished when someone is on X/X):
  * - You have X / X and have the pot
  * - Cara has X / X and has the pot
  * - You and Cara have X / X and share the pot
@@ -69,72 +70,61 @@ export function formatPotBannerLine(
 }
 
 /**
- * Potential pot banner (0 < score < slateSize):
- * - You have 4 / 6 and are potentially on for the pot
- * - Cara has 4 / 6 and is potentially on for the pot
- * - You and Cara have 4 / 6 and potentially share the pot
+ * Picking-stage split-pot banner (selection-progress leaders only):
+ * - You are on for the pot
+ * - Cara is on for the pot
+ * - You and Cara are on a split pot
  */
-export function formatPotentialPotBannerLine(
-  leaders: PotentialPotLeaders | null | undefined,
-  slateSize = 6,
+export function formatSplitPotBannerLine(
+  leaders: SplitPotLeaders | null | undefined,
 ): string | null {
   if (leaders == null || leaders.holders.length === 0) {
     return null;
   }
 
-  const total = resolveSlateTotal(slateSize);
-  const score = Math.floor(leaders.score);
-  if (!(score > 0 && score < total)) {
-    return null;
-  }
-
-  const scoreLabel = `${score} / ${total}`;
   const ordered = orderHolders(leaders.holders);
 
   if (ordered.length === 1) {
     const only = ordered[0];
     if (only.isViewer) {
-      return `You have ${scoreLabel} and are potentially on for the pot`;
+      return 'You are on for the pot';
     }
-    return `${only.displayName} has ${scoreLabel} and is potentially on for the pot`;
+    return `${only.displayName} is on for the pot`;
   }
 
   const names = ordered.map((h) => (h.isViewer ? 'You' : h.displayName));
-  return `${formatNameList(names)} have ${scoreLabel} and potentially share the pot`;
+  return `${formatNameList(names)} are on a split pot`;
 }
 
 /**
- * Leaders tied at the current max correct count when that max is
- * still below a perfect slate (and above zero).
+ * Leaders tied at the current max **selection** count (picking stage).
+ * Same basis as Scores while picking. Includes full-slate leaders (max === X).
  */
-export function potentialLeadersFromScores(
+export function splitPotLeadersFromSelections(
   scored: readonly {
     displayName: string;
     isViewer: boolean;
-    correct: number;
+    selected: number;
   }[],
-  slateSize: number,
-): PotentialPotLeaders | null {
-  const need = resolveSlateTotal(slateSize);
+): SplitPotLeaders | null {
   if (scored.length === 0) {
     return null;
   }
 
   let max = 0;
   for (const row of scored) {
-    const correct = Math.max(0, Math.floor(row.correct));
-    if (correct > max) {
-      max = correct;
+    const selected = Math.max(0, Math.floor(row.selected));
+    if (selected > max) {
+      max = selected;
     }
   }
 
-  // Perfect already exists, or nobody has a correct pick yet.
-  if (max <= 0 || max >= need) {
+  if (max <= 0) {
     return null;
   }
 
   const holders = scored
-    .filter((row) => Math.floor(row.correct) === max)
+    .filter((row) => Math.floor(row.selected) === max)
     .map((row) => ({
       displayName: row.displayName,
       isViewer: row.isViewer,
@@ -144,5 +134,5 @@ export function potentialLeadersFromScores(
     return null;
   }
 
-  return { holders, score: max };
+  return { holders };
 }

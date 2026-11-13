@@ -22,7 +22,7 @@ import {
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
 import {
-  potentialLeadersFromScores,
+  splitPotLeadersFromSelections,
   type PerfectSixHolder,
 } from '@/components/shell/potBanner';
 import {
@@ -325,17 +325,17 @@ export function ScoresPlayerWidget() {
       authId,
       slateSize,
     );
-    const potentialPot =
-      roundPhase === 'picking' || perfectSix.length > 0
-        ? null
-        : potentialLeadersFromScores(
+    // Split-pot only while picking (same selected-count ranking as this board).
+    const splitPot =
+      roundPhase === 'picking' && perfectSix.length === 0
+        ? splitPotLeadersFromSelections(
             rankedBoards.map((row) => ({
               displayName: row.name,
               isViewer: authId != null && row.authId === authId,
-              correct: correctByAuth.get(row.authId) ?? 0,
+              selected: row.selected,
             })),
-            slateSize,
-          );
+          )
+        : null;
     setPlayerPickingStatus(
       buildPlayerRoundStatus({
         phase: roundPhase,
@@ -343,7 +343,7 @@ export function ScoresPlayerWidget() {
         selectedCount: viewer?.selected ?? 0,
         correctCount: viewer?.correct ?? 0,
         perfectSix,
-        potentialPot,
+        splitPot,
         // Banner pips = selected slate matches, not prediction completeness.
         slateDifficulty,
       }),
