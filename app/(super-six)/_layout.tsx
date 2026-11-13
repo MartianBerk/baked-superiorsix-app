@@ -6,6 +6,7 @@ import { BottomMenu } from '@/components/shell/BottomMenu';
 import { DualModeAuthReset } from '@/components/shell/DualModeAuthReset';
 import { GamedayHeaderSync } from '@/components/shell/GamedayHeaderSync';
 import { GamedayRoundStatusSync } from '@/components/shell/GamedayRoundStatusSync';
+import { LiveScoresProvider } from '@/components/shell/LiveScoresContext';
 import { RoundStatusProvider } from '@/components/shell/RoundStatusContext';
 import { TabTransitionProvider } from '@/components/shell/TabTransitionContext';
 import { tabSlideTransition } from '@/components/shell/tabSlideTransition';
@@ -107,12 +108,14 @@ export default function SuperSixLayout() {
         <ScoresTabModeProvider>
           <LeadersTabModeProvider>
             <RoundStatusProvider>
-              <SideGamesOpenProvider>
-                <DualModeAuthReset />
-                <GamedayHeaderSync />
-                <GamedayRoundStatusSync />
-                <SuperSixTabs />
-              </SideGamesOpenProvider>
+              <LiveScoresProvider>
+                <SideGamesOpenProvider>
+                  <DualModeAuthReset />
+                  <GamedayHeaderSync />
+                  <GamedayRoundStatusSync />
+                  <SuperSixTabs />
+                </SideGamesOpenProvider>
+              </LiveScoresProvider>
             </RoundStatusProvider>
           </LeadersTabModeProvider>
         </ScoresTabModeProvider>

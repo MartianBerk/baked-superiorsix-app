@@ -48,7 +48,6 @@ export {
   deleteSubround,
   patchPlayerAuthState,
   resetPlayerPassword,
-  smokeSuperSixBff,
   updatePlayerRoles,
   updateProfileDetails,
 } from './superiorsix';
@@ -79,7 +78,6 @@ export type {
   PredictionChoice,
   RoundInfo,
   Subround,
-  SuperSixSmokeResult,
   UpdateDetailsPayload,
 } from './superiorsix';
 export {
