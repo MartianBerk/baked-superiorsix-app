@@ -1,6 +1,6 @@
 import type { MatchDifficulty } from '@/api/superiorsix';
 
-import type { PerfectSixHolder } from './potBanner';
+import type { PerfectSixHolder, SplitPotLeaders } from './potBanner';
 
 /** Round lifecycle for the thin header status strip. */
 export type RoundPhase = 'picking' | 'live' | 'finished';
@@ -34,8 +34,14 @@ export type RoundStatus = {
   rivalPerfect?: {
     displayName: string;
   } | null;
-  /** Everyone currently on a perfect slate (drives the pot banner). */
+  /** Everyone currently on a perfect slate (drives the live/finished pot banner). */
   perfectSix?: PerfectSixHolder[];
+  /**
+   * Picking-stage selection leaders for the split-pot banner.
+   * Live/finished leave this null — only perfect X/X shows then.
+   * Perfect banner still wins if both somehow apply.
+   */
+  splitPot?: SplitPotLeaders | null;
 };
 
 /** SS-8 placeholder until round/selection APIs are wired. */
