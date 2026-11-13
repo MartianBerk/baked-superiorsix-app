@@ -70,35 +70,27 @@ export function formatPotBannerLine(
 }
 
 /**
- * Picking-stage split-pot banner (selection-progress leaders only):
- * - You are on for the pot
- * - Cara is on for the pot
+ * Picking-stage split-pot banner (2+ tied on selection progress only):
  * - You and Cara are on a split pot
+ * - Cara and Bob are on a split pot
+ * Solo leaders do not get a banner while picking.
  */
 export function formatSplitPotBannerLine(
   leaders: SplitPotLeaders | null | undefined,
 ): string | null {
-  if (leaders == null || leaders.holders.length === 0) {
+  if (leaders == null || leaders.holders.length < 2) {
     return null;
   }
 
   const ordered = orderHolders(leaders.holders);
-
-  if (ordered.length === 1) {
-    const only = ordered[0];
-    if (only.isViewer) {
-      return 'You are on for the pot';
-    }
-    return `${only.displayName} is on for the pot`;
-  }
-
   const names = ordered.map((h) => (h.isViewer ? 'You' : h.displayName));
   return `${formatNameList(names)} are on a split pot`;
 }
 
 /**
- * Leaders tied at the current max **selection** count (picking stage).
- * Same basis as Scores while picking. Includes full-slate leaders (max === X).
+ * Players tied at the current max **selection** count (picking stage).
+ * Same basis as Scores while picking. Requires 2+ at the max (no solo banner).
+ * Includes full-slate ties (max === X).
  */
 export function splitPotLeadersFromSelections(
   scored: readonly {
@@ -130,7 +122,7 @@ export function splitPotLeadersFromSelections(
       isViewer: row.isViewer,
     }));
 
-  if (holders.length === 0) {
+  if (holders.length < 2) {
     return null;
   }
 
