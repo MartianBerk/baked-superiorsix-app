@@ -12,14 +12,25 @@ export type SplitPotLeaders = {
   holders: PerfectSixHolder[];
 };
 
-function formatNameList(names: string[]): string {
-  if (names.length === 1) {
-    return names[0];
-  }
-  if (names.length === 2) {
+/**
+ * Space-limited subject for tie banners:
+ * - exactly 2 → `You and Cara` / `Cara and Bob`
+ * - 3+ with viewer → `You +n` (n = others)
+ * - 3+ without viewer → `Cara +n` (first sorted name + remaining)
+ */
+function formatCompactTieSubject(ordered: PerfectSixHolder[]): string {
+  if (ordered.length === 2) {
+    const names = ordered.map((h) => (h.isViewer ? 'You' : h.displayName));
     return `${names[0]} and ${names[1]}`;
   }
-  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+
+  const viewer = ordered.find((h) => h.isViewer);
+  if (viewer) {
+    return `You +${ordered.length - 1}`;
+  }
+
+  const first = ordered[0]?.displayName ?? 'Player';
+  return `${first} +${ordered.length - 1}`;
 }
 
 function orderHolders(holders: PerfectSixHolder[]): PerfectSixHolder[] {
@@ -44,6 +55,8 @@ function resolveSlateTotal(slateSize: number): number {
  * - You have X / X and have the pot
  * - Cara has X / X and has the pot
  * - You and Cara have X / X and share the pot
+ * - You +3 have X / X and share the pot  (3+ with viewer)
+ * - Cara +2 have X / X and share the pot  (3+ others only)
  */
 export function formatPotBannerLine(
   holders: PerfectSixHolder[],
@@ -65,14 +78,15 @@ export function formatPotBannerLine(
     return `${only.displayName} has ${scoreLabel} and has the pot`;
   }
 
-  const names = ordered.map((h) => (h.isViewer ? 'You' : h.displayName));
-  return `${formatNameList(names)} have ${scoreLabel} and share the pot`;
+  return `${formatCompactTieSubject(ordered)} have ${scoreLabel} and share the pot`;
 }
 
 /**
  * Picking-stage split-pot banner (2+ tied on selection progress only):
  * - You and Cara are on a split pot
  * - Cara and Bob are on a split pot
+ * - You +3 are on a split pot
+ * - Cara +2 are on a split pot
  * Solo leaders do not get a banner while picking.
  */
 export function formatSplitPotBannerLine(
@@ -83,8 +97,7 @@ export function formatSplitPotBannerLine(
   }
 
   const ordered = orderHolders(leaders.holders);
-  const names = ordered.map((h) => (h.isViewer ? 'You' : h.displayName));
-  return `${formatNameList(names)} are on a split pot`;
+  return `${formatCompactTieSubject(ordered)} are on a split pot`;
 }
 
 /**
