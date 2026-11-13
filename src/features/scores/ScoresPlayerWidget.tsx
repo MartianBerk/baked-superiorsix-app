@@ -9,20 +9,21 @@ import {
 } from 'react-native';
 
 import {
-  getLiveScores,
   isNoRoundInProgressError,
   listGameSubrounds,
   type LiveMatch,
   type LiveScoreFixture,
   type LiveScorePlayer,
+  type LiveScoresBoard,
   type MatchDifficulty,
   type PredictionChoice,
   type Subround,
 } from '@/api/superiorsix';
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
+import { useLiveScoresBoard } from '@/components/shell/LiveScoresContext';
 import {
-  splitPotLeadersFromSelections,
+  splitPotLeadersFromMatchingPredictions,
   type PerfectSixHolder,
 } from '@/components/shell/potBanner';
 import {
@@ -36,7 +37,7 @@ import { SubroundScrubber } from '@/features/matches/SubroundScrubber';
 import { colors } from '@/theme';
 
 import { KickoffDateDisplay } from './KickoffDateDisplay';
-import { LIVE_POLL_MS, LOCK_BEFORE_KICKOFF_MS } from './liveScoreDisplay';
+import { LOCK_BEFORE_KICKOFF_MS } from './liveScoreDisplay';
 import { isPickCurrentlyCorrect } from './pickOutcome';
 import { PlayerScoreSection } from './PlayerScoreSection';
 
@@ -242,6 +243,10 @@ export function ScoresPlayerWidget() {
   const [noActiveRound, setNoActiveRound] = useState(false);
   const [now, setNow] = useState(() => new Date());
 
+  const { board: sharedBoard, fetchLiveScores } = useLiveScoresBoard(
+    selectedSubroundId,
+  );
+
   useEffect(() => {
     selectedSubroundIdRef.current = selectedSubroundId;
   }, [selectedSubroundId]);
@@ -325,15 +330,16 @@ export function ScoresPlayerWidget() {
       authId,
       slateSize,
     );
-    // Split-pot only while picking (same selected-count ranking as this board).
+    // Split-pot only while picking (identical prediction maps over the slate).
     const splitPot =
       roundPhase === 'picking' && perfectSix.length === 0
-        ? splitPotLeadersFromSelections(
+        ? splitPotLeadersFromMatchingPredictions(
             rankedBoards.map((row) => ({
               displayName: row.name,
               isViewer: authId != null && row.authId === authId,
-              selected: row.selected,
+              predictions: row.predictions,
             })),
+            matches.map((m) => m.id),
           )
         : null;
     setPlayerPickingStatus(
@@ -352,6 +358,7 @@ export function ScoresPlayerWidget() {
     isAuthenticated,
     session?.userId,
     rankedBoards,
+    matches,
     slateSize,
     slateDifficulty,
     roundPhase,
@@ -359,7 +366,7 @@ export function ScoresPlayerWidget() {
   ]);
 
   const applyLiveBoard = useCallback(
-    (subroundId: number, board: Awaited<ReturnType<typeof getLiveScores>>) => {
+    (subroundId: number, board: LiveScoresBoard) => {
       setBoardLive(board.live);
       setBoards(boardsFromLiveScores(board.scores));
       setMatchesBySubround((prev) => ({
@@ -370,8 +377,18 @@ export function ScoresPlayerWidget() {
     [],
   );
 
+  // Provider live poll updates shared board — mirror into Scores widget.
+  useEffect(() => {
+    if (sharedBoard && selectedSubroundId != null) {
+      applyLiveBoard(selectedSubroundId, sharedBoard);
+    }
+  }, [sharedBoard, selectedSubroundId, applyLiveBoard]);
+
   const loadScores = useCallback(
-    async (subroundId: number | null, opts?: { quiet?: boolean }) => {
+    async (
+      subroundId: number | null,
+      opts?: { quiet?: boolean; force?: boolean; signal?: AbortSignal },
+    ) => {
       if (subroundId == null) {
         setBoards([]);
         setBoardLive(false);
@@ -381,9 +398,18 @@ export function ScoresPlayerWidget() {
         setScoresLoading(true);
       }
       try {
-        const board = await getLiveScores({ subroundId });
+        const board = await fetchLiveScores(subroundId, {
+          force: Boolean(opts?.quiet) || Boolean(opts?.force),
+          signal: opts?.signal,
+        });
         applyLiveBoard(subroundId, board);
       } catch (err) {
+        if (
+          (err instanceof DOMException && err.name === 'AbortError') ||
+          (err instanceof Error && err.name === 'AbortError')
+        ) {
+          return;
+        }
         if (err instanceof ApiError && err.status === 501) {
           setBoards([]);
           setBoardLive(false);
@@ -398,7 +424,7 @@ export function ScoresPlayerWidget() {
         }
       }
     },
-    [applyLiveBoard],
+    [applyLiveBoard, fetchLiveScores],
   );
 
   const loadCatalog = useCallback(
@@ -445,7 +471,7 @@ export function ScoresPlayerWidget() {
           selectedSubroundIdRef.current,
         );
         setSelectedSubroundId(next?.id ?? null);
-        await loadScores(next?.id ?? null);
+        await loadScores(next?.id ?? null, { force: mode === 'refresh' });
       } catch (err) {
         setError(
           err instanceof ApiError ? err.message : 'Could not load scores.',
@@ -464,27 +490,18 @@ export function ScoresPlayerWidget() {
   );
 
   useEffect(() => {
-    let cancelled = false;
+    const ac = new AbortController();
     queueMicrotask(() => {
-      if (!cancelled) {
+      if (!ac.signal.aborted) {
         void loadCatalog('initial');
       }
     });
     return () => {
-      cancelled = true;
+      ac.abort();
     };
   }, [loadCatalog]);
 
-  // Keep live slate (badge green + n/6 correct) in step with Matches.
-  useEffect(() => {
-    if (!boardLive || selectedSubroundId == null) {
-      return;
-    }
-    const id = setInterval(() => {
-      void loadScores(selectedSubroundId, { quiet: true });
-    }, LIVE_POLL_MS);
-    return () => clearInterval(id);
-  }, [boardLive, selectedSubroundId, loadScores]);
+  // Live poll lives in LiveScoresProvider (shared with Matches / strip).
 
   useEffect(() => {
     if (!boardLive) {

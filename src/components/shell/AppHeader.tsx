@@ -114,17 +114,15 @@ export function AppHeader({
   const slateSize = status?.slateSize ?? 6;
   const perfectHolders = status?.perfectSix ?? [];
   const perfectLine = formatPotBannerLine(perfectHolders, slateSize);
-  // Perfect X/X wins; otherwise picking-stage split-pot (selection leaders).
+  // Perfect X/X wins; otherwise picking-stage split-pot (identical pick maps).
   const splitLeaders = perfectLine == null ? status?.splitPot : null;
   const splitLine = formatSplitPotBannerLine(splitLeaders);
   const potLine = perfectLine ?? splitLine;
-  const potHolders =
-    perfectLine != null
-      ? perfectHolders
-      : (splitLeaders?.holders ?? []);
-  const viewerHasPot = potHolders.some((h) => h.isViewer);
   const showPotBanner =
     isAuthenticated && !hidePotBanner && potLine != null;
+  // Perfect → amber; picking split → primary white. No accentBright fill.
+  const potBannerTone =
+    perfectLine != null ? styles.potBannerTextPerfect : styles.potBannerTextSplit;
 
   return (
     <View
@@ -159,14 +157,7 @@ export function AppHeader({
             accessibilityRole="summary"
             accessibilityLabel={potLine}
           >
-            <Text
-              style={[
-                styles.potBannerText,
-                viewerHasPot
-                  ? styles.potBannerTextViewer
-                  : styles.potBannerTextOthers,
-              ]}
-            >
+            <Text style={[styles.potBannerText, potBannerTone]}>
               {potLine}
             </Text>
           </View>
@@ -216,13 +207,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     textAlign: 'center',
   },
-  /** Same green as RoundStatusStrip “6 / 6 correct”. */
-  potBannerTextViewer: {
-    color: colors.accentBright,
-  },
-  /** Other players only on 6/6. */
-  potBannerTextOthers: {
+  /** Live/finished perfect X/X — always amber. */
+  potBannerTextPerfect: {
     color: colors.amber,
+  },
+  /** Picking split-pot — primary white (same as header values). */
+  potBannerTextSplit: {
+    color: colors.text,
   },
   side: {
     flex: 1,
