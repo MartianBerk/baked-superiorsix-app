@@ -21,12 +21,12 @@ import {
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
 import {
-  splitPotLeadersFromSelections,
+  splitPotLeadersFromMatchingPredictions,
   type PerfectSixHolder,
+  type SplitPotPredictionMap,
 } from '@/components/shell/potBanner';
 import {
   buildPlayerRoundStatus,
-  countSelectedPredictions,
   resolvePlayerRoundPhase,
 } from '@/components/shell/playerRoundStatus';
 import { useRoundStatus } from '@/components/shell/RoundStatusContext';
@@ -173,10 +173,10 @@ function displayNameFromLiveScore(row: {
   return 'Player';
 }
 
-type SelectionRow = {
+type PredictionRow = {
   displayName: string;
   isViewer: boolean;
-  selected: number;
+  predictions: SplitPotPredictionMap;
 };
 
 function scoredFromBoard(
@@ -190,17 +190,21 @@ function scoredFromBoard(
   }));
 }
 
-function selectionRowsFromBoard(
+function predictionRowsFromBoard(
   board: LiveScoresBoard,
   viewerAuthId: string | null | undefined,
-): SelectionRow[] {
-  return board.scores.map((row) => ({
-    displayName: displayNameFromLiveScore(row),
-    isViewer: viewerAuthId != null && row.auth_id === viewerAuthId,
-    selected: countSelectedPredictions(
-      row.matches.map((m) => m.prediction),
-    ),
-  }));
+): PredictionRow[] {
+  return board.scores.map((row) => {
+    const predictions: Record<number, PredictionChoice | null> = {};
+    for (const match of row.matches) {
+      predictions[match.match_id] = match.prediction;
+    }
+    return {
+      displayName: displayNameFromLiveScore(row),
+      isViewer: viewerAuthId != null && row.auth_id === viewerAuthId,
+      predictions,
+    };
+  });
 }
 
 function perfectSixFromBoard(
@@ -250,8 +254,8 @@ export function MatchPlayerWidget() {
   const [nextKickoff, setNextKickoff] = useState<string | null>(null);
   const [viewerCorrect, setViewerCorrect] = useState<number | null>(null);
   const [perfectSix, setPerfectSix] = useState<PerfectSixHolder[]>([]);
-  /** Other players’ selection counts from livescores; viewer overlaid from draft. */
-  const [selectionRows, setSelectionRows] = useState<SelectionRow[]>([]);
+  /** Other players’ prediction maps from livescores; viewer overlaid from draft. */
+  const [predictionRows, setPredictionRows] = useState<PredictionRow[]>([]);
 
   const canPredict = isAuthenticated && hasRole('player');
 
@@ -318,12 +322,14 @@ export function MatchPlayerWidget() {
       subroundOver: selectedSubround?.is_over === true,
       kickoffLocked: subroundLocked,
     });
+    const slateMatchIds = matches.map((m) => m.id);
     const splitPot =
       phase === 'picking' && perfectSix.length === 0
-        ? splitPotLeadersFromSelections(
-            selectionRows.map((row) =>
-              row.isViewer ? { ...row, selected: pickedCount } : row,
+        ? splitPotLeadersFromMatchingPredictions(
+            predictionRows.map((row) =>
+              row.isViewer ? { ...row, predictions: draft } : row,
             ),
+            slateMatchIds,
           )
         : null;
     setPlayerPickingStatus(
@@ -348,7 +354,9 @@ export function MatchPlayerWidget() {
     slateSize,
     slateDifficulty,
     perfectSix,
-    selectionRows,
+    predictionRows,
+    draft,
+    matches,
     setPlayerPickingStatus,
   ]);
 
@@ -362,7 +370,7 @@ export function MatchPlayerWidget() {
       const boardSlateSize =
         board.matches.length > 0 ? board.matches.length : board.match_count;
       setPerfectSix(perfectSixFromBoard(board, authId, boardSlateSize));
-      setSelectionRows(selectionRowsFromBoard(board, authId));
+      setPredictionRows(predictionRowsFromBoard(board, authId));
       if (authId) {
         const mine = board.scores.find((row) => row.auth_id === authId);
         setViewerCorrect(mine != null ? mine.score : null);
