@@ -15,9 +15,7 @@ import {
   fetchAuthMe,
   loginWithPassword,
   setPasswordAuthUser,
-  smokeSuperSixBff,
   type AcceptInviteResult,
-  type SuperSixSmokeResult,
 } from '@/api';
 
 import {
@@ -49,8 +47,6 @@ type AuthContextValue = {
    */
   claimAndAcceptInvite: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  lastSmoke: SuperSixSmokeResult | null;
-  runSmoke: () => Promise<SuperSixSmokeResult | null>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -138,7 +134,6 @@ async function buildSessionFromAccept(
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [session, setSession] = useState<AuthSession | null>(null);
-  const [lastSmoke, setLastSmoke] = useState<SuperSixSmokeResult | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -163,58 +158,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const runSmoke = useCallback(async (): Promise<SuperSixSmokeResult | null> => {
-    if (!session?.accessToken) {
-      setLastSmoke(null);
-      return null;
-    }
-    const result = await smokeSuperSixBff(session.accessToken);
-    setLastSmoke(result);
-    return result;
-  }, [session?.accessToken]);
-
-  useEffect(() => {
-    if (status !== 'signedIn' || !session?.accessToken) {
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const result = await smokeSuperSixBff(session.accessToken);
-        if (!cancelled) {
-          setLastSmoke(result);
-        }
-      } catch {
-        if (!cancelled) {
-          setLastSmoke({
-            healthOk: false,
-            tokenAccepted: false,
-            probeStatus: 0,
-            message: 'Smoke call failed.',
-          });
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [status, session?.accessToken]);
-
   const persistSignedIn = useCallback(async (next: PersistedSession) => {
     await saveSession(next);
     setSession(next);
     setStatus('signedIn');
-
-    try {
-      setLastSmoke(await smokeSuperSixBff(next.accessToken));
-    } catch (err) {
-      setLastSmoke({
-        healthOk: false,
-        tokenAccepted: false,
-        probeStatus: err instanceof ApiError ? err.status : 0,
-        message: err instanceof Error ? err.message : 'Smoke call failed.',
-      });
-    }
   }, []);
 
   const signIn = useCallback(
@@ -247,7 +194,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     await clearSession();
     setSession(null);
-    setLastSmoke(null);
     setStatus('signedOut');
   }, []);
 
@@ -263,18 +209,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       claimAndAcceptInvite,
       signOut,
-      lastSmoke,
-      runSmoke,
     };
-  }, [
-    status,
-    session,
-    signIn,
-    claimAndAcceptInvite,
-    signOut,
-    lastSmoke,
-    runSmoke,
-  ]);
+  }, [status, session, signIn, claimAndAcceptInvite, signOut]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
