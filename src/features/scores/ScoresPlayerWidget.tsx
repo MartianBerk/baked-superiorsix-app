@@ -21,7 +21,10 @@ import {
 } from '@/api/superiorsix';
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
-import type { PerfectSixHolder } from '@/components/shell/potBanner';
+import {
+  potentialLeadersFromScores,
+  type PerfectSixHolder,
+} from '@/components/shell/potBanner';
 import {
   buildPlayerRoundStatus,
   countSelectedPredictions,
@@ -322,6 +325,17 @@ export function ScoresPlayerWidget() {
       authId,
       slateSize,
     );
+    const potentialPot =
+      roundPhase === 'picking' || perfectSix.length > 0
+        ? null
+        : potentialLeadersFromScores(
+            rankedBoards.map((row) => ({
+              displayName: row.name,
+              isViewer: authId != null && row.authId === authId,
+              correct: correctByAuth.get(row.authId) ?? 0,
+            })),
+            slateSize,
+          );
     setPlayerPickingStatus(
       buildPlayerRoundStatus({
         phase: roundPhase,
@@ -329,6 +343,7 @@ export function ScoresPlayerWidget() {
         selectedCount: viewer?.selected ?? 0,
         correctCount: viewer?.correct ?? 0,
         perfectSix,
+        potentialPot,
         // Banner pips = selected slate matches, not prediction completeness.
         slateDifficulty,
       }),

@@ -9,7 +9,10 @@ import {
   type PredictionChoice,
 } from '@/api/superiorsix';
 import { useAuth } from '@/auth';
-import type { PerfectSixHolder } from '@/components/shell/potBanner';
+import {
+  potentialLeadersFromScores,
+  type PerfectSixHolder,
+} from '@/components/shell/potBanner';
 import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
 import { isPickCurrentlyCorrect } from '@/features/scores/pickOutcome';
 import { LOCK_BEFORE_KICKOFF_MS } from '@/features/scores/liveScoreDisplay';
@@ -81,6 +84,18 @@ function countCorrectOnBoard(
   return correct;
 }
 
+function scoredBoardRows(
+  board: LiveScoresBoard,
+  viewerAuthId: string | null | undefined,
+  now: Date,
+) {
+  return board.scores.map((row) => ({
+    displayName: displayName(row),
+    isViewer: viewerAuthId != null && row.auth_id === viewerAuthId,
+    correct: countCorrectOnBoard(row, board.matches, now),
+  }));
+}
+
 function perfectSixHolders(
   board: LiveScoresBoard,
   viewerAuthId: string | null | undefined,
@@ -88,13 +103,11 @@ function perfectSixHolders(
   now: Date,
 ): PerfectSixHolder[] {
   const need = slateSize > 0 ? slateSize : 6;
-  return board.scores
-    .filter(
-      (row) => countCorrectOnBoard(row, board.matches, now) >= need,
-    )
+  return scoredBoardRows(board, viewerAuthId, now)
+    .filter((row) => row.correct >= need)
     .map((row) => ({
-      displayName: displayName(row),
-      isViewer: viewerAuthId != null && row.auth_id === viewerAuthId,
+      displayName: row.displayName,
+      isViewer: row.isViewer,
     }));
 }
 
@@ -206,13 +219,20 @@ export function GamedayRoundStatusSync() {
           kickoffLocked,
         });
         const selectedCount = selectedCountForViewer(viewer);
-        const correctCount = countCorrectOnBoard(viewer, board.matches, now);
+        const scored = scoredBoardRows(board, viewerAuthId, now);
+        const correctCount =
+          scored.find((row) => row.isViewer)?.correct ??
+          countCorrectOnBoard(viewer, board.matches, now);
         const perfectSix = perfectSixHolders(
           board,
           viewerAuthId,
           slateSize,
           now,
         );
+        const potentialPot =
+          phase === 'picking' || perfectSix.length > 0
+            ? null
+            : potentialLeadersFromScores(scored, slateSize);
 
         setPlayerPickingStatus(
           buildPlayerRoundStatus({
@@ -221,6 +241,7 @@ export function GamedayRoundStatusSync() {
             selectedCount,
             correctCount,
             perfectSix,
+            potentialPot,
           }),
         );
       } catch {

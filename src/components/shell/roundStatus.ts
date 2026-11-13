@@ -1,6 +1,6 @@
 import type { MatchDifficulty } from '@/api/superiorsix';
 
-import type { PerfectSixHolder } from './potBanner';
+import type { PerfectSixHolder, PotentialPotLeaders } from './potBanner';
 
 /** Round lifecycle for the thin header status strip. */
 export type RoundPhase = 'picking' | 'live' | 'finished';
@@ -36,6 +36,12 @@ export type RoundStatus = {
   } | null;
   /** Everyone currently on a perfect slate (drives the pot banner). */
   perfectSix?: PerfectSixHolder[];
+  /**
+   * Current non-perfect leaders (0 < score < slateSize).
+   * Perfect banner takes precedence when both are present.
+   * Only meaningful in live/finished (correct counts), not picking.
+   */
+  potentialPot?: PotentialPotLeaders | null;
 };
 
 /** SS-8 placeholder until round/selection APIs are wired. */

@@ -20,7 +20,11 @@ import {
 } from '@/api/superiorsix';
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
-import type { PerfectSixHolder } from '@/components/shell/potBanner';
+import {
+  potentialLeadersFromScores,
+  type PerfectSixHolder,
+  type PotentialPotLeaders,
+} from '@/components/shell/potBanner';
 import {
   buildPlayerRoundStatus,
   resolvePlayerRoundPhase,
@@ -169,18 +173,40 @@ function displayNameFromLiveScore(row: {
   return 'Player';
 }
 
+function scoredFromBoard(
+  board: LiveScoresBoard,
+  viewerAuthId: string | null | undefined,
+) {
+  return board.scores.map((row) => ({
+    displayName: displayNameFromLiveScore(row),
+    isViewer: viewerAuthId != null && row.auth_id === viewerAuthId,
+    correct: row.score,
+  }));
+}
+
 function perfectSixFromBoard(
   board: LiveScoresBoard,
   viewerAuthId: string | null | undefined,
   slateSize: number,
 ): PerfectSixHolder[] {
   const need = slateSize > 0 ? slateSize : 6;
-  return board.scores
-    .filter((row) => row.score >= need)
+  return scoredFromBoard(board, viewerAuthId)
+    .filter((row) => row.correct >= need)
     .map((row) => ({
-      displayName: displayNameFromLiveScore(row),
-      isViewer: viewerAuthId != null && row.auth_id === viewerAuthId,
+      displayName: row.displayName,
+      isViewer: row.isViewer,
     }));
+}
+
+function potentialPotFromBoard(
+  board: LiveScoresBoard,
+  viewerAuthId: string | null | undefined,
+  slateSize: number,
+): PotentialPotLeaders | null {
+  return potentialLeadersFromScores(
+    scoredFromBoard(board, viewerAuthId),
+    slateSize,
+  );
 }
 
 /**
@@ -216,6 +242,9 @@ export function MatchPlayerWidget() {
   const [nextKickoff, setNextKickoff] = useState<string | null>(null);
   const [viewerCorrect, setViewerCorrect] = useState<number | null>(null);
   const [perfectSix, setPerfectSix] = useState<PerfectSixHolder[]>([]);
+  const [potentialPot, setPotentialPot] = useState<PotentialPotLeaders | null>(
+    null,
+  );
 
   const canPredict = isAuthenticated && hasRole('player');
 
@@ -289,6 +318,8 @@ export function MatchPlayerWidget() {
         selectedCount: pickedCount,
         correctCount: viewerCorrect ?? 0,
         perfectSix,
+        potentialPot:
+          phase === 'picking' || perfectSix.length > 0 ? null : potentialPot,
         // Banner pips = selected slate matches (always), not prediction gate.
         slateDifficulty,
       }),
@@ -303,6 +334,7 @@ export function MatchPlayerWidget() {
     slateSize,
     slateDifficulty,
     perfectSix,
+    potentialPot,
     setPlayerPickingStatus,
   ]);
 
@@ -315,7 +347,13 @@ export function MatchPlayerWidget() {
       // (matches.length in deps was recreating loadCatalog → full-page reload).
       const boardSlateSize =
         board.matches.length > 0 ? board.matches.length : board.match_count;
-      setPerfectSix(perfectSixFromBoard(board, authId, boardSlateSize));
+      const nextPerfect = perfectSixFromBoard(board, authId, boardSlateSize);
+      setPerfectSix(nextPerfect);
+      setPotentialPot(
+        nextPerfect.length > 0
+          ? null
+          : potentialPotFromBoard(board, authId, boardSlateSize),
+      );
       if (authId) {
         const mine = board.scores.find((row) => row.auth_id === authId);
         setViewerCorrect(mine != null ? mine.score : null);

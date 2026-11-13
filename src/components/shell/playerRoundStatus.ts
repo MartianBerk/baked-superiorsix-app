@@ -1,6 +1,6 @@
 import type { MatchDifficulty, PredictionChoice } from '@/api/superiorsix';
 
-import type { PerfectSixHolder } from './potBanner';
+import type { PerfectSixHolder, PotentialPotLeaders } from './potBanner';
 import type { RoundPhase, RoundStatus } from './roundStatus';
 
 /** Count non-null predictions (header numerator while picking). */
@@ -42,6 +42,11 @@ export function buildPlayerRoundStatus(opts: {
   correctCount: number;
   perfectSix?: PerfectSixHolder[];
   /**
+   * Non-perfect leaders for the potential pot banner.
+   * Ignored while picking (correct counts are not the strip numerator yet).
+   */
+  potentialPot?: PotentialPotLeaders | null;
+  /**
    * Header difficulty pips. Pass explicitly (including `null` to hide).
    * Omit so callers that lack difficulty data can leave the previous value.
    */
@@ -65,6 +70,8 @@ export function buildPlayerRoundStatus(opts: {
       slateSize,
       selectedCount: Math.max(0, opts.selectedCount),
       perfectSix,
+      // Potential is correct-count based — never while still picking.
+      potentialPot: null,
       ...withDifficulty,
     };
   }
@@ -74,6 +81,7 @@ export function buildPlayerRoundStatus(opts: {
     slateSize,
     correctCount: Math.max(0, opts.correctCount),
     perfectSix,
+    potentialPot: opts.potentialPot ?? null,
     ...withDifficulty,
   };
 }
