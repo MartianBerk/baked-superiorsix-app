@@ -17,7 +17,6 @@ import {
   isNoRoundInProgressError,
   listAdminSubrounds,
   listLeagues,
-  listMatches,
   deleteSubround,
   openSubround,
   runAdminAutopick,
@@ -32,19 +31,20 @@ import { LoginForm } from '@/features/auth/LoginForm';
 import { isPostponedStatus } from '@/features/scores/liveScoreDisplay';
 import { colors } from '@/theme';
 
+import { loadAdminMatchesForScrubber } from './adminMatchLoad';
 import { DateScrubber } from './DateScrubber';
 import { SCRUBBER_ROW_TAIL_GAP } from './scrubberChrome';
 import { useFixturesTabMode } from './FixturesTabModeContext';
 import { KickoffGroup } from './KickoffGroup';
 import {
-  adminScrubberRange,
+  pickInitialAdminDay,
   toLegacyDateParam,
   utcDayKey,
 } from './formatMatchDate';
 import { aggregateSelectionDifficulty } from './matchDifficulty';
 import {
   addToLowestSlot,
-  distinctDayKeys,
+  adminScrubberDayKeys,
   dropFromSlots,
   emptySlots,
   groupMatchesByKickoff,
@@ -231,8 +231,8 @@ export function MatchAdminWidget() {
     return map;
   }, [leagues]);
 
-  /** Only days that have fixtures — empty calendar days stay hidden. */
-  const dates = useMemo(() => distinctDayKeys(matches), [matches]);
+  /** Only days that have fixtures — empty calendar days stay hidden; forward-cap applied on load. */
+  const dates = useMemo(() => adminScrubberDayKeys(matches), [matches]);
   const byId = useMemo(() => matchById(matches), [matches]);
 
   const displayMatches = useMemo(() => {
@@ -342,27 +342,29 @@ export function MatchAdminWidget() {
         if (mode === 'refresh') {
           await refreshGameMeta({ preserveChrome: true });
         }
-        const range = adminScrubberRange();
+        const loadNow = new Date();
         // Fixtures are round-agnostic. Parent Round is manual — do not call
         // listsubrounds until a round exists (avoids BE Round auto-create).
         const [nextLeagues, nextMatches, currentRound] = await Promise.all([
           listLeagues(token),
-          listMatches(token, range),
+          loadAdminMatchesForScrubber(token, loadNow),
           getCurrentRound(token),
         ]);
 
         setLeagues(nextLeagues);
         setMatches(nextMatches);
 
-        const dayKeys = distinctDayKeys(nextMatches);
+        const dayKeys = adminScrubberDayKeys(nextMatches);
         setSelectedDate((prev) =>
-          prev && dayKeys.includes(prev) ? prev : (dayKeys[0] ?? null),
+          prev && dayKeys.includes(prev)
+            ? prev
+            : pickInitialAdminDay(dayKeys, loadNow),
         );
         setExpanded((prev) => {
           if (Object.keys(prev).length > 0) {
             return prev;
           }
-          const firstDay = dayKeys[0];
+          const firstDay = pickInitialAdminDay(dayKeys, loadNow);
           const firstGroups = firstDay
             ? groupMatchesByKickoff(
                 nextMatches,

@@ -25,6 +25,11 @@ export function distinctDayKeys(matches: AdminMatch[]): string[] {
   return [...keys].sort();
 }
 
+/** Fixture days for the admin date scrubber (excludes empty calendar days). */
+export function adminScrubberDayKeys(matches: AdminMatch[]): string[] {
+  return distinctDayKeys(matches);
+}
+
 export function groupMatchesByKickoff(
   matches: AdminMatch[],
   dayKey: string,

@@ -58,22 +58,105 @@ export function toLegacyDateParam(dayKey: string): string {
   return `${d}-${m}-${y}`;
 }
 
+/** Max inclusive UTC day key admin may scrub / load ahead of today (today+N). */
+export const ADMIN_MATCH_FORWARD_CAP_DAYS = 7;
+
+/** `/admin/listmatches` max inclusive calendar span per request (BE). */
+export const ADMIN_MATCH_LIST_MAX_SPAN_DAYS = 7;
+
+/** Shift a UTC day key by `offsetDays` (negative allowed). */
+export function addUtcDayKey(dayKey: string, offsetDays: number): string {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  return utcDayKey(new Date(Date.UTC(y, m - 1, d + offsetDays, 12)));
+}
+
+/** Latest UTC day key for admin scrubber options (today + {@link ADMIN_MATCH_FORWARD_CAP_DAYS}). */
+export function adminForwardCapDayKey(now: Date = new Date()): string {
+  return addUtcDayKey(utcDayKey(now), ADMIN_MATCH_FORWARD_CAP_DAYS);
+}
+
+function compareDayKeys(a: string, b: string): number {
+  if (a === b) {
+    return 0;
+  }
+  return a < b ? -1 : 1;
+}
+
 /**
- * Admin listmatches scrubber window: UTC today … today+6 (7 calendar days).
- * Single fetch — DateScrubber options are the fixture days inside this
- * payload (empty calendar days stay hidden). API caps at 7d.
+ * Split an inclusive UTC day-key span into legacy `listmatches` windows
+ * (each at most {@link ADMIN_MATCH_LIST_MAX_SPAN_DAYS} days).
+ */
+export function adminMatchLoadRanges(now: Date = new Date()): {
+  fromDate: string;
+  toDate: string;
+}[] {
+  const today = utcDayKey(now);
+  const monday = utcMondayKey(now);
+  const through = adminForwardCapDayKey(now);
+  if (compareDayKeys(monday, through) > 0) {
+    return [
+      {
+        fromDate: toLegacyDateParam(today),
+        toDate: toLegacyDateParam(
+          addUtcDayKey(today, ADMIN_MATCH_LIST_MAX_SPAN_DAYS - 1),
+        ),
+      },
+    ];
+  }
+
+  const ranges: { fromDate: string; toDate: string }[] = [];
+  let cursor = monday;
+  while (compareDayKeys(cursor, through) <= 0) {
+    const maxEnd = addUtcDayKey(cursor, ADMIN_MATCH_LIST_MAX_SPAN_DAYS - 1);
+    const end = compareDayKeys(maxEnd, through) <= 0 ? maxEnd : through;
+    ranges.push({
+      fromDate: toLegacyDateParam(cursor),
+      toDate: toLegacyDateParam(end),
+    });
+    cursor = addUtcDayKey(end, 1);
+  }
+  return ranges;
+}
+
+/**
+ * @deprecated Use {@link adminMatchLoadRanges} — retained for single-window callers.
+ * UTC today … today+6 (legacy 7-day forward-only window).
  */
 export function adminScrubberRange(now: Date = new Date()): {
   fromDate: string;
   toDate: string;
 } {
   const fromKey = utcDayKey(now);
-  const [y, m, d] = fromKey.split('-').map(Number);
-  const end = new Date(Date.UTC(y, m - 1, d + 6, 12));
+  const end = addUtcDayKey(fromKey, ADMIN_MATCH_LIST_MAX_SPAN_DAYS - 1);
   return {
     fromDate: toLegacyDateParam(fromKey),
-    toDate: toLegacyDateParam(utcDayKey(end)),
+    toDate: toLegacyDateParam(end),
   };
+}
+
+/** Drop fixtures whose kickoff is past the admin forward day cap. */
+export function filterMatchesWithinAdminForwardCap<T extends { match_date: string }>(
+  matches: T[],
+  now: Date = new Date(),
+): T[] {
+  const cap = adminForwardCapDayKey(now);
+  return matches.filter((match) => compareDayKeys(utcDayKey(match.match_date), cap) <= 0);
+}
+
+/** Prefer today, else earliest future fixture day, else last loaded day. */
+export function pickInitialAdminDay(
+  dayKeys: string[],
+  now: Date = new Date(),
+): string | null {
+  if (dayKeys.length === 0) {
+    return null;
+  }
+  const today = utcDayKey(now);
+  if (dayKeys.includes(today)) {
+    return today;
+  }
+  const future = dayKeys.find((day) => compareDayKeys(day, today) >= 0);
+  return future ?? dayKeys[dayKeys.length - 1];
 }
 
 /** Monday (UTC) of the week containing `dayKey` / `now`. */
