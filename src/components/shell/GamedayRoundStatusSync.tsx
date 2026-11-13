@@ -2,11 +2,11 @@ import { usePathname } from 'expo-router';
 import { useEffect } from 'react';
 
 import {
-  getLiveScores,
   type LiveScoreFixture,
   type LiveScorePlayer,
   type LiveScoresBoard,
   type PredictionChoice,
+  type Subround,
 } from '@/api/superiorsix';
 import { useAuth } from '@/auth';
 import {
@@ -17,6 +17,7 @@ import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
 import { isPickCurrentlyCorrect } from '@/features/scores/pickOutcome';
 import { LOCK_BEFORE_KICKOFF_MS } from '@/features/scores/liveScoreDisplay';
 
+import { useLiveScores } from './LiveScoresContext';
 import {
   buildPlayerRoundStatus,
   countSelectedPredictions,
@@ -158,9 +159,9 @@ function isSideGamePath(pathname: string): boolean {
 
 /**
  * Single publisher for the shell n/X strip on Super Six player tabs.
- * Derives picking vs live/finished + counts from cached `/game/meta` + `/game/livescores`.
+ * Derives picking vs live/finished + counts from cached `/game/meta` + shared
+ * `/game/livescores` (same cache as Matches / Scores).
  * Meta is fetched only by `refreshGameMeta` (initial load, auth change, pull-to-refresh).
- * This effect refreshes livescores when meta or strip ownership changes — no `getGameMeta` here.
  * Matches may still push optimistic picking counts while the draft is open.
  * Skips fixtures admin on the fixtures tab, and Euros / World Cup tabs
  * (those publish tournament n / total from SideGamePlayerWidget).
@@ -170,10 +171,30 @@ export function GamedayRoundStatusSync() {
   const { mode: fixturesMode } = useFixturesTabMode();
   const pathname = usePathname();
   const { setPlayerPickingStatus, gameMeta, gamedayHeader } = useRoundStatus();
+  const { boards, fetchLiveScores, watchSubround } = useLiveScores();
   const viewerAuthId = session?.userId ?? null;
   const fixturesAdminOwnsStrip =
     fixturesMode === 'admin' && isFixturesPath(pathname);
   const sideGameOwnsStrip = isSideGamePath(pathname);
+  const subroundId = gameMeta?.subround?.id ?? null;
+
+  useEffect(() => {
+    if (
+      !isAuthenticated ||
+      fixturesAdminOwnsStrip ||
+      sideGameOwnsStrip ||
+      subroundId == null
+    ) {
+      return;
+    }
+    return watchSubround(subroundId);
+  }, [
+    isAuthenticated,
+    fixturesAdminOwnsStrip,
+    sideGameOwnsStrip,
+    subroundId,
+    watchSubround,
+  ]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -189,90 +210,44 @@ export function GamedayRoundStatusSync() {
       return;
     }
 
-    let cancelled = false;
+    if (!gamedayHeader.metaLoaded) {
+      return;
+    }
 
-    async function refresh() {
-      if (!gamedayHeader.metaLoaded) {
-        return;
-      }
+    const subround = gameMeta?.subround;
+    if (!subround) {
+      setPlayerPickingStatus(
+        buildPlayerRoundStatus({
+          phase: 'picking',
+          slateSize: 0,
+          selectedCount: 0,
+          correctCount: 0,
+        }),
+      );
+      return;
+    }
+
+    const cached = boards[subround.id];
+    if (cached) {
+      publishFromBoard(cached, subround, viewerAuthId, setPlayerPickingStatus);
+      return;
+    }
+
+    const ac = new AbortController();
+    void (async () => {
       try {
-        const subround = gameMeta?.subround;
-        if (!subround) {
-          if (!cancelled) {
-            setPlayerPickingStatus(
-              buildPlayerRoundStatus({
-                phase: 'picking',
-                slateSize: 0,
-                selectedCount: 0,
-                correctCount: 0,
-              }),
-            );
-          }
+        const board = await fetchLiveScores(subround.id, { signal: ac.signal });
+        if (ac.signal.aborted) {
           return;
         }
-
-        const board = await getLiveScores({ subroundId: subround.id });
-        if (cancelled) {
-          return;
-        }
-
-        const now = new Date();
-        const slateSize =
-          board.matches.length > 0
-            ? board.matches.length
-            : board.match_count > 0
-              ? board.match_count
-              : (subround.match_count ?? 0);
-        const viewer = board.scores.find(
-          (row) => row.auth_id === viewerAuthId,
-        );
-        const kickoffLocked = isKickoffLocked(
-          board.min_kickoff ?? subround.min_kickoff,
-          now,
-        );
-        const phase = resolvePlayerRoundPhase({
-          boardLive: board.live,
-          subroundOver: subround.is_over,
-          kickoffLocked,
-        });
-        const selectedCount = selectedCountForViewer(viewer);
-        const scored = scoredBoardRows(board, viewerAuthId, now);
-        const correctCount =
-          scored.find((row) => row.isViewer)?.correct ??
-          countCorrectOnBoard(viewer, board.matches, now);
-        const perfectSix = perfectSixHolders(
-          board,
-          viewerAuthId,
-          slateSize,
-          now,
-        );
-        // Split-pot only while picking (identical prediction maps). Live = perfect only.
-        const splitPot =
-          phase === 'picking' && perfectSix.length === 0
-            ? splitPotLeadersFromMatchingPredictions(
-                predictionBoardRows(board, viewerAuthId),
-                board.matches.map((m) => m.id),
-              )
-            : null;
-
-        setPlayerPickingStatus(
-          buildPlayerRoundStatus({
-            phase,
-            slateSize,
-            selectedCount,
-            correctCount,
-            perfectSix,
-            splitPot,
-          }),
-        );
+        publishFromBoard(board, subround, viewerAuthId, setPlayerPickingStatus);
       } catch {
         // Leave prior strip; next mount / ownership change retries.
       }
-    }
+    })();
 
-    void refresh();
     return () => {
-      cancelled = true;
+      ac.abort();
     };
   }, [
     isAuthenticated,
@@ -282,7 +257,61 @@ export function GamedayRoundStatusSync() {
     setPlayerPickingStatus,
     gameMeta,
     gamedayHeader.metaLoaded,
+    boards,
+    fetchLiveScores,
   ]);
 
   return null;
+}
+
+function publishFromBoard(
+  board: LiveScoresBoard,
+  subround: Subround,
+  viewerAuthId: string | null,
+  setPlayerPickingStatus: (status: ReturnType<
+    typeof buildPlayerRoundStatus
+  > | null) => void,
+) {
+  const now = new Date();
+  const slateSize =
+    board.matches.length > 0
+      ? board.matches.length
+      : board.match_count > 0
+        ? board.match_count
+        : (subround.match_count ?? 0);
+  const viewer = board.scores.find((row) => row.auth_id === viewerAuthId);
+  const kickoffLocked = isKickoffLocked(
+    board.min_kickoff ?? subround.min_kickoff,
+    now,
+  );
+  const phase = resolvePlayerRoundPhase({
+    boardLive: board.live,
+    subroundOver: subround.is_over,
+    kickoffLocked,
+  });
+  const selectedCount = selectedCountForViewer(viewer);
+  const scored = scoredBoardRows(board, viewerAuthId, now);
+  const correctCount =
+    scored.find((row) => row.isViewer)?.correct ??
+    countCorrectOnBoard(viewer, board.matches, now);
+  const perfectSix = perfectSixHolders(board, viewerAuthId, slateSize, now);
+  // Split-pot only while picking (identical prediction maps). Live = perfect only.
+  const splitPot =
+    phase === 'picking' && perfectSix.length === 0
+      ? splitPotLeadersFromMatchingPredictions(
+          predictionBoardRows(board, viewerAuthId),
+          board.matches.map((m) => m.id),
+        )
+      : null;
+
+  setPlayerPickingStatus(
+    buildPlayerRoundStatus({
+      phase,
+      slateSize,
+      selectedCount,
+      correctCount,
+      perfectSix,
+      splitPot,
+    }),
+  );
 }

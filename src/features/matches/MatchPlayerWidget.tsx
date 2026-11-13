@@ -10,7 +10,6 @@ import {
 
 import {
   addPrediction,
-  getLiveScores,
   isNoRoundInProgressError,
   listGameSubrounds,
   type LiveScoreFixture,
@@ -20,6 +19,7 @@ import {
 } from '@/api/superiorsix';
 import { ApiError } from '@/api/errors';
 import { useAuth } from '@/auth';
+import { useLiveScoresBoard } from '@/components/shell/LiveScoresContext';
 import {
   splitPotLeadersFromMatchingPredictions,
   type PerfectSixHolder,
@@ -31,10 +31,7 @@ import {
 } from '@/components/shell/playerRoundStatus';
 import { useRoundStatus } from '@/components/shell/RoundStatusContext';
 import { KickoffDateDisplay } from '@/features/scores/KickoffDateDisplay';
-import {
-  isPostponedStatus,
-  LIVE_POLL_MS,
-} from '@/features/scores/liveScoreDisplay';
+import { isPostponedStatus } from '@/features/scores/liveScoreDisplay';
 import { colors } from '@/theme';
 
 import { scoreListChrome } from '@/features/scores/scoreListChrome';
@@ -223,8 +220,8 @@ function perfectSixFromBoard(
 
 /**
  * Player fixtures: Super Six slate with Home/Draw/Away, plus gameday live
- * behaviour (10m lock, collapse expands, score lines, 2m livescores poll,
- * red date flash while in-play).
+ * behaviour (10m lock, collapse expands, score lines, shared livescores
+ * poll via LiveScoresProvider, red date flash while in-play).
  */
 export function MatchPlayerWidget() {
   const { status, isAuthenticated, token, hasRole, session } = useAuth();
@@ -251,11 +248,15 @@ export function MatchPlayerWidget() {
   /** Wall clock for lock / score-line / badge timing. */
   const [now, setNow] = useState(() => new Date());
   const [boardLive, setBoardLive] = useState(false);
-  const [nextKickoff, setNextKickoff] = useState<string | null>(null);
   const [viewerCorrect, setViewerCorrect] = useState<number | null>(null);
   const [perfectSix, setPerfectSix] = useState<PerfectSixHolder[]>([]);
   /** Other players’ prediction maps from livescores; viewer overlaid from draft. */
   const [predictionRows, setPredictionRows] = useState<PredictionRow[]>([]);
+
+  const { board: sharedBoard, fetchLiveScores } = useLiveScoresBoard(
+    selectedSubroundId,
+    { wakeOnNextKickoff: true },
+  );
 
   const canPredict = isAuthenticated && hasRole('player');
 
@@ -363,7 +364,6 @@ export function MatchPlayerWidget() {
   const applyLiveBoard = useCallback(
     (board: LiveScoresBoard) => {
       setBoardLive(board.live);
-      setNextKickoff(board.next_kickoff);
       const authId = session?.userId;
       // Prefer the board payload so this callback stays stable across scrub
       // (matches.length in deps was recreating loadCatalog → full-page reload).
@@ -395,12 +395,21 @@ export function MatchPlayerWidget() {
     [session?.userId, canPredict],
   );
 
-  /** One `livescores?subroundId=` call — slate, difficulty, live chrome, picks. */
+  // Provider live poll / kickoff wake updates shared board — mirror into widget.
+  useEffect(() => {
+    if (sharedBoard) {
+      applyLiveBoard(sharedBoard);
+    }
+  }, [sharedBoard, applyLiveBoard]);
+
+  /** Shared `livescores?subroundId=` — joins strip / Scores in-flight cache. */
   const loadSlate = useCallback(
-    async (subroundId: number | null, opts?: { quiet?: boolean }) => {
+    async (
+      subroundId: number | null,
+      opts?: { quiet?: boolean; force?: boolean; signal?: AbortSignal },
+    ) => {
       if (subroundId == null) {
         setBoardLive(false);
-        setNextKickoff(null);
         setViewerCorrect(null);
         setPerfectSix([]);
         setDraft({});
@@ -410,9 +419,18 @@ export function MatchPlayerWidget() {
         setPredictionsLoading(true);
       }
       try {
-        const board = await getLiveScores({ subroundId });
+        const board = await fetchLiveScores(subroundId, {
+          force: Boolean(opts?.quiet) || Boolean(opts?.force),
+          signal: opts?.signal,
+        });
         applyLiveBoard(board);
       } catch (err) {
+        if (
+          (err instanceof DOMException && err.name === 'AbortError') ||
+          (err instanceof Error && err.name === 'AbortError')
+        ) {
+          return;
+        }
         if (!opts?.quiet) {
           setError(
             err instanceof ApiError
@@ -426,7 +444,7 @@ export function MatchPlayerWidget() {
         }
       }
     },
-    [applyLiveBoard],
+    [applyLiveBoard, fetchLiveScores],
   );
 
   const loadCatalog = useCallback(
@@ -465,7 +483,6 @@ export function MatchPlayerWidget() {
           setSelectedSubroundId(null);
           setDraft({});
           setBoardLive(false);
-          setNextKickoff(null);
           setError(null);
           return;
         }
@@ -475,7 +492,9 @@ export function MatchPlayerWidget() {
           selectedSubroundIdRef.current,
         );
         setSelectedSubroundId(next?.id ?? null);
-        await loadSlate(next?.id ?? null);
+        await loadSlate(next?.id ?? null, {
+          force: mode === 'refresh',
+        });
       } catch (err) {
         const message =
           err instanceof ApiError
@@ -502,14 +521,14 @@ export function MatchPlayerWidget() {
     if (status === 'loading') {
       return;
     }
-    let cancelled = false;
+    const ac = new AbortController();
     queueMicrotask(() => {
-      if (!cancelled) {
+      if (!ac.signal.aborted) {
         void loadCatalog('initial');
       }
     });
     return () => {
-      cancelled = true;
+      ac.abort();
     };
   }, [status, loadCatalog]);
 
@@ -521,46 +540,7 @@ export function MatchPlayerWidget() {
     return () => clearInterval(id);
   }, [subroundLocked]);
 
-  // Live poll: every 2 min while board.live; else wake at next_kickoff.
-  useEffect(() => {
-    let pollTimer: ReturnType<typeof setInterval> | null = null;
-    let wakeTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const clearAll = () => {
-      if (pollTimer) {
-        clearInterval(pollTimer);
-        pollTimer = null;
-      }
-      if (wakeTimer) {
-        clearTimeout(wakeTimer);
-        wakeTimer = null;
-      }
-    };
-
-    const subroundId = selectedSubroundId;
-    if (subroundId == null) {
-      clearAll();
-      return;
-    }
-
-    if (boardLive) {
-      pollTimer = setInterval(() => {
-        void loadSlate(subroundId, { quiet: true });
-      }, LIVE_POLL_MS);
-      return () => clearAll();
-    }
-
-    if (nextKickoff) {
-      const wait = new Date(nextKickoff).getTime() - Date.now();
-      if (Number.isFinite(wait) && wait > 0 && wait < 24 * 60 * 60 * 1000) {
-        wakeTimer = setTimeout(() => {
-          void loadSlate(subroundId, { quiet: true });
-        }, wait + 250);
-      }
-    }
-
-    return () => clearAll();
-  }, [selectedSubroundId, boardLive, nextKickoff, loadSlate]);
+  // Live poll + next-kickoff wake live in LiveScoresProvider.
 
   const onSelectSubround = useCallback(
     (next: Subround) => {

@@ -29,11 +29,10 @@ const SideGamesOpenContext = createContext<SideGamesOpenContextValue | null>(
   null,
 );
 
-const POLL_MS = 60_000;
-
 /**
- * Polls public euros / worldcup meta so the bottom nav can show at most one
- * trophy tab (open Euros hides World Cup and vice versa).
+ * Fetches public euros / worldcup meta once on mount so the bottom nav can
+ * show at most one trophy tab (`open` from meta). No interval — admin open /
+ * close and side-game widgets call `refresh` after state changes.
  */
 export function SideGamesOpenProvider({ children }: { children: ReactNode }) {
   const [eurosMeta, setEurosMeta] = useState<EurosMeta | null>(null);
@@ -63,12 +62,8 @@ export function SideGamesOpenProvider({ children }: { children: ReactNode }) {
         void refresh();
       }
     });
-    const id = setInterval(() => {
-      void refresh();
-    }, POLL_MS);
     return () => {
       cancelled = true;
-      clearInterval(id);
     };
   }, [refresh]);
 
