@@ -34,10 +34,10 @@ type Point = { x: number; y: number; score: number; slate: number };
 const LAST_ROUND_GREEN = '#6ECF82';
 
 const GRAPH_HEIGHT = 228;
-const PAD_LEFT = 40;
+const PAD_LEFT = 28;
 const PAD_RIGHT = 16;
 const PAD_TOP = 18;
-const PAD_BOTTOM = 44;
+const PAD_BOTTOM = 28;
 
 /** Full Super Six pick range — never rescale to the player's local max. */
 const Y_MAX = 6;
@@ -123,8 +123,8 @@ function resolveSlotCount(currentLen: number, previousLen: number): number {
 
 /**
  * Current-round correct-picks chart with a lighter-green dotted last-round overlay.
- * X-axis is slate/subround number (`#1`…). Straight segments; long series are
- * centered-average smoothed so spikes read softer.
+ * X-axis is slate/subround number (`#1`…); only first/last of each drawn series
+ * are labeled. Straight segments; long series are centered-average smoothed.
  */
 export function SuccessRateGraph({
   scores,
@@ -197,7 +197,19 @@ export function SuccessRateGraph({
       slate: index + 1,
     }));
 
-    const xLabels = Array.from({ length: slotCount }, (_, i) => `#${i + 1}`);
+    /** Slate indices (0-based) to label: first + last of each drawn series. */
+    const xLabelIndices = new Set<number>();
+    if (currentCoords.length > 0) {
+      xLabelIndices.add(0);
+      xLabelIndices.add(currentCoords.length - 1);
+    }
+    if (previousCoords.length > 0) {
+      xLabelIndices.add(0);
+      xLabelIndices.add(previousCoords.length - 1);
+    }
+    const xLabels = [...xLabelIndices]
+      .sort((a, b) => a - b)
+      .map((index) => ({ index, label: `#${index + 1}` }));
 
     const currentLine = straightLinePath(currentCoords);
     const areaPath = areaUnderPath(currentLine, currentCoords, baselineY);
@@ -229,7 +241,6 @@ export function SuccessRateGraph({
   }
 
   const rateLabel = `${Math.round(successRate)}%`;
-  const showAllXLabels = chart.slotCount <= 8;
   const showDelta = rateDelta != null && Number.isFinite(rateDelta);
 
   return (
@@ -344,19 +355,6 @@ export function SuccessRateGraph({
             );
           })}
 
-          {/* Y-axis title */}
-          <SvgText
-            x={11}
-            y={PAD_TOP + chart.plotH / 2}
-            fill={colors.textMuted}
-            fontSize="10"
-            fontWeight="700"
-            textAnchor="middle"
-            transform={`rotate(-90, 11, ${PAD_TOP + chart.plotH / 2})`}
-          >
-            Picks
-          </SvgText>
-
           {chart.areaPath ? (
             <Path d={chart.areaPath} fill="url(#statsAreaFill)" />
           ) : null}
@@ -422,41 +420,19 @@ export function SuccessRateGraph({
             </>
           ) : null}
 
-          {chart.xLabels.map((label, index) => {
-            const show =
-              showAllXLabels ||
-              index === 0 ||
-              index === chart.xLabels.length - 1 ||
-              index % 2 === 0;
-            if (!show) {
-              return null;
-            }
-            return (
-              <SvgText
-                key={`xl-${label}`}
-                x={chart.xAt(index)}
-                y={GRAPH_HEIGHT - 18}
-                fill={colors.textMuted}
-                fontSize="11"
-                fontWeight="700"
-                textAnchor="middle"
-              >
-                {label}
-              </SvgText>
-            );
-          })}
-
-          {/* X-axis title */}
-          <SvgText
-            x={(PAD_LEFT + plotWidth - PAD_RIGHT) / 2}
-            y={GRAPH_HEIGHT - 4}
-            fill={colors.textMuted}
-            fontSize="10"
-            fontWeight="700"
-            textAnchor="middle"
-          >
-            Round
-          </SvgText>
+          {chart.xLabels.map(({ index, label }) => (
+            <SvgText
+              key={`xl-${label}`}
+              x={chart.xAt(index)}
+              y={GRAPH_HEIGHT - 8}
+              fill={colors.textMuted}
+              fontSize="11"
+              fontWeight="700"
+              textAnchor="middle"
+            >
+              {label}
+            </SvgText>
+          ))}
         </Svg>
       </View>
     </View>
