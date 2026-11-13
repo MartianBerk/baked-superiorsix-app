@@ -723,11 +723,14 @@ export function MatchAdminWidget() {
     applySubroundSelection,
   ]);
 
+  // Align with admin: once any match is on the slate, Autopick is off —
+  // do not offer a full-slate replace after manual selection has started.
   const canAutopick =
     Boolean(token) &&
     Boolean(selectedDate) &&
     canEdit &&
     !needsRound &&
+    selectedCount === 0 &&
     !submitting &&
     !autopicking &&
     !openingSubround &&
