@@ -22,6 +22,11 @@ type Props = {
   /** `${home} vs ${away}` for richer accessibility labels. */
   fixtureLabel?: string;
   postponed?: boolean;
+  /**
+   * When true, the active choice uses correct-green badge chrome
+   * (Scores admin chosen pick). Default keeps lighter grey selection.
+   */
+  selectedGreen?: boolean;
 };
 
 /**
@@ -36,6 +41,7 @@ export function PredictionPicker({
   embedded = false,
   fixtureLabel,
   postponed = false,
+  selectedGreen = false,
 }: Props) {
   const locked = disabled || busy;
 
@@ -53,6 +59,7 @@ export function PredictionPicker({
     <View style={[styles.row, embedded && styles.rowEmbedded]}>
       {CHOICES.map(({ value, label }) => {
         const active = selection === value;
+        const activeGreen = active && selectedGreen;
         return (
           <Pressable
             key={value}
@@ -60,29 +67,30 @@ export function PredictionPicker({
             accessibilityState={{ selected: active, disabled: locked }}
             accessibilityLabel={choiceA11y(label)}
             disabled={locked}
-              onPress={() => onSelect(value)}
-              style={({ pressed }) => [
-                active
-                  ? pickBadgeChrome.badgeSelection
-                  : pickBadgeChrome.badgeSelectionIdle,
-                pressed && !locked && styles.buttonPressed,
-                locked && styles.buttonDisabled,
-              ]}
-            >
-              {busy && active ? (
-                <ActivityIndicator size="small" color={colors.text} />
-              ) : (
-                <Text
-                  style={
-                    active
-                      ? pickBadgeChrome.badgeSelectionLabel
-                      : pickBadgeChrome.badgeSelectionLabelIdle
-                  }
-                >
-                  {label}
-                </Text>
-              )}
-            </Pressable>
+            onPress={() => onSelect(value)}
+            style={({ pressed }) => [
+              active
+                ? pickBadgeChrome.badgeSelection
+                : pickBadgeChrome.badgeSelectionIdle,
+              activeGreen && pickBadgeChrome.badgeCorrect,
+              pressed && !locked && styles.buttonPressed,
+              locked && styles.buttonDisabled,
+            ]}
+          >
+            {busy && active ? (
+              <ActivityIndicator size="small" color={colors.text} />
+            ) : (
+              <Text
+                style={
+                  active
+                    ? pickBadgeChrome.badgeSelectionLabel
+                    : pickBadgeChrome.badgeSelectionLabelIdle
+                }
+              >
+                {label}
+              </Text>
+            )}
+          </Pressable>
         );
       })}
     </View>
