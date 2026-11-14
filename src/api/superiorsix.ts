@@ -1249,6 +1249,51 @@ export async function dropMatch(
   return readApiJson<AdminMatch>(response);
 }
 
+/**
+ * `POST /admin/matches/{id}/result` (SS-254). Admin score override → FINISHED.
+ * Single place to retarget if the BFF path moves — Matches admin override only
+ * calls `overrideMatchResult`.
+ */
+export const ADMIN_MATCH_RESULT_PATH = (matchId: number) =>
+  `/admin/matches/${matchId}/result`;
+
+/** Request body for `POST /admin/matches/{id}/result`. */
+export type OverrideMatchResultRequest = {
+  home_score: number;
+  away_score: number;
+};
+
+/**
+ * `POST /admin/matches/{id}/result` — set home/away scores and force FINISHED
+ * (SS-254 / SS-255). Requires JWT `admin`. BE also gates eligibility.
+ */
+export async function overrideMatchResult(
+  token: string,
+  matchId: number,
+  scores: OverrideMatchResultRequest,
+): Promise<AdminMatch> {
+  let response: Response;
+  try {
+    response = await apiFetch('game', ADMIN_MATCH_RESULT_PATH(matchId), {
+      method: 'POST',
+      token,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        home_score: scores.home_score,
+        away_score: scores.away_score,
+      }),
+    });
+  } catch {
+    throw gameUnreachable();
+  }
+  const body = await readApiJson<unknown>(response);
+  const normalized = normalizeAutopickMatch(body);
+  if (!normalized) {
+    throw new ApiError(500, 'Unexpected match result override response.');
+  }
+  return normalized;
+}
+
 function asFiniteNumber(value: unknown): number | null {
   if (value == null || value === '') {
     return null;
