@@ -1,8 +1,9 @@
 /**
- * Keep the web address bar on a single pathless URL (`/` or `/super`) while
- * Expo Router continues to navigate in-app. Deep links are not required for
- * this product surface: any inbound path/search/hash is normalized before the
- * router reads the initial location, and push/replace calls never write paths.
+ * Keep the web address bar on a single pathless URL (`/` or a configured
+ * `experiments.baseUrl`) while Expo Router continues to navigate in-app. Deep
+ * links are not required for this product surface: any inbound path/search/hash
+ * is normalized before the router reads the initial location, and push/replace
+ * calls never write paths.
  */
 import Constants from 'expo-constants';
 
@@ -18,25 +19,13 @@ function getStaticPath(): string {
   return withSlash.replace(/\/$/, '') || '/';
 }
 
-function getStaticPathFromLocation(): string {
-  const configured = getStaticPath();
-  if (configured !== '/') {
-    return configured;
-  }
-  const { pathname } = window.location;
-  if (pathname === '/super' || pathname.startsWith('/super/')) {
-    return '/super';
-  }
-  return '/';
-}
-
 function isAlreadyStatic(staticPath: string): boolean {
   const { pathname, search, hash } = window.location;
   return pathname === staticPath && search === '' && hash === '';
 }
 
 function normalizeLocation(): void {
-  const staticPath = getStaticPathFromLocation();
+  const staticPath = getStaticPath();
   if (isAlreadyStatic(staticPath)) {
     return;
   }
@@ -65,7 +54,7 @@ export function installStaticAppUrl(): void {
   }
   installed = true;
 
-  const staticPath = getStaticPathFromLocation();
+  const staticPath = getStaticPath();
   normalizeLocation();
 
   window.history.pushState = patchHistoryWriter(
