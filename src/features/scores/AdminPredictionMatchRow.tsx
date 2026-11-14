@@ -16,7 +16,8 @@ type Props = {
 
 /**
  * Expanded admin prediction row: home | HOME/DRAW/AWAY picker | away.
- * Picker chrome matches player Matches `PredictionPicker`.
+ * Chosen pick: green badge only — same default row chrome as unselected
+ * (Matches selected cue via accent, no pick-only row wash).
  */
 export function AdminPredictionMatchRow({
   match,
@@ -30,7 +31,7 @@ export function AdminPredictionMatchRow({
   const fixtureLabel = `${match.home_team} vs ${match.away_team}`;
 
   return (
-    <View style={[styles.row, prediction != null && styles.rowPicked]}>
+    <View style={styles.row}>
       <Text style={[styles.team, styles.teamHome]} numberOfLines={2}>
         {match.home_team}
       </Text>
@@ -41,6 +42,7 @@ export function AdminPredictionMatchRow({
         disabled={locked}
         postponed={postponed}
         fixtureLabel={fixtureLabel}
+        selectedGreen
         onSelect={onSelect}
       />
       <Text style={[styles.team, styles.teamAway]} numberOfLines={2}>
@@ -62,9 +64,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
-  },
-  rowPicked: {
-    backgroundColor: colors.menuActive,
   },
   team: {
     flex: 1,
