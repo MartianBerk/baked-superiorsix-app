@@ -16,6 +16,11 @@ import { MatchSelectRow } from './MatchSelectRow';
 const CHEVRON_DOWN = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
 const CHEVRON_UP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>`;
 
+type ScoreOverrideHandlers = {
+  token: string;
+  onSuccess: (updated: AdminMatch) => void;
+};
+
 type Props = {
   group: KickoffGroupModel;
   expanded: boolean;
@@ -27,6 +32,8 @@ type Props = {
   /** league_id → catalog row (for per-match PL / ELC codes). */
   leaguesById: Record<number, LeagueInfo>;
   onToggleMatch: (match: AdminMatch) => void;
+  /** Admin score override (SS-255); row still gates on kickoff+2h. */
+  scoreOverride?: ScoreOverrideHandlers | null;
 };
 
 /** Kickoff-time group with league counts; tap header to expand/collapse. */
@@ -39,6 +46,7 @@ export function KickoffGroup({
   readOnly = false,
   leaguesById,
   onToggleMatch,
+  scoreOverride = null,
 }: Props) {
   const chevron = (expanded ? CHEVRON_UP : CHEVRON_DOWN).replaceAll(
     'CURRENT',
@@ -99,6 +107,7 @@ export function KickoffGroup({
                   busy={busyMatchId === match.id}
                   disabled={disabled}
                   onToggle={onToggleMatch}
+                  scoreOverride={scoreOverride}
                 />
               </View>
             );
