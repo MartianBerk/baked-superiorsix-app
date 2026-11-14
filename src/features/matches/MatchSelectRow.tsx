@@ -9,9 +9,16 @@ import { colors } from '@/theme';
 
 import { DifficultyPips } from './DifficultyPips';
 import { MatchDetailPanel } from './MatchDetailPanel';
+import { MatchScoreOverridePanel } from './MatchScoreOverridePanel';
+import { canOverrideMatchScore } from './matchScoreOverride';
 
 const CHEVRON_DOWN = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
 const CHEVRON_UP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="CURRENT" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>`;
+
+type ScoreOverrideHandlers = {
+  token: string;
+  onSuccess: (updated: AdminMatch) => void;
+};
 
 type Props = {
   match: AdminMatch;
@@ -20,6 +27,8 @@ type Props = {
   busy: boolean;
   disabled: boolean;
   onToggle: (match: AdminMatch) => void;
+  /** When set, expand may show score override (kickoff+2h gate). */
+  scoreOverride?: ScoreOverrideHandlers | null;
 };
 
 /**
@@ -34,10 +43,13 @@ export function MatchSelectRow({
   busy,
   disabled,
   onToggle,
+  scoreOverride = null,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const selected = match.use_match;
   const postponed = isPostponedStatus(match.status);
+  const showScoreOverride =
+    scoreOverride != null && canOverrideMatchScore(match.match_date);
   /** Cannot add postponed fixtures; drop remains available if already selected. */
   const selectionLocked = postponed && !selected;
   const toggleDisabled = busy || disabled || selectionLocked;
@@ -125,7 +137,17 @@ export function MatchSelectRow({
         </View>
       </View>
 
-      {expanded ? <MatchDetailPanel matchId={match.id} /> : null}
+      {expanded ? (
+        <MatchDetailPanel matchId={match.id}>
+          {showScoreOverride && scoreOverride ? (
+            <MatchScoreOverridePanel
+              match={match}
+              token={scoreOverride.token}
+              onSuccess={scoreOverride.onSuccess}
+            />
+          ) : null}
+        </MatchDetailPanel>
+      ) : null}
     </View>
   );
 }

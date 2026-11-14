@@ -556,6 +556,16 @@ export function MatchAdminWidget() {
     applySubroundSelection,
   ]);
 
+  const onScoreOverrideSuccess = useCallback((updated: AdminMatch) => {
+    setMatches((prev) =>
+      prev.map((row) => (row.id === updated.id ? { ...row, ...updated } : row)),
+    );
+    setNotice(
+      `Override saved: ${updated.home_team} ${updated.home_score ?? 0}–${updated.away_score ?? 0} ${updated.away_team} (FINISHED).`,
+    );
+    setError(null);
+  }, []);
+
   const onToggleMatch = useCallback(
     (match: AdminMatch) => {
       if (!canEdit) {
@@ -932,6 +942,11 @@ export function MatchAdminWidget() {
               readOnly={needsRound || !canEdit}
               leaguesById={leaguesById}
               onToggleMatch={onToggleMatch}
+              scoreOverride={
+                token
+                  ? { token, onSuccess: onScoreOverrideSuccess }
+                  : null
+              }
             />
           ))
         )}
