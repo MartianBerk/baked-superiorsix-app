@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 import { resolveDevHost } from './resolveDevHost';
 
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
@@ -6,12 +8,24 @@ const LOOPBACK = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
  * Rewrite loopback API bases to the Expo packager host on native so Expo Go
  * on a physical device can reach local-dev backends on the Mac/LAN.
  *
- * Relative bases (`/auth`) and non-loopback hosts are left unchanged.
- * Web is a no-op (resolveDevHost returns null).
+ * Relative bases (`/auth`) are valid for web behind nginx only — native throws
+ * a clear error so Expo Go is not left with a broken fetch URL.
+ * Web is a no-op for loopback rewrite (resolveDevHost returns null).
  */
 export function resolveApiBase(configured: string): string {
   const raw = configured.trim();
-  if (!raw || raw.startsWith('/')) {
+  if (!raw) {
+    return raw;
+  }
+
+  if (raw.startsWith('/')) {
+    if (Platform.OS !== 'web') {
+      throw new Error(
+        `EXPO_PUBLIC_* base "${raw}" is relative — fine for web behind nginx, ` +
+          'but native/Expo Go needs an absolute URL ' +
+          '(e.g. http://192.168.1.20:8010 or http://127.0.0.1:8010 for Simulator).',
+      );
+    }
     return raw;
   }
 

@@ -33,6 +33,7 @@ export async function loadSession(): Promise<PersistedSession | null> {
   }
 }
 
+/** Persist session JSON; native SecureStore swallows size/Keychain errors. */
 export async function saveSession(session: PersistedSession): Promise<void> {
   await setItem(SESSION_KEY, JSON.stringify(session));
 }

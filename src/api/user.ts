@@ -42,7 +42,7 @@ export async function fetchProfileByAuth(
   } catch {
     throw new ApiError(
       0,
-      'Could not reach baked-user. Is local-dev up on :8020?',
+      'Could not reach baked-user. Is the API up (local-dev :8020, or LAN IP on Expo Go)?',
     );
   }
   return readApiJson<UserProfileDocument>(response);
