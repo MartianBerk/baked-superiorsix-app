@@ -1,7 +1,5 @@
 /**
- * Native: Expo Router paths are not reflected in a browser address bar.
- * No-op so native navigation and deep links stay unchanged.
+ * TypeScript resolution fallback. Metro prefers `install.native.ts` /
+ * `install.web.ts` at bundle time.
  */
-export function installStaticAppUrl(): void {
-  // intentionally empty
-}
+export { installStaticAppUrl } from './install.native';

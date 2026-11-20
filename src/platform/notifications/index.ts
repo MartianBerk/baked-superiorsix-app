@@ -1,6 +1,7 @@
 /**
  * Public notifications API. App code imports only from here.
- * Metro resolves `.native.ts` / `.web.ts` implementations.
+ * Metro resolves `notifications.native.ts` / `notifications.web.ts`.
+ * SS-263 keeps both as stubs — no push / expo-notifications yet.
  */
 export {
   getPermissionStatus,

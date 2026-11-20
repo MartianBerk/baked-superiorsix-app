@@ -1,6 +1,7 @@
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth';
+import { KeyboardScreen } from '@/platform/keyboard';
 import { colors } from '@/theme';
 
 import { LoginForm } from './LoginForm';
@@ -18,10 +19,21 @@ export function UserWidget() {
     );
   }
 
+  if (isAuthenticated) {
+    return (
+      <View style={styles.shell}>
+        <SessionPanel />
+      </View>
+    );
+  }
+
   return (
-    <View style={[styles.shell, !isAuthenticated && styles.centered]}>
-      {isAuthenticated ? <SessionPanel /> : <LoginForm />}
-    </View>
+    <KeyboardScreen
+      style={styles.shell}
+      contentContainerStyle={styles.centered}
+    >
+      <LoginForm />
+    </KeyboardScreen>
   );
 }
 
