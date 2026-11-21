@@ -208,7 +208,7 @@ export async function listPlayers(
   } catch {
     throw new ApiError(
       0,
-      'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+      'Could not reach baked-superiorsix. Is the API up (local-dev :8030, or LAN IP on Expo Go)?',
     );
   }
   const body = await readApiJson<{ players: PlayerProfile[] }>(response);
@@ -234,7 +234,7 @@ export async function invitePlayer(
   } catch {
     throw new ApiError(
       0,
-      'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+      'Could not reach baked-superiorsix. Is the API up (local-dev :8030, or LAN IP on Expo Go)?',
     );
   }
   const invite = await readApiJson<InvitePlayerResult>(response);
@@ -268,7 +268,7 @@ export async function getPlayerRoles(
   } catch {
     throw new ApiError(
       0,
-      'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+      'Could not reach baked-superiorsix. Is the API up (local-dev :8030, or LAN IP on Expo Go)?',
     );
   }
   const body = await readApiJson<PlayerRolesResult>(response);
@@ -301,7 +301,7 @@ export async function updatePlayerRoles(
   } catch {
     throw new ApiError(
       0,
-      'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+      'Could not reach baked-superiorsix. Is the API up (local-dev :8030, or LAN IP on Expo Go)?',
     );
   }
   const body = await readApiJson<PlayerRolesResult>(response);
@@ -345,7 +345,7 @@ export async function getPlayerAuthState(
   } catch {
     throw new ApiError(
       0,
-      'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+      'Could not reach baked-superiorsix. Is the API up (local-dev :8030, or LAN IP on Expo Go)?',
     );
   }
   const body = await readApiJson<AdminPlayerAuthState>(response);
@@ -376,7 +376,7 @@ export async function patchPlayerAuthState(
   } catch {
     throw new ApiError(
       0,
-      'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+      'Could not reach baked-superiorsix. Is the API up (local-dev :8030, or LAN IP on Expo Go)?',
     );
   }
   const body = await readApiJson<AdminPlayerAuthState>(response);
@@ -404,7 +404,7 @@ export async function resetPlayerPassword(
   } catch {
     throw new ApiError(
       0,
-      'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+      'Could not reach baked-superiorsix. Is the API up (local-dev :8030, or LAN IP on Expo Go)?',
     );
   }
   const body = await readApiJson<AdminPlayerAuthState>(response);
@@ -422,7 +422,7 @@ export async function listInvites(token: string): Promise<PendingInvite[]> {
   } catch {
     throw new ApiError(
       0,
-      'Could not reach baked-user. Is local-dev up on :8020?',
+      'Could not reach baked-user. Is the API up (local-dev :8020, or LAN IP on Expo Go)?',
     );
   }
   const body = await readApiJson<{ invites: PendingInvite[] }>(response);
@@ -456,7 +456,7 @@ export async function acceptInvite(
   } catch {
     throw new ApiError(
       0,
-      'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+      'Could not reach baked-superiorsix. Is the API up (local-dev :8030, or LAN IP on Expo Go)?',
     );
   }
   return readApiJson<AcceptInviteResult>(response);
@@ -482,7 +482,7 @@ export async function addPlayer(
   } catch {
     throw new ApiError(
       0,
-      'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+      'Could not reach baked-superiorsix. Is the API up (local-dev :8030, or LAN IP on Expo Go)?',
     );
   }
   return readApiJson<PlayerProfile>(response);
@@ -509,7 +509,7 @@ export async function updateProfileDetails(
   } catch {
     throw new ApiError(
       0,
-      'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+      'Could not reach baked-superiorsix. Is the API up (local-dev :8030, or LAN IP on Expo Go)?',
     );
   }
   return readApiJson<PlayerProfile>(response);
@@ -518,7 +518,7 @@ export async function updateProfileDetails(
 function gameUnreachable(): ApiError {
   return new ApiError(
     0,
-    'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+    'Could not reach baked-superiorsix. Is the API up (local-dev :8030, or LAN IP on Expo Go)?',
   );
 }
 

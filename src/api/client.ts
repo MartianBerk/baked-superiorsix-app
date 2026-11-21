@@ -3,13 +3,17 @@
  *
  * Base URLs come from EXPO_PUBLIC_* (see .env.example). Primary local setup:
  * APIs via baked-superiorsix/local-dev on 127.0.0.1:8010 / 8020 / 8030.
+ * On native (Expo Go), loopback hosts are rewritten to the Metro LAN host
+ * via `@/platform/api-base` so a physical device can reach the Mac backends.
  */
+
+import { resolveApiBase } from '@/platform/api-base';
 
 import { ApiError, formatApiDetail } from './errors';
 
-const AUTH_BASE = process.env.EXPO_PUBLIC_AUTH_URL ?? '';
-const USER_BASE = process.env.EXPO_PUBLIC_USER_URL ?? '';
-const GAME_BASE = process.env.EXPO_PUBLIC_SUPERSIX_URL ?? '';
+const AUTH_BASE = resolveApiBase(process.env.EXPO_PUBLIC_AUTH_URL ?? '');
+const USER_BASE = resolveApiBase(process.env.EXPO_PUBLIC_USER_URL ?? '');
+const GAME_BASE = resolveApiBase(process.env.EXPO_PUBLIC_SUPERSIX_URL ?? '');
 
 export type ApiBases = {
   auth: string;
