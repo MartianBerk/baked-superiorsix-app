@@ -11,6 +11,7 @@ import { useLeadersTabMode } from '@/features/leaders/LeadersTabModeContext';
 import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
 import { useScoresTabMode } from '@/features/scores/ScoresTabModeContext';
 import { useSideGamesOpen } from '@/features/side-games/SideGamesOpenContext';
+import { NavBarSurface, navBarOuterStyle } from '@/platform/nav-bar';
 import { colors } from '@/theme';
 
 /**
@@ -130,11 +131,11 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
   return (
     <View
       style={[
-        styles.outer,
+        navBarOuterStyle,
         { paddingBottom: Math.max(insets.bottom, 10) },
       ]}
     >
-      <View style={styles.bar}>
+      <NavBarSurface>
         {state.routes.map((route, index) => {
           const iconName = TAB_ICONS[route.name];
           if (!iconName) {
@@ -208,28 +209,12 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
             </Pressable>
           );
         })}
-      </View>
+      </NavBarSurface>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  outer: {
-    paddingHorizontal: '3%',
-    paddingTop: 8,
-    backgroundColor: colors.background,
-  },
-  bar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: colors.menuBar,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
   itemSlot: {
     flex: 1,
     alignItems: 'center',
