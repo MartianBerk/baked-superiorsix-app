@@ -13,6 +13,8 @@ import { CalendarIcon } from '@/components/icons/CalendarIcon';
 import { formatKickoffDateLabels } from '@/features/matches/formatMatchDate';
 import { colors } from '@/theme';
 
+import { scoreListChrome } from './scoreListChrome';
+
 type Props = {
   /** ISO kickoff (usually subround `min_kickoff`). */
   kickoffIso: string | null | undefined;
@@ -26,8 +28,8 @@ const LIVE_RED_DIM = '#5a0707';
 
 /**
  * Display-only earliest-kickoff label (`Sat 07 Nov 3pm`) — not navigable.
- * Sits on the page background (no chip / glass). Calendar icon + date;
- * if the full label overflows the slot, drop weekday only (`07 Nov 3pm`).
+ * Surface matches match-list `scoreListChrome.sectionCard` (not scrubber /
+ * Liquid Glass). Calendar icon + date; overflow drops weekday only.
  * When `live`, text pulses red like legacy Scores date picker.
  */
 export function KickoffDateDisplay({ kickoffIso, live = false, style }: Props) {
@@ -101,7 +103,7 @@ export function KickoffDateDisplay({ kickoffIso, live = false, style }: Props) {
 
   return (
     <View
-      style={[styles.row, style]}
+      style={[scoreListChrome.sectionCard, styles.row, style]}
       accessibilityRole="text"
       accessibilityLabel={`Earliest kickoff ${label}${live ? ', live' : ''}`}
     >
@@ -129,7 +131,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    // Match scrubber chip content height so the row aligns beside SubroundScrubber.
+    // Same inset as `scoreListChrome.row` so the fill matches list cards.
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    // Align beside SubroundScrubber; call sites often zero margin via scrubberFlush.
     minHeight: 7.5 * 2 + 33,
     marginBottom: 6,
   },
