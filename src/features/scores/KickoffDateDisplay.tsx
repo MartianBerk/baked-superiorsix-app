@@ -15,6 +15,7 @@ import {
   utcDayKey,
 } from '@/features/matches/formatMatchDate';
 import { scrubberChrome } from '@/features/matches/scrubberChrome';
+import { ScrubberRow } from '@/platform/glass';
 
 type Props = {
   /** ISO kickoff (usually subround `min_kickoff`). */
@@ -72,8 +73,8 @@ export function KickoffDateDisplay({ kickoffIso, live = false, style }: Props) {
     : colors.text;
 
   return (
-    <View
-      style={[scrubberChrome.row, style]}
+    <ScrubberRow
+      style={style}
       accessibilityRole="text"
       accessibilityLabel={`Earliest kickoff ${label}${live ? ', live' : ''}`}
     >
@@ -82,7 +83,7 @@ export function KickoffDateDisplay({ kickoffIso, live = false, style }: Props) {
           {label}
         </Animated.Text>
       </View>
-    </View>
+    </ScrubberRow>
   );
 }
 

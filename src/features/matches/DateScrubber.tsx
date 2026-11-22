@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { ScrubberRow } from '@/platform/glass';
+
 import {
   ScrubberSidePreview,
   type ScrubberSideDensity,
@@ -46,10 +48,7 @@ export function DateScrubber({
   const rightLabel = canRight ? formatScrubberDate(dates[index + 1]) : null;
 
   return (
-    <View
-      style={[scrubberChrome.row, style]}
-      accessibilityRole="adjustable"
-    >
+    <ScrubberRow style={style}>
       <ScrubberSidePreview
         label={leftLabel}
         accessibilityLabel={
@@ -87,6 +86,6 @@ export function DateScrubber({
           onChange(dates[index + 1]);
         }}
       />
-    </View>
+    </ScrubberRow>
   );
 }

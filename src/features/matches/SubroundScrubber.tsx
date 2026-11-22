@@ -13,6 +13,8 @@ import {
   formatScrubberDate,
   utcDayKey,
 } from './formatMatchDate';
+import { ScrubberRow } from '@/platform/glass';
+
 import { ScrubberSidePreview } from './ScrubberSidePreview';
 import { ScrubberSlidingText } from './ScrubberSlidingText';
 import { scrubberChrome } from './scrubberChrome';
@@ -102,10 +104,7 @@ export function SubroundScrubber({
 
   return (
     <View style={[styles.wrap, style]}>
-      <View
-        style={[scrubberChrome.row, styles.rowTight]}
-        accessibilityRole="adjustable"
-      >
+      <ScrubberRow style={styles.rowTight}>
         <ScrubberSidePreview
           label={leftLabel}
           accessibilityLabel={
@@ -159,7 +158,7 @@ export function SubroundScrubber({
             }
           }}
         />
-      </View>
+      </ScrubberRow>
       {trailing}
     </View>
   );
