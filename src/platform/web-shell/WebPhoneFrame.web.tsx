@@ -3,11 +3,15 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { colors } from '@/theme';
 
-/** Wider phone canvas (~iPhone 16 Pro Max class width). */
-const PHONE_WIDTH = 440;
-const PHONE_HEIGHT = 956;
-/** Below this, stay full-bleed (real phones / narrow browser). */
-const FRAME_MIN_VIEWPORT = 520;
+/** Desktop phone canvas — noticeably wider than handset CSS (~500). */
+const PHONE_WIDTH = 500;
+/** ~19.5:9 phone aspect for the 500-wide canvas. */
+const PHONE_HEIGHT = 1086;
+/**
+ * Below this, stay full-bleed. Kept above PHONE_WIDTH so laptops still get the
+ * framed canvas without a nested mini-frame on phone-width browsers.
+ */
+const FRAME_MIN_VIEWPORT = 560;
 
 /**
  * Web desktop: centre a phone-sized app frame on a plain brand backdrop.
