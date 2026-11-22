@@ -18,6 +18,7 @@ import {
   SideGamesOpenProvider,
   useSideGamesOpen,
 } from '@/features/side-games/SideGamesOpenContext';
+import { tabSceneStyle } from '@/platform/nav-bar';
 import { colors } from '@/theme';
 
 /**
@@ -47,7 +48,10 @@ function SuperSixTabs() {
           screenOptions={{
             headerShown: false,
             lazy: false,
-            sceneStyle: { backgroundColor: colors.background },
+            sceneStyle: {
+              backgroundColor: colors.background,
+              ...tabSceneStyle,
+            },
             ...tabSlideTransition,
           }}
         >

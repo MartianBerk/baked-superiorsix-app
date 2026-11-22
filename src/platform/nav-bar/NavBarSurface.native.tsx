@@ -19,6 +19,8 @@ type Props = PropsWithChildren<{
   style?: StyleProp<ViewStyle>;
 }>;
 
+const BAR_RADIUS = 20;
+
 function useReduceTransparency(): boolean {
   const [enabled, setEnabled] = useState(false);
   useEffect(() => {
@@ -41,24 +43,42 @@ function useReduceTransparency(): boolean {
 }
 
 /**
- * iOS bottom-nav material: Liquid Glass on iOS 26+ when available,
- * else system blur material. Solid fallback for Reduce Transparency.
+ * Prefer true Liquid Glass whenever the UIGlassEffect API exists at runtime.
+ *
+ * Do **not** require `isLiquidGlassAvailable()` alone to pick GlassView — that
+ * flag also encodes the *host app* Info.plist / build SDK (Expo Go's bundle).
+ * Gate crashes with `isGlassEffectAPIAvailable()`; GlassView itself no-ops if
+ * the effect cannot install.
+ *
+ * Avoid opaque `tintColor` (e.g. solid menuBar hex) — it makes glass look like
+ * the old flat pill. Prefer native `borderRadius` prop over `overflow:'hidden'`.
  */
 export function NavBarSurface({ children, style }: Props) {
   const reduceTransparency = useReduceTransparency();
-  const canLiquidGlass =
-    !reduceTransparency &&
-    isLiquidGlassAvailable() &&
-    isGlassEffectAPIAvailable();
+  const apiAvailable = isGlassEffectAPIAvailable();
+  const liquidReported = isLiquidGlassAvailable();
 
-  if (canLiquidGlass) {
+  useEffect(() => {
+    if (!__DEV__) {
+      return;
+    }
+    // Metro / Expo Go console breadcrumb once per mount.
+    // eslint-disable-next-line no-console
+    console.log(
+      `[nav-bar] glass api=${apiAvailable} liquid=${liquidReported} reduceTransparency=${reduceTransparency}`,
+    );
+  }, [apiAvailable, liquidReported, reduceTransparency]);
+
+  if (!reduceTransparency && apiAvailable) {
     return (
       <GlassView
         style={[styles.bar, style]}
         glassEffectStyle="regular"
         colorScheme="dark"
-        tintColor={colors.menuBar}
         isInteractive
+        // Native corner prop (UICornerConfiguration); not yet on GlassViewProps.
+        // @ts-expect-error borderRadius native prop omitted from public types
+        borderRadius={BAR_RADIUS}
       >
         {children}
       </GlassView>
@@ -68,7 +88,7 @@ export function NavBarSurface({ children, style }: Props) {
   if (!reduceTransparency) {
     return (
       <BlurView
-        intensity={85}
+        intensity={90}
         tint="systemChromeMaterialDark"
         style={[styles.bar, styles.clip, style]}
       >
@@ -87,15 +107,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 8,
-    borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    overflow: 'hidden',
+    borderRadius: BAR_RADIUS,
   },
   clip: {
     overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
   },
   solid: {
     backgroundColor: colors.menuBar,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
   },
 });

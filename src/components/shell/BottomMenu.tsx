@@ -11,8 +11,13 @@ import { useLeadersTabMode } from '@/features/leaders/LeadersTabModeContext';
 import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
 import { useScoresTabMode } from '@/features/scores/ScoresTabModeContext';
 import { useSideGamesOpen } from '@/features/side-games/SideGamesOpenContext';
-import { NavBarSurface, navBarOuterStyle } from '@/platform/nav-bar';
-import { colors } from '@/theme';
+import {
+  NavBarSurface,
+  navBarHitActiveStyle,
+  navBarIconActiveColor,
+  navBarIconInactiveColor,
+  navBarOuterStyle,
+} from '@/platform/nav-bar';
 
 /**
  * Tab order: fixtures → scores → leaders → [euros|worldcup?] → user
@@ -198,11 +203,14 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
                 pressed && styles.itemPressed,
               ]}
             >
-              <View style={[styles.hit, focused && styles.hitActive]}>
+              <View style={[styles.hit, focused && navBarHitActiveStyle]}>
                 <MenuIcon
                   name={iconName}
                   size={route.name === 'euros' || route.name === 'worldcup' ? 30 : 28}
                   active={focused}
+                  color={
+                    focused ? navBarIconActiveColor : navBarIconInactiveColor
+                  }
                   adminBadge={showAdminBadge}
                 />
               </View>
@@ -226,9 +234,6 @@ const styles = StyleSheet.create({
     borderRadius: HIT_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  hitActive: {
-    backgroundColor: colors.menuActive,
   },
   itemPressed: {
     opacity: 0.8,
