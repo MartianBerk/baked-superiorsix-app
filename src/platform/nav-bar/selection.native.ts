@@ -2,7 +2,10 @@ import type { ViewStyle } from 'react-native';
 
 import { colors } from '@/theme';
 
-/** No selection chip — Liquid Glass carries focus; icons use text contrast only. */
+/**
+ * Per-item hit chrome unused — selection is the sliding Liquid Glass pill
+ * (`NavSelectionPill`).
+ */
 export const navBarHitActiveStyle: ViewStyle = {};
 
 export const navBarIconActiveColor: string = colors.text;
