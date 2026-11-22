@@ -7,27 +7,52 @@ export function utcDayKey(iso: string | Date): string {
   return `${y}-${m}-${day}`;
 }
 
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+const MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
+
 /** Legacy-style scrubber label: `Sat 31 Oct`. */
 export function formatScrubberDate(dayKey: string): string {
   const [y, m, d] = dayKey.split('-').map(Number);
   const date = new Date(Date.UTC(y, m - 1, d, 12));
-  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
   const day = String(date.getUTCDate()).padStart(2, '0');
-  return `${weekdays[date.getUTCDay()]} ${day} ${months[date.getUTCMonth()]}`;
+  return `${WEEKDAYS[date.getUTCDay()]} ${day} ${MONTHS[date.getUTCMonth()]}`;
+}
+
+/** Date + month only (`07 Nov`) — weekday stripped for tight kickoff chips. */
+export function formatScrubberDateWithoutWeekday(dayKey: string): string {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d, 12));
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${day} ${MONTHS[date.getUTCMonth()]}`;
+}
+
+/**
+ * Display-only kickoff labels for Matches/Scores date chrome.
+ * Full: `Sat 07 Nov 3pm`. Compact (overflow): `07 Nov 3pm`.
+ */
+export function formatKickoffDateLabels(kickoffIso: string): {
+  full: string;
+  withoutWeekday: string;
+} {
+  const dayKey = utcDayKey(kickoffIso);
+  const time = formatKickoffLabel(kickoffIso);
+  return {
+    full: `${formatScrubberDate(dayKey)} ${time}`,
+    withoutWeekday: `${formatScrubberDateWithoutWeekday(dayKey)} ${time}`,
+  };
 }
 
 /** Kickoff group header time like `3pm` / `12:30pm` (UTC wall clock). */
