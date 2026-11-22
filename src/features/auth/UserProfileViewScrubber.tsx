@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
+import { ScrubberActiveCenter } from '@/features/matches/ScrubberActiveCenter';
 import { ScrubberSidePreview } from '@/features/matches/ScrubberSidePreview';
 import { ScrubberSlidingText } from '@/features/matches/ScrubberSlidingText';
-import { scrubberChrome } from '@/features/matches/scrubberChrome';
 import type { ScrubDirection } from '@/features/matches/scrubberSlide';
 import { ScrubberRow } from '@/platform/glass';
 
@@ -52,9 +52,13 @@ export function UserProfileViewScrubber({ mode, onChange }: Props) {
         }}
       />
 
-      <View style={scrubberChrome.centerSlot}>
+      <ScrubberActiveCenter
+        morphKey={label}
+        direction={direction}
+        density="medium"
+      >
         <ScrubberSlidingText label={label} direction={direction} />
-      </View>
+      </ScrubberActiveCenter>
 
       <ScrubberSidePreview
         label={rightLabel}

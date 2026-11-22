@@ -1,7 +1,8 @@
 export {
   NAV_HIT_SIZE,
+  NAV_PILL_HEIGHT,
   NAV_PILL_RADIUS,
-  NAV_PILL_SIZE,
+  NAV_PILL_WIDTH,
 } from './hitSize';
 export { NavBarSurface } from './NavBarSurface';
 export { NavSelectionPill } from './NavSelectionPill';

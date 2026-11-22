@@ -2,10 +2,14 @@ import { StyleSheet } from 'react-native';
 
 import { GlassChrome } from '@/platform/glass';
 
-import { NAV_PILL_RADIUS, NAV_PILL_SIZE } from './hitSize';
+import {
+  NAV_PILL_HEIGHT,
+  NAV_PILL_RADIUS,
+  NAV_PILL_WIDTH,
+} from './hitSize';
 
 /**
- * iOS selected-tab treatment — Liquid Glass rounded square that BottomMenu slides
+ * iOS selected-tab treatment — Liquid Glass rounded rect that BottomMenu slides
  * (with squash/stretch on travel).
  */
 export function NavSelectionPill() {
@@ -14,8 +18,8 @@ export function NavSelectionPill() {
 
 const styles = StyleSheet.create({
   pill: {
-    width: NAV_PILL_SIZE,
-    height: NAV_PILL_SIZE,
+    width: NAV_PILL_WIDTH,
+    height: NAV_PILL_HEIGHT,
     borderRadius: NAV_PILL_RADIUS,
   },
 });

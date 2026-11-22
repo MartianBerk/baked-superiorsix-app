@@ -15,9 +15,9 @@ import {
 } from './formatMatchDate';
 import { ScrubberRow } from '@/platform/glass';
 
+import { ScrubberActiveCenter } from './ScrubberActiveCenter';
 import { ScrubberSidePreview } from './ScrubberSidePreview';
 import { ScrubberSlidingText } from './ScrubberSlidingText';
-import { scrubberChrome } from './scrubberChrome';
 import type { ScrubDirection } from './scrubberSlide';
 
 export type SubroundLabelMode = 'sequence' | 'kickoff';
@@ -123,7 +123,11 @@ export function SubroundScrubber({
           }}
         />
 
-        <View style={scrubberChrome.centerSlot}>
+        <ScrubberActiveCenter
+          morphKey={label}
+          direction={direction}
+          density="compact"
+        >
           <ScrubberSlidingText
             label={label}
             direction={direction}
@@ -133,7 +137,7 @@ export function SubroundScrubber({
                 : `Subround ${selected.sequence}`
             }
           />
-        </View>
+        </ScrubberActiveCenter>
 
         <ScrubberSidePreview
           label={rightLabel}

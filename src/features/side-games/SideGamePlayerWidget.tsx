@@ -26,6 +26,7 @@ import { useAuth } from '@/auth';
 import { MenuIcon } from '@/components/icons/MenuIcon';
 import { buildPlayerRoundStatus } from '@/components/shell/playerRoundStatus';
 import { useRoundStatus } from '@/components/shell/RoundStatusContext';
+import { ScrubberActiveCenter } from '@/features/matches/ScrubberActiveCenter';
 import { DateScrubber } from '@/features/matches/DateScrubber';
 import { utcDayKey } from '@/features/matches/formatMatchDate';
 import { ScrubberSidePreview } from '@/features/matches/ScrubberSidePreview';
@@ -391,12 +392,16 @@ export function SideGamePlayerWidget({ kind }: Props) {
                   setView(VIEWS[viewIndex - 1]);
                 }}
               />
-              <View style={scrubberChrome.centerSlot}>
+              <ScrubberActiveCenter
+                morphKey={viewLabel(view)}
+                direction={viewDirection}
+                density="medium"
+              >
                 <ScrubberSlidingText
                   label={viewLabel(view)}
                   direction={viewDirection}
                 />
-              </View>
+              </ScrubberActiveCenter>
               <ScrubberSidePreview
                 label={rightViewLabel}
                 accessibilityLabel="Show Table"

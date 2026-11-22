@@ -14,7 +14,8 @@ import { useScoresTabMode } from '@/features/scores/ScoresTabModeContext';
 import { useSideGamesOpen } from '@/features/side-games/SideGamesOpenContext';
 import {
   NAV_HIT_SIZE,
-  NAV_PILL_SIZE,
+  NAV_PILL_HEIGHT,
+  NAV_PILL_WIDTH,
   NavBarSurface,
   NavSelectionPill,
   navBarIconActiveColor,
@@ -133,7 +134,7 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
   const pillEnabled = trackWidth > 0 && visibleRoutes.length > 0;
   const pillTargetX = pillEnabled
     ? focusedVisualIndex * (trackWidth / visibleRoutes.length) +
-      (trackWidth / visibleRoutes.length - NAV_PILL_SIZE) / 2
+      (trackWidth / visibleRoutes.length - NAV_PILL_WIDTH) / 2
     : 0;
   const pillStyle = useNavSelectionPillMotion(pillTargetX, pillEnabled);
 
@@ -278,8 +279,8 @@ const styles = StyleSheet.create({
   pillSlot: {
     position: 'absolute',
     left: 0,
-    width: NAV_PILL_SIZE,
-    height: NAV_PILL_SIZE,
+    width: NAV_PILL_WIDTH,
+    height: NAV_PILL_HEIGHT,
     zIndex: 0,
   },
   itemSlot: {
@@ -291,10 +292,11 @@ const styles = StyleSheet.create({
   hit: {
     width: NAV_HIT_SIZE,
     height: NAV_HIT_SIZE,
-    borderRadius: NAV_PILL_SIZE / 2,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   itemPressed: {
     opacity: 0.8,
   },
