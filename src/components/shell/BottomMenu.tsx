@@ -1,11 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
 
@@ -19,11 +14,13 @@ import { useScoresTabMode } from '@/features/scores/ScoresTabModeContext';
 import { useSideGamesOpen } from '@/features/side-games/SideGamesOpenContext';
 import {
   NAV_HIT_SIZE,
+  NAV_PILL_SIZE,
   NavBarSurface,
   NavSelectionPill,
   navBarIconActiveColor,
   navBarIconInactiveColor,
   navBarOuterStyle,
+  useNavSelectionPillMotion,
 } from '@/platform/nav-bar';
 
 /**
@@ -56,8 +53,6 @@ const TAB_PREFETCH_HREF: Record<string, Href> = {
   profile: '/(super-six)/profile',
 };
 
-const PILL_SLIDE_MS = 280;
-
 /** Expo Router SDK 58 tabBar props (navigation replaced by navigateToTab). */
 type TabBarProps = {
   state: {
@@ -79,8 +74,8 @@ type TabBarProps = {
 
 /**
  * Main menu at the bottom — inset ~3% each side, rounded bar.
- * Selected option uses a sliding pill (Liquid Glass on iOS; lighter wash on
- * web — no green accent). Dual-mode tabs swap player ↔ admin on second tap.
+ * Selected option uses a sliding rounded-square pill (Liquid Glass + squash
+ * on iOS; lighter wash translate on web). Dual-mode tabs swap on second tap.
  */
 export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
   const insets = useSafeAreaInsets();
@@ -96,8 +91,6 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
   const { beginTabTransition, seedVisitedTab } = useTabTransition();
 
   const [trackWidth, setTrackWidth] = useState(0);
-  const pillX = useSharedValue(0);
-  const pillReady = useRef(false);
 
   useEffect(() => {
     const current = state.routes[state.index]?.name;
@@ -137,27 +130,12 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
     return idx >= 0 ? idx : 0;
   }, [state.index, state.routes, visibleRoutes]);
 
-  useEffect(() => {
-    if (trackWidth <= 0 || visibleRoutes.length === 0) {
-      return;
-    }
-    const slotWidth = trackWidth / visibleRoutes.length;
-    const nextX =
-      focusedVisualIndex * slotWidth + (slotWidth - NAV_HIT_SIZE) / 2;
-    if (!pillReady.current) {
-      pillX.value = nextX;
-      pillReady.current = true;
-      return;
-    }
-    pillX.value = withTiming(nextX, {
-      duration: PILL_SLIDE_MS,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [trackWidth, visibleRoutes.length, focusedVisualIndex, pillX]);
-
-  const pillStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: pillX.value }],
-  }));
+  const pillEnabled = trackWidth > 0 && visibleRoutes.length > 0;
+  const pillTargetX = pillEnabled
+    ? focusedVisualIndex * (trackWidth / visibleRoutes.length) +
+      (trackWidth / visibleRoutes.length - NAV_PILL_SIZE) / 2
+    : 0;
+  const pillStyle = useNavSelectionPillMotion(pillTargetX, pillEnabled);
 
   const toggleDualMode = useCallback(
     (routeName: string) => {
@@ -208,7 +186,7 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
             setTrackWidth((prev) => (Math.abs(prev - next) < 0.5 ? prev : next));
           }}
         >
-          {trackWidth > 0 && visibleRoutes.length > 0 ? (
+          {pillEnabled ? (
             <Animated.View
               pointerEvents="none"
               style={[styles.pillSlot, pillStyle]}
@@ -300,8 +278,8 @@ const styles = StyleSheet.create({
   pillSlot: {
     position: 'absolute',
     left: 0,
-    width: NAV_HIT_SIZE,
-    height: NAV_HIT_SIZE,
+    width: NAV_PILL_SIZE,
+    height: NAV_PILL_SIZE,
     zIndex: 0,
   },
   itemSlot: {
@@ -313,7 +291,7 @@ const styles = StyleSheet.create({
   hit: {
     width: NAV_HIT_SIZE,
     height: NAV_HIT_SIZE,
-    borderRadius: NAV_HIT_SIZE / 2,
+    borderRadius: NAV_PILL_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
