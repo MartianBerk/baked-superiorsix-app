@@ -15,7 +15,6 @@ import {
   utcDayKey,
 } from '@/features/matches/formatMatchDate';
 import { scrubberChrome } from '@/features/matches/scrubberChrome';
-import { ScrubberRow } from '@/platform/glass';
 
 type Props = {
   /** ISO kickoff (usually subround `min_kickoff`). */
@@ -30,6 +29,7 @@ const LIVE_RED_DIM = '#5a0707';
 
 /**
  * Display-only earliest-kickoff banner (`Sat 07 Nov 3pm`) — not navigable.
+ * Uses solid `scrubberChrome.row` (no Liquid Glass) — not a scrubber.
  * When `live`, pulses red like legacy Scores date picker.
  */
 export function KickoffDateDisplay({ kickoffIso, live = false, style }: Props) {
@@ -73,8 +73,8 @@ export function KickoffDateDisplay({ kickoffIso, live = false, style }: Props) {
     : colors.text;
 
   return (
-    <ScrubberRow
-      style={style}
+    <View
+      style={[scrubberChrome.row, style]}
       accessibilityRole="text"
       accessibilityLabel={`Earliest kickoff ${label}${live ? ', live' : ''}`}
     >
@@ -83,7 +83,7 @@ export function KickoffDateDisplay({ kickoffIso, live = false, style }: Props) {
           {label}
         </Animated.Text>
       </View>
-    </ScrubberRow>
+    </View>
   );
 }
 
