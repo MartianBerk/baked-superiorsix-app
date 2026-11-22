@@ -18,20 +18,7 @@ export const SCRUBBER_SIDE_WIDE = 92;
  * uses the wide hit target via `ScrubberSidePreview` density.
  */
 export const scrubberChrome = StyleSheet.create({
-  /**
-   * Layout only (no fill) — native Liquid Glass wraps this via `ScrubberRow`.
-   * Web `ScrubberRow` applies `row` (solid surface) instead.
-   */
-  rowLayout: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    paddingVertical: 7.5,
-    marginBottom: 6,
-    borderRadius: 12,
-  },
-  /** Web / solid fallback fill for scrubber chips. */
+  /** Solid scrubber chip fill (no Liquid Glass / selection pill). */
   row: {
     flexDirection: 'row',
     alignItems: 'center',

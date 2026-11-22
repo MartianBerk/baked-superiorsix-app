@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { type StyleProp, type ViewStyle } from 'react-native';
+import { View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { ScrubberRow } from '@/platform/glass';
 
-import { ScrubberActiveCenter } from './ScrubberActiveCenter';
 import {
   ScrubberSidePreview,
   type ScrubberSideDensity,
 } from './ScrubberSidePreview';
 import { ScrubberSlidingText } from './ScrubberSlidingText';
 import { formatScrubberDate } from './formatMatchDate';
+import { scrubberChrome } from './scrubberChrome';
 import type { ScrubDirection } from './scrubberSlide';
 
 type Props = {
@@ -66,13 +66,9 @@ export function DateScrubber({
         }}
       />
 
-      <ScrubberActiveCenter
-        morphKey={label}
-        direction={direction}
-        density={sideDensity}
-      >
+      <View style={scrubberChrome.centerSlot}>
         <ScrubberSlidingText label={label} direction={direction} />
-      </ScrubberActiveCenter>
+      </View>
 
       <ScrubberSidePreview
         label={rightLabel}

@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { ScrubberActiveCenter } from '@/features/matches/ScrubberActiveCenter';
 import { ScrubberSidePreview } from '@/features/matches/ScrubberSidePreview';
 import { ScrubberSlidingText } from '@/features/matches/ScrubberSlidingText';
+import { scrubberChrome } from '@/features/matches/scrubberChrome';
 import type { ScrubDirection } from '@/features/matches/scrubberSlide';
 import { ScrubberRow } from '@/platform/glass';
 
@@ -52,13 +52,9 @@ export function UserAdminViewScrubber({ mode, onChange }: Props) {
         }}
       />
 
-      <ScrubberActiveCenter
-        morphKey={label}
-        direction={direction}
-        density="medium"
-      >
+      <View style={scrubberChrome.centerSlot}>
         <ScrubberSlidingText label={label} direction={direction} />
-      </ScrubberActiveCenter>
+      </View>
 
       <ScrubberSidePreview
         label={rightLabel}

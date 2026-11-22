@@ -7,17 +7,16 @@ import {
 } from 'react-native';
 
 import type { Subround } from '@/api/superiorsix';
+import { ScrubberRow } from '@/platform/glass';
 
 import {
   formatKickoffLabel,
   formatScrubberDate,
   utcDayKey,
 } from './formatMatchDate';
-import { ScrubberRow } from '@/platform/glass';
-
-import { ScrubberActiveCenter } from './ScrubberActiveCenter';
 import { ScrubberSidePreview } from './ScrubberSidePreview';
 import { ScrubberSlidingText } from './ScrubberSlidingText';
+import { scrubberChrome } from './scrubberChrome';
 import type { ScrubDirection } from './scrubberSlide';
 
 export type SubroundLabelMode = 'sequence' | 'kickoff';
@@ -123,11 +122,7 @@ export function SubroundScrubber({
           }}
         />
 
-        <ScrubberActiveCenter
-          morphKey={label}
-          direction={direction}
-          density="compact"
-        >
+        <View style={scrubberChrome.centerSlot}>
           <ScrubberSlidingText
             label={label}
             direction={direction}
@@ -137,7 +132,7 @@ export function SubroundScrubber({
                 : `Subround ${selected.sequence}`
             }
           />
-        </ScrubberActiveCenter>
+        </View>
 
         <ScrubberSidePreview
           label={rightLabel}

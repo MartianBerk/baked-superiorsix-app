@@ -3,11 +3,11 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { colors } from '@/theme';
 
-/** Logical phone canvas (~iPhone 14/15 class). */
-const PHONE_WIDTH = 390;
-const PHONE_HEIGHT = 844;
+/** Wider phone canvas (~iPhone 16 Pro Max class width). */
+const PHONE_WIDTH = 440;
+const PHONE_HEIGHT = 956;
 /** Below this, stay full-bleed (real phones / narrow browser). */
-const FRAME_MIN_VIEWPORT = 480;
+const FRAME_MIN_VIEWPORT = 520;
 
 /**
  * Web desktop: centre a phone-sized app frame on a plain brand backdrop.

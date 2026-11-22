@@ -1,13 +1,12 @@
 import type { PropsWithChildren } from 'react';
-import type {
-  AccessibilityRole,
-  StyleProp,
-  ViewStyle,
+import {
+  View,
+  type AccessibilityRole,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 
 import { scrubberChrome } from '@/features/matches/scrubberChrome';
-
-import { GlassChrome } from './GlassChrome';
 
 type Props = PropsWithChildren<{
   style?: StyleProp<ViewStyle>;
@@ -15,21 +14,23 @@ type Props = PropsWithChildren<{
   accessibilityLabel?: string;
 }>;
 
-/** iOS scrubber chip — same Liquid Glass materials as the bottom nav. */
+/**
+ * Scrubber chip — solid surface only (no Liquid Glass / selection pill).
+ * Nav bar keeps glass separately.
+ */
 export function ScrubberRow({
   children,
   style,
   accessibilityRole = 'adjustable',
   accessibilityLabel,
 }: Props) {
+  const a11y = {
+    ...(accessibilityRole != null ? { accessibilityRole } : {}),
+    ...(accessibilityLabel != null ? { accessibilityLabel } : {}),
+  };
   return (
-    <GlassChrome
-      style={[scrubberChrome.rowLayout, style]}
-      borderRadius={12}
-      accessibilityRole={accessibilityRole}
-      accessibilityLabel={accessibilityLabel}
-    >
+    <View style={[scrubberChrome.row, style]} {...a11y}>
       {children}
-    </GlassChrome>
+    </View>
   );
 }
