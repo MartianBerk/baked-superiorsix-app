@@ -5,6 +5,7 @@ import type {
   SideGamePredictionChoice,
 } from '@/api/sideGames';
 import { isKnockoutMatchday } from '@/api/sideGames';
+import { formatKickoffClock } from '@/features/matches/formatMatchDate';
 import {
   formatAlignedScore,
   formatMatchMinute,
@@ -29,13 +30,6 @@ type Props = {
   /** First row in the day card — omit top rule (Scores list chrome). */
   isFirst?: boolean;
 };
-
-function formatKickoffTime(iso: string): string {
-  const d = new Date(iso);
-  const hours = String(d.getUTCHours()).padStart(2, '0');
-  const minutes = String(d.getUTCMinutes()).padStart(2, '0');
-  return `${hours}:${minutes}`;
-}
 
 function pickCorrect(
   prediction: SideGamePredictionChoice | null,
@@ -104,7 +98,7 @@ export function SideGameMatchRow({
         match.status,
         now,
       )
-    : formatKickoffTime(match.match_date);
+    : formatKickoffClock(match.match_date);
 
   return (
     <View
