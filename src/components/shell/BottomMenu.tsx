@@ -1,5 +1,6 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
 
@@ -11,7 +12,17 @@ import { useLeadersTabMode } from '@/features/leaders/LeadersTabModeContext';
 import { useFixturesTabMode } from '@/features/matches/FixturesTabModeContext';
 import { useScoresTabMode } from '@/features/scores/ScoresTabModeContext';
 import { useSideGamesOpen } from '@/features/side-games/SideGamesOpenContext';
-import { colors } from '@/theme';
+import {
+  NAV_HIT_SIZE,
+  NAV_PILL_HEIGHT,
+  NAV_PILL_WIDTH,
+  NavBarSurface,
+  NavSelectionPill,
+  navBarIconActiveColor,
+  navBarIconInactiveColor,
+  navBarOuterStyle,
+  useNavSelectionPillMotion,
+} from '@/platform/nav-bar';
 
 /**
  * Tab order: fixtures → scores → leaders → [euros|worldcup?] → user
@@ -43,8 +54,6 @@ const TAB_PREFETCH_HREF: Record<string, Href> = {
   profile: '/(super-six)/profile',
 };
 
-const HIT_SIZE = 48;
-
 /** Expo Router SDK 58 tabBar props (navigation replaced by navigateToTab). */
 type TabBarProps = {
   state: {
@@ -65,13 +74,9 @@ type TabBarProps = {
 };
 
 /**
- * Main menu at the bottom — inset ~3% each side, rounded bar,
- * circular selected highlight around each icon.
- *
- * Dual-mode tabs (fixtures, scores, leaders, user): first tap focuses the tab;
- * second tap on the already-focused tab swaps player ↔ admin in place when
- * the signed-in user has superiorsix `admin`. Non-admins get a no-op on that
- * second tap. Header + nav stay visible during the swap.
+ * Main menu at the bottom — inset ~3% each side, rounded bar.
+ * Selected option uses a sliding rounded-square pill (Liquid Glass + squash
+ * on iOS; lighter wash translate on web). Dual-mode tabs swap on second tap.
  */
 export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
   const insets = useSafeAreaInsets();
@@ -86,12 +91,52 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
   const canAdminToggle = isAuthenticated && hasRole(ADMIN_ROLE);
   const { beginTabTransition, seedVisitedTab } = useTabTransition();
 
+  const [trackWidth, setTrackWidth] = useState(0);
+
   useEffect(() => {
     const current = state.routes[state.index]?.name;
     if (current) {
       seedVisitedTab(current);
     }
   }, [state.index, state.routes, seedVisitedTab]);
+
+  const visibleRoutes = useMemo(
+    () =>
+      state.routes.filter((route) => {
+        const iconName = TAB_ICONS[route.name];
+        if (!iconName) {
+          return false;
+        }
+        if (route.name === 'euros' && !showEuros) {
+          return false;
+        }
+        if (route.name === 'worldcup' && !showWorldcup) {
+          return false;
+        }
+        const href = descriptors[route.key]?.options?.href;
+        if (href === null) {
+          return false;
+        }
+        return true;
+      }),
+    [state.routes, showEuros, showWorldcup, descriptors],
+  );
+
+  const focusedVisualIndex = useMemo(() => {
+    const focusedKey = state.routes[state.index]?.key;
+    if (!focusedKey) {
+      return 0;
+    }
+    const idx = visibleRoutes.findIndex((route) => route.key === focusedKey);
+    return idx >= 0 ? idx : 0;
+  }, [state.index, state.routes, visibleRoutes]);
+
+  const pillEnabled = trackWidth > 0 && visibleRoutes.length > 0;
+  const pillTargetX = pillEnabled
+    ? focusedVisualIndex * (trackWidth / visibleRoutes.length) +
+      (trackWidth / visibleRoutes.length - NAV_PILL_WIDTH) / 2
+    : 0;
+  const pillStyle = useNavSelectionPillMotion(pillTargetX, pillEnabled);
 
   const toggleDualMode = useCallback(
     (routeName: string) => {
@@ -130,121 +175,128 @@ export function BottomMenu({ state, descriptors, navigateToTab }: TabBarProps) {
   return (
     <View
       style={[
-        styles.outer,
+        navBarOuterStyle,
         { paddingBottom: Math.max(insets.bottom, 10) },
       ]}
     >
-      <View style={styles.bar}>
-        {state.routes.map((route, index) => {
-          const iconName = TAB_ICONS[route.name];
-          if (!iconName) {
-            return null;
-          }
-
-          // Only the open tournament’s icon (Euros wins if both somehow open).
-          if (route.name === 'euros' && !showEuros) {
-            return null;
-          }
-          if (route.name === 'worldcup' && !showWorldcup) {
-            return null;
-          }
-          const href = descriptors[route.key]?.options?.href;
-          if (href === null) {
-            return null;
-          }
-
-          const focused = state.index === index;
-          const { options } = descriptors[route.key];
-          const label = options.title ?? route.name;
-          const isDualMode = DUAL_MODE_TABS.has(route.name);
-          const showAdminBadge =
-            (route.name === 'profile' && profileMode === 'admin') ||
-            (route.name === 'index' && fixturesMode === 'admin') ||
-            (route.name === 'scores' && scoresMode === 'admin') ||
-            (route.name === 'leaders' && leadersMode === 'admin');
-
-          return (
-            <Pressable
-              key={route.key}
-              accessibilityRole="button"
-              accessibilityState={focused ? { selected: true } : {}}
-              accessibilityLabel={options.tabBarAccessibilityLabel ?? label}
-              accessibilityHint={
-                isDualMode && canAdminToggle
-                  ? focused
-                    ? 'Tap again to switch admin and player mode'
-                    : 'Tap twice when selected to switch admin and player mode'
-                  : undefined
-              }
-              onPress={() => {
-                if (!focused) {
-                  const firstVisit = beginTabTransition(route.name);
-                  if (firstVisit) {
-                    const href = TAB_PREFETCH_HREF[route.name];
-                    if (href) {
-                      router.prefetch(href);
-                    }
-                  }
-                  navigateToTab(route.key);
-                  return;
-                }
-                if (isDualMode) {
-                  toggleDualMode(route.name);
-                }
-              }}
-              style={({ pressed }) => [
-                styles.itemSlot,
-                pressed && styles.itemPressed,
-              ]}
+      <NavBarSurface>
+        <View
+          style={styles.track}
+          onLayout={(event) => {
+            const next = event.nativeEvent.layout.width;
+            setTrackWidth((prev) => (Math.abs(prev - next) < 0.5 ? prev : next));
+          }}
+        >
+          {pillEnabled ? (
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.pillSlot, pillStyle]}
             >
-              <View style={[styles.hit, focused && styles.hitActive]}>
-                <MenuIcon
-                  name={iconName}
-                  size={route.name === 'euros' || route.name === 'worldcup' ? 30 : 28}
-                  active={focused}
-                  adminBadge={showAdminBadge}
-                />
-              </View>
-            </Pressable>
-          );
-        })}
-      </View>
+              <NavSelectionPill />
+            </Animated.View>
+          ) : null}
+
+          {visibleRoutes.map((route) => {
+            const iconName = TAB_ICONS[route.name];
+            const routeIndex = state.routes.findIndex((r) => r.key === route.key);
+            const focused = state.index === routeIndex;
+            const { options } = descriptors[route.key];
+            const label = options.title ?? route.name;
+            const isDualMode = DUAL_MODE_TABS.has(route.name);
+            const showAdminBadge =
+              (route.name === 'profile' && profileMode === 'admin') ||
+              (route.name === 'index' && fixturesMode === 'admin') ||
+              (route.name === 'scores' && scoresMode === 'admin') ||
+              (route.name === 'leaders' && leadersMode === 'admin');
+
+            return (
+              <Pressable
+                key={route.key}
+                accessibilityRole="button"
+                accessibilityState={focused ? { selected: true } : {}}
+                accessibilityLabel={options.tabBarAccessibilityLabel ?? label}
+                accessibilityHint={
+                  isDualMode && canAdminToggle
+                    ? focused
+                      ? 'Tap again to switch admin and player mode'
+                      : 'Tap twice when selected to switch admin and player mode'
+                    : undefined
+                }
+                onPress={() => {
+                  if (!focused) {
+                    const firstVisit = beginTabTransition(route.name);
+                    if (firstVisit) {
+                      const href = TAB_PREFETCH_HREF[route.name];
+                      if (href) {
+                        router.prefetch(href);
+                      }
+                    }
+                    navigateToTab(route.key);
+                    return;
+                  }
+                  if (isDualMode) {
+                    toggleDualMode(route.name);
+                  }
+                }}
+                style={({ pressed }) => [
+                  styles.itemSlot,
+                  pressed && styles.itemPressed,
+                ]}
+              >
+                <View style={styles.hit}>
+                  <MenuIcon
+                    name={iconName}
+                    size={
+                      route.name === 'euros' || route.name === 'worldcup'
+                        ? 30
+                        : 28
+                    }
+                    active={focused}
+                    color={
+                      focused
+                        ? navBarIconActiveColor
+                        : navBarIconInactiveColor
+                    }
+                    adminBadge={showAdminBadge}
+                  />
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      </NavBarSurface>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  outer: {
-    paddingHorizontal: '3%',
-    paddingTop: 8,
-    backgroundColor: colors.background,
-  },
-  bar: {
+  track: {
+    flex: 1,
     flexDirection: 'row',
-    justifyContent: 'space-around',
     alignItems: 'center',
-    backgroundColor: colors.menuBar,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    position: 'relative',
+  },
+  pillSlot: {
+    position: 'absolute',
+    left: 0,
+    width: NAV_PILL_WIDTH,
+    height: NAV_PILL_HEIGHT,
+    zIndex: 0,
   },
   itemSlot: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
   },
   hit: {
-    width: HIT_SIZE,
-    height: HIT_SIZE,
-    borderRadius: HIT_SIZE / 2,
+    width: NAV_HIT_SIZE,
+    height: NAV_HIT_SIZE,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  hitActive: {
-    backgroundColor: colors.menuActive,
-  },
+
   itemPressed: {
     opacity: 0.8,
   },

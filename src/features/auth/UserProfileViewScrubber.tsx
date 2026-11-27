@@ -5,6 +5,7 @@ import { ScrubberSidePreview } from '@/features/matches/ScrubberSidePreview';
 import { ScrubberSlidingText } from '@/features/matches/ScrubberSlidingText';
 import { scrubberChrome } from '@/features/matches/scrubberChrome';
 import type { ScrubDirection } from '@/features/matches/scrubberSlide';
+import { ScrubberRow } from '@/platform/glass';
 
 export type UserProfileViewMode = 'profile' | 'security';
 
@@ -32,9 +33,8 @@ export function UserProfileViewScrubber({ mode, onChange }: Props) {
   const rightLabel = canRight ? labelFor(VIEWS[index + 1]) : null;
 
   return (
-    <View
-      style={[scrubberChrome.row, styles.row]}
-      accessibilityRole="adjustable"
+    <ScrubberRow
+      style={styles.row}
       accessibilityLabel={`${label} settings`}
     >
       <ScrubberSidePreview
@@ -70,7 +70,7 @@ export function UserProfileViewScrubber({ mode, onChange }: Props) {
           onChange(VIEWS[index + 1]);
         }}
       />
-    </View>
+    </ScrubberRow>
   );
 }
 

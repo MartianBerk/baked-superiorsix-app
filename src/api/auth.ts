@@ -85,7 +85,7 @@ export async function loginWithPassword(
   } catch {
     throw new ApiError(
       0,
-      'Could not reach baked-auth. Is local-dev up on :8010?',
+      'Could not reach baked-auth. Is the API up (local-dev :8010, or LAN IP on Expo Go)?',
     );
   }
 
@@ -99,7 +99,7 @@ export async function fetchAuthMe(token: string): Promise<AuthUser> {
   } catch {
     throw new ApiError(
       0,
-      'Could not reach baked-auth. Is local-dev up on :8010?',
+      'Could not reach baked-auth. Is the API up (local-dev :8010, or LAN IP on Expo Go)?',
     );
   }
   return readApiJson<AuthUser>(response);
@@ -126,7 +126,7 @@ export async function setPasswordAuthUser(
   } catch {
     throw new ApiError(
       0,
-      'Could not reach baked-auth. Is local-dev up on :8010?',
+      'Could not reach baked-auth. Is the API up (local-dev :8010, or LAN IP on Expo Go)?',
     );
   }
   return readApiJson<AuthUser>(response);
@@ -160,7 +160,7 @@ export async function changePassword(
   } catch {
     throw new ApiError(
       0,
-      'Could not reach baked-auth. Is local-dev up on :8010?',
+      'Could not reach baked-auth. Is the API up (local-dev :8010, or LAN IP on Expo Go)?',
     );
   }
   return readApiJson<AuthUser>(response);

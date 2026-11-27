@@ -7,34 +7,63 @@ export function utcDayKey(iso: string | Date): string {
   return `${y}-${m}-${day}`;
 }
 
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+const MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
+
 /** Legacy-style scrubber label: `Sat 31 Oct`. */
 export function formatScrubberDate(dayKey: string): string {
   const [y, m, d] = dayKey.split('-').map(Number);
   const date = new Date(Date.UTC(y, m - 1, d, 12));
-  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
   const day = String(date.getUTCDate()).padStart(2, '0');
-  return `${weekdays[date.getUTCDay()]} ${day} ${months[date.getUTCMonth()]}`;
+  return `${WEEKDAYS[date.getUTCDay()]} ${day} ${MONTHS[date.getUTCMonth()]}`;
 }
 
-/** Kickoff group header time like `3pm` / `12:30pm` (UTC wall clock). */
+/** Date + month only (`07 Nov`) — weekday stripped for tight kickoff chips. */
+export function formatScrubberDateWithoutWeekday(dayKey: string): string {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d, 12));
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${day} ${MONTHS[date.getUTCMonth()]}`;
+}
+
+/**
+ * Display-only kickoff labels for Matches/Scores date chrome.
+ * Uses the viewer's local timezone (ISO/UTC storage unchanged).
+ * Full: `Sat 07 Nov 3pm`. Compact (overflow): `07 Nov 3pm`.
+ */
+export function formatKickoffDateLabels(kickoffIso: string): {
+  full: string;
+  withoutWeekday: string;
+} {
+  const d = new Date(kickoffIso);
+  const day = String(d.getDate()).padStart(2, '0');
+  const weekday = WEEKDAYS[d.getDay()];
+  const month = MONTHS[d.getMonth()];
+  const time = formatKickoffLabel(kickoffIso);
+  return {
+    full: `${weekday} ${day} ${month} ${time}`,
+    withoutWeekday: `${day} ${month} ${time}`,
+  };
+}
+
+/** Kickoff group header time like `3pm` / `12:30pm` (viewer local wall clock). */
 export function formatKickoffLabel(iso: string): string {
   const d = new Date(iso);
-  let hours = d.getUTCHours();
-  const minutes = d.getUTCMinutes();
+  let hours = d.getHours();
+  const minutes = d.getMinutes();
   const suffix = hours >= 12 ? 'pm' : 'am';
   hours = hours % 12;
   if (hours === 0) {
@@ -46,7 +75,17 @@ export function formatKickoffLabel(iso: string): string {
   return `${hours}:${String(minutes).padStart(2, '0')}${suffix}`;
 }
 
-/** Stable minute key for grouping (UTC `HH:MM`). */
+/** 24h kickoff clock for side-game rows (`07:00`) — viewer local. */
+export function formatKickoffClock(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/**
+ * Stable minute key for grouping same absolute kickoffs (UTC `HH:MM`).
+ * Display labels use {@link formatKickoffLabel} (local); this key stays UTC
+ * so grouping matches API-stored instants regardless of viewer TZ.
+ */
 export function kickoffMinuteKey(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;

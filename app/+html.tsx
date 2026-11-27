@@ -20,6 +20,7 @@ export default function Root({ children }: { children: ReactNode }) {
 }
 
 const backgroundStyle = `
+/* Outside the desktop phone frame — brand-adjacent, not the in-app canvas. */
 body {
-  background-color: #071525;
+  background-color: #040C16;
 }`;

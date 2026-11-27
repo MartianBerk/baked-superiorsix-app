@@ -9,7 +9,13 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.baked.superiorsix"
+      "bundleIdentifier": "app.baked.superiorsix",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        },
+        "UIDesignRequiresCompatibility": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -36,7 +42,8 @@
           "backgroundColor": "#071525"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

@@ -37,6 +37,7 @@ import {
 import type { ScrubDirection } from '@/features/matches/scrubberSlide';
 import { formatPrizePounds } from '@/features/scores/gamedayHeader';
 import { scoreListChrome } from '@/features/scores/scoreListChrome';
+import { ScrubberRow } from '@/platform/glass';
 import { colors } from '@/theme';
 
 import { SideGameMatchRow } from './SideGameMatchRow';
@@ -355,8 +356,8 @@ export function SideGamePlayerWidget({ kind }: Props) {
       <View style={styles.viewScrubberWrap}>
         <View style={styles.scrubberLine}>
           <View style={styles.potCol}>
-            <View
-              style={[scrubberChrome.row, styles.potChip]}
+            <ScrubberRow
+              style={styles.potChip}
               accessibilityRole="summary"
               accessibilityLabel={`${titleFor(kind)} pot ${potLabel}`}
             >
@@ -368,13 +369,12 @@ export function SideGamePlayerWidget({ kind }: Props) {
               <Text style={styles.potLabel} numberOfLines={1}>
                 {potLabel}
               </Text>
-            </View>
+            </ScrubberRow>
           </View>
 
           <View style={styles.viewCol}>
-            <View
-              style={[scrubberChrome.row, styles.viewScrubber]}
-              accessibilityRole="adjustable"
+            <ScrubberRow
+              style={styles.viewScrubber}
               accessibilityLabel={`${titleFor(kind)} ${viewLabel(view)}`}
             >
               <ScrubberSidePreview
@@ -411,7 +411,7 @@ export function SideGamePlayerWidget({ kind }: Props) {
                   setView(VIEWS[viewIndex + 1]);
                 }}
               />
-            </View>
+            </ScrubberRow>
           </View>
         </View>
       </View>

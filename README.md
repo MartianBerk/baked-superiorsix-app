@@ -50,7 +50,19 @@ Static web build (what Docker uses):
 npm run build:web
 ```
 
-Native later: `npm run ios` / `npm run android` (Expo Go or EAS). Store builds and push credentials are out of scope for SS-8 — add via **EAS** + `app.json` plugins when ready.
+### iOS via Expo Go (SS-263)
+
+Same codebase as web. On a Mac with the local API stack running:
+
+```bash
+nvm use && npm install
+cp .env.example .env   # loopback EXPO_PUBLIC_* is fine
+npx expo start         # or: npm run ios
+```
+
+Scan the QR code with the **Expo Go** app (SDK **58**). Loopback API URLs are rewritten to the Metro LAN host on device (`src/platform/api-base`). Phone and Mac must share Wi‑Fi; backends must listen on `0.0.0.0` (local-dev does).
+
+Step-by-step for first-time Expo Go use: project walkthrough `docs/ios-expo-go-walkthrough.md` (Project store). Store builds / push stay out of scope — EAS later.
 
 ## Production root hosting
 
@@ -110,12 +122,15 @@ src/
   components/shell/  # AppHeader, BottomMenu, EmptyScreen
   components/icons/  # Menu icons from legacy supersixapp SVGs
   theme/
-  platform/notifications/  # .ts + .web.ts stubs
+  platform/notifications/  # .native.ts + .web.ts stubs (no push in SS-263)
+  platform/storage/        # SecureStore native / localStorage web
+  platform/api-base/       # rewrite loopback API hosts for Expo Go LAN
+  platform/keyboard/       # KeyboardAvoidingView on native login
+  platform/static-url/     # web address-bar shim; native no-op
   api/               # client + login + superiorsix admin/roster (EXPO_PUBLIC_*)
   auth/              # AuthProvider + persisted session (+ optional auth-admin token)
   features/auth/     # LoginForm / SessionPanel / UserWidget / ProfileForm / UserTabMode
   features/admin/    # AdminWidget invite + roster (swapped into user tab)
-  platform/storage/  # SecureStore native / localStorage web
 ```
 
 
@@ -155,4 +170,4 @@ See `.env.example`.
 For a static build served behind the `:8040` proxy, you can bake same-origin paths (`/auth`, `/user`, `/superiorsix`) into the `EXPO_PUBLIC_*` vars before `npm run build:web`.
 ## Platform modules
 
-Import device features only via `src/platform/*` (e.g. `@/platform/notifications`). Screens must not import `expo-notifications` directly. Native implementation is the default file; web uses `*.web.ts`.
+Import device features only via `src/platform/*` (e.g. `@/platform/notifications`). Screens must not import `expo-notifications` directly. Implementations use `*.native.ts` / `*.web.ts` (plus a thin `*.ts` fallback for TypeScript); Metro picks the platform file at bundle time.

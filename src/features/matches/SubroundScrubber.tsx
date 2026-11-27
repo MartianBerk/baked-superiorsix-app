@@ -7,12 +7,9 @@ import {
 } from 'react-native';
 
 import type { Subround } from '@/api/superiorsix';
+import { ScrubberRow } from '@/platform/glass';
 
-import {
-  formatKickoffLabel,
-  formatScrubberDate,
-  utcDayKey,
-} from './formatMatchDate';
+import { formatKickoffDateLabels } from './formatMatchDate';
 import { ScrubberSidePreview } from './ScrubberSidePreview';
 import { ScrubberSlidingText } from './ScrubberSlidingText';
 import { scrubberChrome } from './scrubberChrome';
@@ -46,12 +43,10 @@ export function subroundSequenceLabel(subround: Subround): string {
   return `#${subround.sequence}`;
 }
 
-/** Player centre label: earliest kickoff date + time (`Sat 31 Oct 3pm`). */
+/** Player centre label: earliest kickoff date + time (`Sat 31 Oct 3pm`, local). */
 export function subroundKickoffLabel(subround: Subround): string {
   if (subround.min_kickoff) {
-    const day = formatScrubberDate(utcDayKey(subround.min_kickoff));
-    const time = formatKickoffLabel(subround.min_kickoff);
-    return `${day} ${time}`;
+    return formatKickoffDateLabels(subround.min_kickoff).full;
   }
   return subroundSequenceLabel(subround);
 }
@@ -102,10 +97,7 @@ export function SubroundScrubber({
 
   return (
     <View style={[styles.wrap, style]}>
-      <View
-        style={[scrubberChrome.row, styles.rowTight]}
-        accessibilityRole="adjustable"
-      >
+      <ScrubberRow style={styles.rowTight}>
         <ScrubberSidePreview
           label={leftLabel}
           accessibilityLabel={
@@ -159,7 +151,7 @@ export function SubroundScrubber({
             }
           }}
         />
-      </View>
+      </ScrubberRow>
       {trailing}
     </View>
   );

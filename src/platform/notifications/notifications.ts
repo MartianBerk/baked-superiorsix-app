@@ -1,17 +1,10 @@
 /**
- * Native notifications stub (iOS / Android).
- * Wire expo-notifications here in a later slice; do not import that package from screens.
+ * TypeScript resolution fallback. Metro prefers `notifications.native.ts` /
+ * `notifications.web.ts` at bundle time.
  */
-export type NotificationPermissionStatus = 'undetermined' | 'granted' | 'denied';
-
-export async function getPermissionStatus(): Promise<NotificationPermissionStatus> {
-  return 'undetermined';
-}
-
-export async function requestPermissions(): Promise<NotificationPermissionStatus> {
-  return 'undetermined';
-}
-
-export async function getPushToken(): Promise<string | null> {
-  return null;
-}
+export {
+  getPermissionStatus,
+  getPushToken,
+  requestPermissions,
+} from './notifications.native';
+export type { NotificationPermissionStatus } from './notifications.native';

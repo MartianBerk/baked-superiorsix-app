@@ -18,6 +18,7 @@ export const SCRUBBER_SIDE_WIDE = 92;
  * uses the wide hit target via `ScrubberSidePreview` density.
  */
 export const scrubberChrome = StyleSheet.create({
+  /** Solid scrubber chip fill (no Liquid Glass / selection pill). */
   row: {
     flexDirection: 'row',
     alignItems: 'center',

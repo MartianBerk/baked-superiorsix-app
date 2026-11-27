@@ -107,7 +107,7 @@ export function sideGameLabel(kind: SideGameKind): string {
 function gameUnreachable(): ApiError {
   return new ApiError(
     0,
-    'Could not reach baked-superiorsix. Is local-dev up on :8030?',
+    'Could not reach baked-superiorsix. Is the API up (local-dev :8030, or LAN IP on Expo Go)?',
   );
 }
 
